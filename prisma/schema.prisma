@@ -1,11 +1,36 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "sqlite"
+}
+
+model AnalysisTask {
+  id             String   @id @default(uuid())
+  status         String   @default("queued")
+  progress       Int      @default(0)
+  currentStep    String?
+  error          String?
+
+  fileId         String
+  fileName       String
+  fileSize       Int
+  columnMapping  String
+
+  aiProvider     String   @default("claude")
+  generateTopics Boolean  @default(true)
+
+  resultData     String?
+
+  reportPath     String?
+  excelPath      String?
+  chartPaths     String?
+
+  recordCount    Int?
+  viralCount     Int?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  completedAt    DateTime?
 }
