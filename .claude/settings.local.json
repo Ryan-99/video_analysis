@@ -19,7 +19,16 @@
       "Bash(npx prisma init:*)",
       "Bash(test:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: initialize Next.js project with shadcn/ui\n\n初始化抖音账号分析系统项目，包含以下内容：\n- Next.js 16 + TypeScript + TailwindCSS 4 项目结构\n- shadcn/ui 组件库配置\n- Prisma ORM 配置 \\(SQLite\\)\n- 项目目录结构（parser、calculator、ai-service、queue、charts、report等）\n- 基础依赖安装（xlsx、papaparse、docx、exceljs、anthropic、openai等）\nEOF\n\\)\")",
+      "Bash(git config:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(tree:*)",
+      "Bash(npm audit:*)",
+      "Bash(npm ls:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run build:*)",
+      "Bash(npm uninstall:*)"
     ]
   }
 }

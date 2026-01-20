@@ -2,6 +2,7 @@
   "name": "douyin-analysis",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -24,10 +25,10 @@
     "react-dom": "^19.2.3",
     "simple-statistics": "^7.8.8",
     "tailwind-merge": "^3.4.0",
-    "tailwindcss-animate": "^1.0.7",
-    "xlsx": "^0.18.5"
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^25.0.9",
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19.2.8",
