@@ -39,7 +39,8 @@
       "Bash(node -e:*)",
       "Bash(sqlite3:*)",
       "Bash(node:*)",
-      "Bash(npx prisma db execute:*)"
+      "Bash(npx prisma db execute:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

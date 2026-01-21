@@ -95,7 +95,7 @@ class MemoryTaskQueue {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     let count = 0;
 
-    for (const [id, task] of this.tasks) {
+    for (const [id, task] of Array.from(this.tasks.entries())) {
       if (
         task.status === 'completed' &&
         task.completedAt &&

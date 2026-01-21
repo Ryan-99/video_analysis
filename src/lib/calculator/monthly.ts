@@ -42,12 +42,12 @@ export function calculateMonthlyStats(videos: VideoWithMonth[]): Map<string, any
   }
 
   // 计算每月统计
-  const result = new Map();
-  for (const [month, monthVideos] of grouped) {
-    const engagements = monthVideos.map(v => v.totalEngagement);
+  const result = new Map<string, any>();
+  for (const [month, monthVideos] of Array.from(grouped.entries())) {
+    const engagements = monthVideos.map((v: VideoMetrics) => v.totalEngagement);
     result.set(month, {
       month,
-      avgEngagement: engagements.reduce((a, b) => a + b, 0) / engagements.length,
+      avgEngagement: engagements.reduce((a: number, b: number) => a + b, 0) / engagements.length,
       videoCount: monthVideos.length,
       p90: calculateP90(engagements),
       median: calculateMedian(engagements),
