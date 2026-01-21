@@ -27,7 +27,8 @@
     "simple-statistics": "^7.8.8",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zustand": "^5.0.10"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
