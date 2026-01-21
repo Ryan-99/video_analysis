@@ -9,13 +9,20 @@ export const maxDuration = 10;
 
 /**
  * 从指定 URL 下载文件
- * @param url - 文件的公开访问 URL
+ * @param url - 文件的公开访问 URL（可以是相对或绝对 URL）
+ * @param request - 原始请求对象，用于构建绝对 URL
  * @returns 文件的 ArrayBuffer
  */
-async function fetchFile(url: string): Promise<ArrayBuffer> {
-  const response = await fetch(url);
+async function fetchFile(url: string, request: NextRequest): Promise<ArrayBuffer> {
+  // 如果是相对路径，转换为绝对 URL
+  let absoluteUrl = url;
+  if (url.startsWith('/')) {
+    absoluteUrl = new URL(url, request.url).href;
+  }
+
+  const response = await fetch(absoluteUrl);
   if (!response.ok) {
-    throw new Error('Failed to fetch file');
+    throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
   }
   return response.arrayBuffer();
 }
@@ -42,8 +49,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 从 Vercel Blob 下载文件
-    const buffer = await fetchFile(fileUrl);
+    // 从存储下载文件
+    const buffer = await fetchFile(fileUrl, request);
 
     // 从文件名中提取原始文件名（fileId 格式为 uuid-filename.ext）
     const fileName = fileId.split('-').slice(1).join('-');
