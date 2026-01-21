@@ -2,7 +2,7 @@
 import { AIConfig } from '@/types';
 import { DynamicAIClient } from './dynamic-client';
 import { AnalysisLog } from '@/lib/logger';
-import { promptEngine } from '@/prompts';
+import { promptEngine } from '@/lib/prompts';
 
 /**
  * AI服务提供商类型（保留向后兼容）
