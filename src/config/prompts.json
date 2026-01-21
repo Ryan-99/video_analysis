@@ -1,0 +1,63 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-01-21",
+  "prompts": {
+    "account_overview": {
+      "name": "账号概况分析",
+      "template": "请只输出《一、账号概况》这一节，不要输出其他章节。\n\n输出格式要求：\n- 不要表格\n- 每条独占一行\n\n一、账号概况\n账号昵称：\n粉丝数：\n账号类型：\n内容形态：\n数据时间范围：{{data_range}}\n总视频数量：\n发布频率：\n最佳发布时间：\n核心受众人群：\n核心母题：\n变现方式：\n\n视频标题列表（前20条）：\n{{video_titles}}",
+      "variables": {
+        "video_titles": {
+          "description": "视频标题列表",
+          "required": true
+        },
+        "data_range": {
+          "description": "数据时间范围",
+          "required": false,
+          "default": "未知"
+        }
+      },
+      "outputFormat": "json"
+    },
+    "monthly_trend": {
+      "name": "月度趋势分析",
+      "template": "分析以下月度趋势数据，识别账号发展阶段（起号期/爆发期/成熟期）。\n\n月度数据：\n{{monthly_data}}\n\n爆款数据：\n{{viral_data}}",
+      "variables": {
+        "monthly_data": {
+          "description": "月度统计数据",
+          "required": true
+        },
+        "viral_data": {
+          "description": "爆款视频数据",
+          "required": true
+        }
+      },
+      "outputFormat": "text"
+    },
+    "viral_analysis": {
+      "name": "爆款视频分析",
+      "template": "分析以下爆款视频，按内容类型分组并提取规律。\n\n爆款视频：\n{{viral_videos}}",
+      "variables": {
+        "viral_videos": {
+          "description": "爆款视频列表",
+          "required": true
+        }
+      },
+      "outputFormat": "json"
+    },
+    "topic_generation": {
+      "name": "选题库生成",
+      "template": "基于账号概况和爆款分析，生成30条可直接拍摄的爆款选题。\n\n账号概况：\n{{account_overview}}\n\n爆款分类：\n{{viral_categories}}",
+      "variables": {
+        "account_overview": {
+          "description": "账号概况分析",
+          "required": true
+        },
+        "viral_categories": {
+          "description": "爆款分类结果",
+          "required": true
+        }
+      },
+      "outputFormat": "json"
+    }
+  }
+}
