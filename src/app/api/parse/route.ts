@@ -18,26 +18,27 @@ export async function POST(request: NextRequest) {
     const { fileId, fileUrl } = await request.json();
 
     // 验证文件ID
-    if (!fileId) {
+    if (!fileId || !fileUrl) {
       return NextResponse.json(
         {
           success: false,
           error: {
             code: 'NO_FILE_ID',
-            message: '缺少文件ID'
+            message: '缺少文件ID或文件URL'
           }
         },
         { status: 400 }
       );
     }
 
-    // 从文件名中提取原始文件名（fileId 格式为 uuid-filename.ext）
-    const fileName = fileId.split('-').slice(1).join('-');
-    const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+    // 从 fileUrl 提取完整文件名（格式：/uploads/uuid-filename.ext）
+    const urlPath = new URL(fileUrl, 'http://localhost').pathname;
+    const fullFileName = urlPath.split('/').pop() || '';
+    const isExcel = fullFileName.endsWith('.xlsx') || fullFileName.endsWith('.xls');
 
     // 构建本地文件路径（本地开发环境）
     const uploadsDir = join(process.cwd(), 'public', 'uploads');
-    const filePath = join(uploadsDir, `${fileId}-${fileName}`);
+    const filePath = join(uploadsDir, fullFileName);
 
     // 读取文件内容
     const buffer = await readFile(filePath);
