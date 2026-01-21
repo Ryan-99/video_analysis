@@ -28,7 +28,18 @@
       "Bash(npm ls:*)",
       "Bash(npm run lint)",
       "Bash(npm run build:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(git commit:*)",
+      "Bash(npx next build:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(findstr:*)",
+      "Bash(npx prisma db push:*)",
+      "Bash(ls:*)",
+      "Bash(git show:*)",
+      "Bash(node -e:*)",
+      "Bash(sqlite3:*)",
+      "Bash(node:*)",
+      "Bash(npx prisma db execute:*)"
     ]
   }
 }
