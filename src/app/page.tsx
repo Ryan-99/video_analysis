@@ -8,6 +8,7 @@ import { ColumnMapping } from '@/types';
 
 export default function HomePage() {
   const [fileId, setFileId] = useState<string | null>(null);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [columnMapping, setColumnMapping] = useState<ColumnMapping>({
     title: '',
     likes: '',
@@ -21,8 +22,9 @@ export default function HomePage() {
   /**
    * 处理文件上传成功
    */
-  const handleFileUploaded = (id: string) => {
+  const handleFileUploaded = (id: string, url: string) => {
     setFileId(id);
+    setFileUrl(url);
   };
 
   /**
@@ -63,6 +65,7 @@ export default function HomePage() {
         ) : (
           <ColumnMapper
             fileId={fileId}
+            fileUrl={fileUrl!}
             initialMapping={columnMapping}
             onConfirm={handleColumnConfirm}
           />

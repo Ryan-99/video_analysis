@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Upload } from 'lucide-react';
 
 interface FileUploaderProps {
-  onFileUploaded: (fileId: string) => void;
+  onFileUploaded: (fileId: string, fileUrl: string) => void;
 }
 
 /**
@@ -46,8 +46,8 @@ export function FileUploader({ onFileUploaded }: FileUploaderProps) {
         throw new Error(result.error.message);
       }
 
-      // 通知父组件上传成功
-      onFileUploaded(result.data.fileId);
+      // 通知父组件上传成功（传递 fileId 和 fileUrl）
+      onFileUploaded(result.data.fileId, result.data.url);
     } catch (err) {
       setError(err instanceof Error ? err.message : '上传失败');
     } finally {

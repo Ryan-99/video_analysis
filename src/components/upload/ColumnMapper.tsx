@@ -10,6 +10,7 @@ import { ColumnMapping } from '@/types';
 
 interface ColumnMapperProps {
   fileId: string;
+  fileUrl: string;
   initialMapping: ColumnMapping;
   onConfirm: (mapping: ColumnMapping) => void;
 }
@@ -20,6 +21,7 @@ interface ColumnMapperProps {
  */
 export function ColumnMapper({
   fileId,
+  fileUrl,
   initialMapping,
   onConfirm
 }: ColumnMapperProps) {
@@ -38,7 +40,7 @@ export function ColumnMapper({
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ fileId }),
+          body: JSON.stringify({ fileId, fileUrl }),
         });
 
         const result = await response.json();
@@ -56,7 +58,7 @@ export function ColumnMapper({
     }
 
     loadPreview();
-  }, [fileId]);
+  }, [fileId, fileUrl]);
 
   // 加载中状态
   if (loading) {
