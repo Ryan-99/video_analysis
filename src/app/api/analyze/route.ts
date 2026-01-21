@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { taskQueue } from '@/lib/queue/memory';
 import { executeAnalysis } from '@/lib/analyzer/pipeline';
+import { validateColumnMapping } from '@/lib/parser';
 
 export const runtime = 'nodejs';
 
@@ -10,17 +11,75 @@ export const runtime = 'nodejs';
  */
 export async function POST(request: NextRequest) {
   try {
-    const { fileId, columnMapping } = await request.json();
+    const { fileId, fileUrl, columnMapping } = await request.json();
 
     // 验证必要参数
-    if (!fileId || !columnMapping) {
+    if (!fileId) {
       return NextResponse.json(
         {
           success: false,
           error: {
             code: 'INVALID_REQUEST',
-            message: '缺少必要参数',
+            message: '缺少文件ID',
           },
+        },
+        { status: 400 }
+      );
+    }
+
+    // 如果没有提供列映射，则自动检测
+    let finalMapping = columnMapping;
+    if (!finalMapping) {
+      // 如果没有提供 fileUrl，返回错误
+      if (!fileUrl) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: 'INVALID_REQUEST',
+              message: '缺少文件URL',
+            },
+          },
+          { status: 400 }
+        );
+      }
+
+      // 调用 parse API 获取列信息
+      const parseResponse = await fetch(new URL('/api/parse', request.url), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId, fileUrl }),
+      });
+      const parseResult = await parseResponse.json();
+
+      if (parseResult.success) {
+        finalMapping = parseResult.data.columnMapping;
+      } else {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: 'PARSE_FAILED',
+              message: '文件解析失败',
+              details: parseResult.error,
+            },
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // 验证映射完整性
+    const validation = validateColumnMapping(finalMapping);
+    if (!validation.valid) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'INCOMPLETE_MAPPING',
+            message: '字段映射不完整',
+            missing: validation.missing,
+          }
         },
         { status: 400 }
       );
@@ -31,7 +90,7 @@ export async function POST(request: NextRequest) {
       fileId,
       'data.xlsx', // TODO: 从文件系统获取真实文件名
       0, // TODO: 从文件系统获取真实文件大小
-      JSON.stringify(columnMapping)
+      JSON.stringify(finalMapping)
     );
 
     // 异步执行分析
