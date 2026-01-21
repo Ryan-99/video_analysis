@@ -29,8 +29,9 @@ const PHASE_ICONS: Record<string, string> = {
 /**
  * 状态颜色映射
  */
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<string, string> = {
   start: 'text-gray-600',
+  progress: 'text-blue-600',
   success: 'text-green-600',
   error: 'text-red-600',
 };
@@ -38,8 +39,9 @@ const STATUS_COLORS = {
 /**
  * 状态图标映射
  */
-const STATUS_ICONS = {
+const STATUS_ICONS: Record<string, string> = {
   start: '○',
+  progress: '◐',
   success: '✓',
   error: '✗',
 };

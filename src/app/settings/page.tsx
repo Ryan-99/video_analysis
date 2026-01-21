@@ -14,10 +14,18 @@ export default function SettingsPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // 新增配置表单状态
-  const [newConfig, setNewConfig] = useState({
+  const [newConfig, setNewConfig] = useState<{
+    id: string;
+    name: string;
+    provider: 'claude' | 'openai' | 'custom';
+    baseUrl: string;
+    apiKey: string;
+    model: string;
+    maxTokens: number;
+  }>({
     id: '',
     name: '',
-    provider: 'custom' as const,
+    provider: 'custom',
     baseUrl: '',
     apiKey: '',
     model: '',
@@ -295,7 +303,7 @@ export default function SettingsPage() {
                       onChange={(e) =>
                         setNewConfig({
                           ...newConfig,
-                          provider: e.target.value as AIConfig['provider'],
+                          provider: e.target.value as 'claude' | 'openai' | 'custom',
                         })
                       }
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"

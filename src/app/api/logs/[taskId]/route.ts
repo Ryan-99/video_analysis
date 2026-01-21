@@ -50,7 +50,7 @@ export async function DELETE(
     const { taskId } = await params;
 
     // 清除日志
-    analysisLogger.cleanup(taskId);
+    analysisLogger.clear(taskId);
 
     return NextResponse.json({
       success: true,

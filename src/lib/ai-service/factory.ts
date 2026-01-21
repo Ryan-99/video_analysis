@@ -1,7 +1,6 @@
 // src/lib/ai-service/factory.ts
-import { AIConfig } from '@/types';
+import { AIConfig, AnalysisLog } from '@/types';
 import { DynamicAIClient } from './dynamic-client';
-import { AnalysisLog } from '@/lib/logger';
 import { promptEngine } from '@/lib/prompts';
 
 /**

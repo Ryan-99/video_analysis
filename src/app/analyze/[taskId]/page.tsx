@@ -109,14 +109,27 @@ export default function AnalyzePage({ params }: { params: { taskId: string } }) 
           <ProgressBar
             task={{
               id: params.taskId,
-              status: isCompleted ? 'completed' : 'processing',
+              status: isCompleted ? ('completed' as const) : ('analyzing' as const),
               progress: Math.round(
                 (summary?.completedSteps || 0) / Math.max((summary?.totalSteps || 1), 1) * 100
               ),
               currentStep: logs[logs.length - 1]?.step || '初始化中',
               error: null,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
+              fileId: '',
+              fileName: '',
+              fileSize: 0,
+              columnMapping: '{}',
+              aiProvider: 'claude',
+              generateTopics: true,
+              resultData: null,
+              reportPath: null,
+              excelPath: null,
+              chartPaths: null,
+              recordCount: null,
+              viralCount: null,
+              completedAt: isCompleted ? new Date() : null,
+              createdAt: new Date(),
+              updatedAt: new Date(),
             }}
           />
         </div>

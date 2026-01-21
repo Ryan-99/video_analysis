@@ -32,5 +32,5 @@ export async function generateExcelReport(report: Report): Promise<Buffer> {
   }
 
   const buffer = await workbook.xlsx.writeBuffer();
-  return buffer as Buffer;
+  return Buffer.from(buffer);
 }

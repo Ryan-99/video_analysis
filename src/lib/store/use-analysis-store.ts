@@ -100,39 +100,31 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
 
     if (logs.length === 0) return null;
 
-    const totalSteps = logs.length;
-    const completedSteps = logs.filter(
-      (log) => log.status === 'success'
-    ).length;
-    const failedSteps = logs.filter(
-      (log) => log.status === 'error'
-    ).length;
     const totalDuration = logs.reduce((sum, log) => sum + (log.duration || 0), 0);
 
-    // 按阶段统计
-    const phaseCounts = logs.reduce<Record<string, number>>(
+    // 按阶段统计时长
+    const phaseDurations = logs.reduce<Record<string, number>>(
       (acc, log) => {
-        acc[log.phase] = (acc[log.phase] || 0) + 1;
+        if (log.duration) {
+          acc[log.phase] = (acc[log.phase] || 0) + log.duration;
+        }
         return acc;
       },
       {}
     );
 
+    // 统计AI调用次数
+    const aiCalls = logs.filter((log) => log.phase === 'ai').length;
+
     // 错误列表
     const errors = logs
       .filter((log) => log.status === 'error')
-      .map((log) => ({
-        step: log.step,
-        error: log.error || '未知错误',
-        timestamp: log.timestamp,
-      }));
+      .map((log) => log.error || '未知错误');
 
     return {
-      totalSteps,
-      completedSteps,
-      failedSteps,
       totalDuration,
-      phaseCounts,
+      phaseDurations,
+      aiCalls,
       errors,
     };
   },

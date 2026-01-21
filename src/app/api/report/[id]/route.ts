@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { taskQueue } from '@/lib/queue/memory';
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const task = taskQueue.get(params.id);
+    const { id } = await params;
+    const task = taskQueue.get(id);
     if (!task || task.status !== 'completed') {
       return NextResponse.json({ success: false, error: { code: 'REPORT_NOT_FOUND', message: '报告不存在' } }, { status: 404 });
     }

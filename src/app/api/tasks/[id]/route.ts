@@ -7,10 +7,11 @@ import { taskQueue } from '@/lib/queue/memory';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const task = taskQueue.get(params.id);
+    const { id } = await params;
+    const task = taskQueue.get(id);
 
     if (!task) {
       return NextResponse.json(
