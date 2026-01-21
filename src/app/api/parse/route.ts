@@ -2,30 +2,12 @@
 // 文件解析 API 路由
 import { NextRequest, NextResponse } from 'next/server';
 import { parseExcel, parseCSV, detectColumns } from '@/lib/parser';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
 
-// 配置运行时为 Edge
-export const runtime = 'edge';
+// 配置运行时为 Node.js（需要文件系统访问）
+export const runtime = 'nodejs';
 export const maxDuration = 10;
-
-/**
- * 从指定 URL 下载文件
- * @param url - 文件的公开访问 URL（可以是相对或绝对 URL）
- * @param request - 原始请求对象，用于构建绝对 URL
- * @returns 文件的 ArrayBuffer
- */
-async function fetchFile(url: string, request: NextRequest): Promise<ArrayBuffer> {
-  // 如果是相对路径，转换为绝对 URL
-  let absoluteUrl = url;
-  if (url.startsWith('/')) {
-    absoluteUrl = new URL(url, request.url).href;
-  }
-
-  const response = await fetch(absoluteUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
-  }
-  return response.arrayBuffer();
-}
 
 /**
  * POST /api/parse
@@ -35,35 +17,38 @@ export async function POST(request: NextRequest) {
   try {
     const { fileId, fileUrl } = await request.json();
 
-    // 验证文件ID和URL
-    if (!fileId || !fileUrl) {
+    // 验证文件ID
+    if (!fileId) {
       return NextResponse.json(
         {
           success: false,
           error: {
             code: 'NO_FILE_ID',
-            message: '缺少文件ID或文件URL'
+            message: '缺少文件ID'
           }
         },
         { status: 400 }
       );
     }
 
-    // 从存储下载文件
-    const buffer = await fetchFile(fileUrl, request);
-
     // 从文件名中提取原始文件名（fileId 格式为 uuid-filename.ext）
     const fileName = fileId.split('-').slice(1).join('-');
     const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+
+    // 构建本地文件路径（本地开发环境）
+    const uploadsDir = join(process.cwd(), 'public', 'uploads');
+    const filePath = join(uploadsDir, `${fileId}-${fileName}`);
+
+    // 读取文件内容
+    const buffer = await readFile(filePath);
 
     let parsedData;
     if (isExcel) {
       // 解析 Excel 文件
       parsedData = await parseExcel(buffer);
     } else {
-      // 解析 CSV 文件（需要创建 File 对象）
-      const file = new File([buffer], fileName, { type: 'text/csv' });
-      parsedData = await parseCSV(file);
+      // 解析 CSV 文件
+      parsedData = await parseCSV(buffer);
     }
 
     // 自动检测列映射
