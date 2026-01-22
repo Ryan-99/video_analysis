@@ -13,12 +13,23 @@ export interface ParsedData {
 
 /**
  * 解析 Excel 文件
- * @param buffer - Excel 文件的 ArrayBuffer
+ * @param buffer - Excel 文件的 Buffer 或 ArrayBuffer
  * @returns 解析后的数据，包含总行数、预览数据和表头
  */
-export async function parseExcel(buffer: ArrayBuffer): Promise<ParsedData> {
+export async function parseExcel(buffer: Buffer | ArrayBuffer): Promise<ParsedData> {
+  // 将 Buffer 转换为 ArrayBuffer（如果是 Buffer）
+  let arrayBuffer: ArrayBuffer;
+  if (Buffer.isBuffer(buffer)) {
+    arrayBuffer = buffer.buffer.slice(
+      buffer.byteOffset,
+      buffer.byteOffset + buffer.byteLength
+    );
+  } else {
+    arrayBuffer = buffer;
+  }
+
   // 读取工作簿
-  const workbook = XLSX.read(buffer, { type: 'array' });
+  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
 
   // 获取第一个工作表
   const sheetName = workbook.SheetNames[0];

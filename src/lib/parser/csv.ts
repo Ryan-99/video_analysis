@@ -14,7 +14,7 @@ export interface ParsedData {
 
 /**
  * 解析 CSV 文件
- * @param input - File 对象（浏览器）或 ArrayBuffer/Buffer（Node.js）
+ * @param input - File 对象（浏览器）或 Buffer/ArrayBuffer（Node.js）
  * @returns 解析后的数据，包含总行数、预览数据和表头
  */
 export async function parseCSV(input: File | Buffer | ArrayBuffer): Promise<ParsedData> {

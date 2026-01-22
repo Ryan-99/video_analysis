@@ -33,7 +33,15 @@ export async function POST(request: NextRequest) {
 
     // 从 fileUrl 提取完整文件名（格式：/uploads/uuid-filename.ext）
     const urlPath = new URL(fileUrl, 'http://localhost').pathname;
-    const fullFileName = urlPath.split('/').pop() || '';
+    let fullFileName = urlPath.split('/').pop() || '';
+
+    // URL 解码文件名（处理中文文件名）
+    try {
+      fullFileName = decodeURIComponent(fullFileName);
+    } catch {
+      // 如果解码失败，保持原样
+    }
+
     const isExcel = fullFileName.endsWith('.xlsx') || fullFileName.endsWith('.xls');
 
     // 构建本地文件路径（本地开发环境）
