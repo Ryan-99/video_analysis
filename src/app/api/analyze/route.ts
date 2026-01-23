@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { taskQueue } from '@/lib/queue/database';
-import { executeAnalysis } from '@/lib/analyzer/pipeline';
 import { validateColumnMapping } from '@/lib/parser';
 
 // 配置运行时为 Node.js
@@ -189,32 +188,11 @@ export async function POST(request: NextRequest) {
     const verifyTask = await taskQueue.get(task.id);
     console.log('[Analyze API] 验证获取任务:', verifyTask ? '成功' : '失败');
 
-    // 异步执行分析（不阻塞响应）
-    console.log('[Analyze API] ========== 准备启动 executeAnalysis ==========');
-    console.log('[Analyze API] 任务 ID:', task.id);
-    console.log('[Analyze API] 即将调用 executeAnalysis...');
-
-    executeAnalysis(task.id)
-      .then(() => {
-        console.log('[Analyze API] ========== executeAnalysis 完成 ==========');
-      })
-      .catch(async (error) => {
-        console.error('[Analyze API] ========== executeAnalysis 失败 ==========');
-        console.error('[Analyze API] 分析执行失败:', error);
-        // 确保错误信息是字符串
-        const errorMessage = error instanceof Error
-          ? error.message
-          : typeof error === 'string'
-            ? error
-            : '未知错误';
-        await taskQueue.update(task.id, {
-          status: 'failed',
-          error: errorMessage,
-        });
-      });
-
-    console.log('[Analyze API] executeAnalysis 已启动（异步）');
-    console.log('[Analyze API] 即将返回 HTTP 响应...');
+    // 注意：不在这里直接调用 executeAnalysis
+    // 因为 Vercel Serverless 在 HTTP 响应后会冻结执行环境
+    // 需要通过 /api/jobs/process 端点来处理队列中的任务
+    console.log('[Analyze API] 任务已创建，等待后台处理');
+    console.log('[Analyze API] 请通过 /api/jobs/process 触发任务执行');
 
     return NextResponse.json({
       success: true,

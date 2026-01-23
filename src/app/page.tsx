@@ -102,6 +102,27 @@ export default function HomePage() {
       const result = await response.json();
 
       if (result.success) {
+        // 创建任务成功，立即触发后台处理
+        console.log('[HomePage] 任务已创建，ID:', result.data.taskId);
+        console.log('[HomePage] 即将调用后台处理接口...');
+
+        // 调用 /api/jobs/process 来触发后台任务执行
+        try {
+          const processResponse = await fetch('/api/jobs/process', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          const processResult = await processResponse.json();
+          console.log('[HomePage] 后台处理响应:', processResult);
+        } catch (processError) {
+          console.error('[HomePage] 调用后台处理失败:', processError);
+          // 不阻塞用户跳转，即使后台处理失败也可以继续
+        }
+
+        // 跳转到分析页面
         router.push(`/analyze/${result.data.taskId}`);
       } else {
         console.error('分析启动失败:', result.error);
