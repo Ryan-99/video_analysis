@@ -104,7 +104,6 @@ export async function executeAnalysis(taskId: string): Promise<void> {
 
     // 步骤3: AI分析 - 账号概况
     await logStep('ai', '开始AI分析 - 账号概况', 'start', {
-      message: `分析 ${videos.length} 条视频的账号概况...`,
     });
     taskQueue.update(taskId, {
       status: 'analyzing',
@@ -115,7 +114,6 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     const accountStartTime = Date.now();
     const accountAnalysis = await aiAnalysisService.analyzeAccountOverview(videos, task.aiConfig);
     await logStep('ai', '账号概况分析完成', 'success', {
-      message: `账号名称：${accountAnalysis.name} | 类型：${accountAnalysis.type} | 核心主题：${accountAnalysis.coreTopic}`,
       details: {
         账号名称: accountAnalysis.name,
         账号类型: accountAnalysis.type,
@@ -127,7 +125,6 @@ export async function executeAnalysis(taskId: string): Promise<void> {
 
     // 步骤4: AI分析 - 月度趋势和阶段划分
     await logStep('ai', '开始AI分析 - 月度趋势', 'start', {
-      message: `分析 ${monthlyData.length} 个月的数据趋势...`,
     });
     taskQueue.update(taskId, {
       currentStep: '正在分析月度趋势...',
@@ -142,7 +139,6 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     );
     const stagesInfo = monthlyTrendAnalysis.stages?.map(s => s.type).join('、') || '无';
     await logStep('ai', '月度趋势分析完成', 'success', {
-      message: `发现 ${monthlyTrendAnalysis.stages?.length || 0} 个发展阶段：${stagesInfo}`,
       details: {
         趋势总结: monthlyTrendAnalysis.summary,
         发展阶段: monthlyTrendAnalysis.stages?.length || 0,
@@ -152,7 +148,6 @@ export async function executeAnalysis(taskId: string): Promise<void> {
 
     // 步骤5: AI分析 - 爆款视频分类
     await logStep('ai', '开始AI分析 - 爆款分类', 'start', {
-      message: `分析 ${virals.length} 条爆款视频（阈值：${Math.round(threshold).toLocaleString()}）...`,
     });
     taskQueue.update(taskId, {
       currentStep: '正在分析爆款视频...',
@@ -167,7 +162,6 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     );
     const categories = viralAnalysis.byCategory?.map(c => c.category).join('、') || '无';
     await logStep('ai', '爆款分析完成', 'success', {
-      message: `识别出 ${viralAnalysis.byCategory?.length || 0} 类爆款内容：${categories}`,
       details: {
         爆款总结: viralAnalysis.summary,
         爆款总数: virals.length,
@@ -180,7 +174,6 @@ export async function executeAnalysis(taskId: string): Promise<void> {
 
     // 步骤6: AI分析 - 生成选题库
     await logStep('ai', '开始AI分析 - 选题库生成', 'start', {
-      message: '基于账号概况和爆款分析，生成30条爆款选题库...',
     });
     taskQueue.update(taskId, {
       currentStep: '正在生成选题库...',
@@ -195,7 +188,6 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     );
     const topicCategories = topics.map(t => t.category).slice(0, 6).join('、');
     await logStep('ai', '选题库生成完成', 'success', {
-      message: `生成 ${topics.length} 条爆款选题（6大类）：${topicCategories}${topics.length > 6 ? '...' : ''}`,
       details: {
         选题总数: topics.length,
         选题分类: topics.map(t => `${t.category}(${t.id})`).join('、'),
