@@ -2,10 +2,8 @@
 // 文件解析 API 路由
 import { NextRequest, NextResponse } from 'next/server';
 import { parseExcel, parseCSV, detectColumns } from '@/lib/parser';
-import { readFile } from 'fs/promises';
-import { join } from 'path';
 
-// 配置运行时为 Node.js（需要文件系统访问）
+// 配置运行时为 Node.js
 export const runtime = 'nodejs';
 export const maxDuration = 10;
 
@@ -31,7 +29,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 从 fileUrl 提取完整文件名（格式：/uploads/uuid-filename.ext）
+    // 从 fileUrl 提取完整文件名（格式：uuid-filename.ext）
     const urlPath = new URL(fileUrl, 'http://localhost').pathname;
     let fullFileName = urlPath.split('/').pop() || '';
 
@@ -44,21 +42,51 @@ export async function POST(request: NextRequest) {
 
     const isExcel = fullFileName.endsWith('.xlsx') || fullFileName.endsWith('.xls');
 
-    // 构建本地文件路径（本地开发环境）
-    const uploadsDir = join(process.cwd(), 'public', 'uploads');
-    const filePath = join(uploadsDir, fullFileName);
+    // 获取文件内容
+    let arrayBuffer: ArrayBuffer;
 
-    // 读取文件内容
-    const buffer = await readFile(filePath);
+    // 如果 fileUrl 是 HTTP(S) URL，从 Vercel Blob 获取
+    if (fileUrl.startsWith('http')) {
+      console.log('[Parse API] 从 Vercel Blob 获取文件:', fileUrl);
+      const response = await fetch(fileUrl);
+      if (!response.ok) {
+        throw new Error(`获取文件失败: ${response.status} ${response.statusText}`);
+      }
+      arrayBuffer = await response.arrayBuffer();
+    } else {
+      // 本地开发环境：从文件系统读取
+      console.log('[Parse API] 从本地文件系统获取文件');
+      const { readFile } = await import('fs/promises');
+      const { join } = await import('path');
+
+      const uploadsDir = join(process.cwd(), 'public', 'uploads');
+      const filePath = join(uploadsDir, fullFileName);
+
+      const buffer = await readFile(filePath);
+
+      // 将 Buffer 转换为 ArrayBuffer
+      if (Buffer.isBuffer(buffer)) {
+        arrayBuffer = buffer.buffer.slice(
+          buffer.byteOffset,
+          buffer.byteOffset + buffer.byteLength
+        );
+      } else {
+        arrayBuffer = buffer;
+      }
+    }
+
+    console.log('[Parse API] 文件大小:', arrayBuffer.byteLength, '文件类型:', isExcel ? 'Excel' : 'CSV');
 
     let parsedData;
     if (isExcel) {
       // 解析 Excel 文件
-      parsedData = await parseExcel(buffer);
+      parsedData = await parseExcel(arrayBuffer);
     } else {
       // 解析 CSV 文件
-      parsedData = await parseCSV(buffer);
+      parsedData = await parseCSV(arrayBuffer);
     }
+
+    console.log('[Parse API] 解析成功，总行数:', parsedData.totalRows, '表头:', parsedData.headers);
 
     // 自动检测列映射
     const detectedColumns = detectColumns(parsedData.headers);
@@ -95,7 +123,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Parse error:', error);
+    console.error('[Parse API] 解析失败:', error);
     return NextResponse.json(
       {
         success: false,
