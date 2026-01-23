@@ -61,7 +61,7 @@ export async function parseCSV(input: File | Buffer | ArrayBuffer): Promise<Pars
           headers: results.meta.fields || [],
         });
       },
-      error: (error) => {
+      error: (error: Error) => {
         reject(error);
       },
     });
