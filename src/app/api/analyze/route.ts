@@ -190,19 +190,31 @@ export async function POST(request: NextRequest) {
     console.log('[Analyze API] 验证获取任务:', verifyTask ? '成功' : '失败');
 
     // 异步执行分析（不阻塞响应）
-    executeAnalysis(task.id).catch(async (error) => {
-      console.error('[Analyze API] 分析执行失败:', error);
-      // 确保错误信息是字符串
-      const errorMessage = error instanceof Error
-        ? error.message
-        : typeof error === 'string'
-          ? error
-          : '未知错误';
-      await taskQueue.update(task.id, {
-        status: 'failed',
-        error: errorMessage,
+    console.log('[Analyze API] ========== 准备启动 executeAnalysis ==========');
+    console.log('[Analyze API] 任务 ID:', task.id);
+    console.log('[Analyze API] 即将调用 executeAnalysis...');
+
+    executeAnalysis(task.id)
+      .then(() => {
+        console.log('[Analyze API] ========== executeAnalysis 完成 ==========');
+      })
+      .catch(async (error) => {
+        console.error('[Analyze API] ========== executeAnalysis 失败 ==========');
+        console.error('[Analyze API] 分析执行失败:', error);
+        // 确保错误信息是字符串
+        const errorMessage = error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : '未知错误';
+        await taskQueue.update(task.id, {
+          status: 'failed',
+          error: errorMessage,
+        });
       });
-    });
+
+    console.log('[Analyze API] executeAnalysis 已启动（异步）');
+    console.log('[Analyze API] 即将返回 HTTP 响应...');
 
     return NextResponse.json({
       success: true,

@@ -29,10 +29,21 @@ async function callAIWithConfig(
  * @param taskId 任务ID
  */
 export async function executeAnalysis(taskId: string): Promise<void> {
+  console.log('[executeAnalysis] ========== 函数被调用 ==========');
+  console.log('[executeAnalysis] 任务 ID:', taskId);
+
   const task = await taskQueue.get(taskId);
   if (!task) {
+    console.error('[executeAnalysis] 任务不存在:', taskId);
     throw new Error('任务不存在');
   }
+
+  console.log('[executeAnalysis] 任务信息:');
+  console.log('[executeAnalysis]   - fileId:', task.fileId);
+  console.log('[executeAnalysis]   - fileName:', task.fileName);
+  console.log('[executeAnalysis]   - fileUrl:', task.fileUrl);
+  console.log('[executeAnalysis]   - columnMapping:', task.columnMapping);
+  console.log('[executeAnalysis] 准备开始分析...');
 
   /**
    * 辅助函数：记录日志
