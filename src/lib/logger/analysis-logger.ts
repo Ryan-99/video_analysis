@@ -40,15 +40,27 @@ export class AnalysisLogger {
         orderBy: { timestamp: 'asc' },
       });
 
-      return logs.map(log => ({
-        timestamp: log.timestamp.toISOString(),
-        level: log.level as 'info' | 'error' | 'warn',
-        phase: log.phase as any,
-        step: log.step,
-        status: log.status as any,
-        ...(log.details ? { details: JSON.parse(log.details) } : {}),
-        ...(log.duration ? { duration: log.duration } : {}),
-      }));
+      return logs.map(log => {
+        const baseLog: AnalysisLog = {
+          timestamp: log.timestamp.toISOString(),
+          level: log.level as 'info' | 'error' | 'warn',
+          phase: log.phase as any,
+          step: log.step,
+          status: log.status as any,
+        };
+
+        // 解析 details JSON 字符串
+        if (log.details) {
+          try {
+            const parsedDetails = JSON.parse(log.details);
+            return { ...baseLog, ...parsedDetails };
+          } catch {
+            return baseLog;
+          }
+        }
+
+        return baseLog;
+      });
     } catch (error) {
       console.error('[AnalysisLogger] 获取日志失败:', error);
       return [];

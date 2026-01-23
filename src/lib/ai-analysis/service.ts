@@ -109,7 +109,7 @@ export class AIAnalysisService {
       video_titles: titles,
     });
 
-    const result = await this.callAI(prompt, aiConfig, 120000); // 2分钟
+    const result = await this.callAI(prompt, aiConfig, 180000, 8000); // 3分钟，8000 tokens
     return JSON.parse(cleanAIResponse(result)) as AccountAnalysis;
   }
 
@@ -136,7 +136,7 @@ export class AIAnalysisService {
       viral_data: viralText,
     });
 
-    const result = await this.callAI(prompt, aiConfig, 120000); // 2分钟
+    const result = await this.callAI(prompt, aiConfig, 180000, 8000); // 3分钟，8000 tokens
     return JSON.parse(cleanAIResponse(result));
   }
 
@@ -162,7 +162,7 @@ export class AIAnalysisService {
       threshold: Math.round(threshold).toString(),
     });
 
-    const result = await this.callAI(prompt, aiConfig, 120000); // 2分钟
+    const result = await this.callAI(prompt, aiConfig, 300000, 12000); // 5分钟，12000 tokens
     return JSON.parse(cleanAIResponse(result));
   }
 

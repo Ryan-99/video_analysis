@@ -13,13 +13,6 @@ export async function GET(
     const { id } = await params;
     const task = await taskQueue.get(id);
 
-    // 调试日志
-    console.log(`[Tasks API] 查询任务 ${id}, 结果:`, task ? '找到' : '未找到');
-    if (!task) {
-      const allTasks = await taskQueue.getAll();
-      console.log(`[Tasks API] 当前队列中有 ${allTasks.length} 个任务:`, allTasks.map(t => t.id));
-    }
-
     if (!task) {
       return NextResponse.json(
         {
@@ -38,7 +31,7 @@ export async function GET(
       data: task,
     });
   } catch (error) {
-    console.error('查询任务错误:', error);
+    console.error('[Tasks API] 查询任务错误:', error);
     return NextResponse.json(
       {
         success: false,
