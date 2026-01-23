@@ -276,16 +276,19 @@ async function parseData(
 ): Promise<VideoData[]> {
   const columnMapping = JSON.parse(columnMappingStr);
 
-  console.log('[parseData] 开始解析文件');
+  console.log('[parseData] ========== 开始解析数据 ==========');
   console.log('[parseData] 文件ID:', fileId);
   console.log('[parseData] 文件名:', fileName);
-  console.log('[parseData] 文件URL:', fileUrl || '本地文件系统');
+  console.log('[parseData] fileUrl 类型:', typeof fileUrl);
+  console.log('[parseData] fileUrl 值:', fileUrl);
+  console.log('[parseData] fileUrl 是否为 null:', fileUrl === null);
+  console.log('[parseData] fileUrl 是否以 http 开头:', fileUrl?.startsWith('http'));
 
   let arrayBuffer: ArrayBuffer;
 
   // 优先使用 Vercel Blob URL（生产环境）
   if (fileUrl && fileUrl.startsWith('http')) {
-    console.log('[parseData] 从 Vercel Blob 获取文件');
+    console.log('[parseData] 分支: 从 Vercel Blob 获取文件');
     try {
       const response = await fetch(fileUrl);
       if (!response.ok) {
@@ -300,7 +303,13 @@ async function parseData(
     }
   } else {
     // 本地开发：从文件系统读取（兼容本地开发）
-    console.log('[parseData] 从本地文件系统获取文件');
+    console.log('[parseData] 分支: 从本地文件系统获取文件');
+    console.log('[parseData] 警告: 生产环境不应该走这个分支!');
+    console.log('[parseData] fileUrl 为空的原因可能是:');
+    console.log('[parseData]   1. 上传时没有正确保存 fileUrl');
+    console.log('[parseData]   2. 数据库中 fileUrl 字段为 null');
+    console.log('[parseData]   3. 任务创建时 fileUrl 参数未传递');
+
     const { readFile } = await import('fs/promises');
     const { join } = await import('path');
 
