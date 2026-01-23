@@ -2,7 +2,7 @@
 // 分析流程 - 带完整日志记录
 import { taskQueue } from '@/lib/queue/memory';
 import { analysisLogger } from '@/lib/logger';
-import { VideoData, AccountAnalysis } from '@/types';
+import { VideoData, AccountAnalysis, AnalysisLog } from '@/types';
 import {
   calculateAllMetrics,
   groupByMonth,
@@ -47,10 +47,10 @@ export async function executeAnalysis(taskId: string): Promise<void> {
       error?: string;
     }
   ) => {
-    const log = {
+    const log: AnalysisLog = {
       timestamp: new Date().toISOString(),
       level: status === 'error' ? 'error' : 'info',
-      phase,
+      phase: phase as any,
       step,
       status,
       ...details,
