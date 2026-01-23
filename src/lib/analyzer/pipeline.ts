@@ -29,7 +29,7 @@ async function callAIWithConfig(
  * @param taskId 任务ID
  */
 export async function executeAnalysis(taskId: string): Promise<void> {
-  const task = taskQueue.get(taskId);
+  const task = await taskQueue.get(taskId);
   if (!task) {
     throw new Error('任务不存在');
   }
