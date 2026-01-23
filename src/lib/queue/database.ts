@@ -108,8 +108,7 @@ class DatabaseTaskQueue {
     const result = await prisma.analysisTask.deleteMany({
       where: {
         status: 'completed',
-        completedAt: { not: null },
-        completedAt: { lt: sevenDaysAgo },
+        completedAt: { not: null, lt: sevenDaysAgo },
       },
     });
 
