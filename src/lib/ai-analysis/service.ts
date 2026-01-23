@@ -376,7 +376,8 @@ export class AIAnalysisService {
       throw new Error('API密钥未配置，请在设置中配置API密钥');
     }
 
-    console.log(`[AI Analysis] 调用AI服务: ${providerConfig.model}, 超时: ${timeout/1000}秒`);
+    console.log(`[AI] 调用AI: ${providerConfig.model}, 超时: ${timeout/1000}秒`);
+    console.log(`[AI] Prompt (前200字符): ${prompt.substring(0, 200)}...`);
 
     // 构建请求
     let url = providerConfig.apiUrl;
@@ -405,7 +406,9 @@ export class AIAnalysisService {
       }
 
       const data = await response.json();
-      return data.content?.[0]?.text || '';
+      const result = data.content?.[0]?.text || '';
+      console.log(`[AI] Response (前500字符): ${result.substring(0, 500)}...`);
+      return result;
     } else {
       // OpenAI格式
       if (!url.includes('/chat/completions')) {
@@ -433,7 +436,9 @@ export class AIAnalysisService {
       }
 
       const data = await response.json();
-      return data.choices?.[0]?.message?.content || '';
+      const result = data.choices?.[0]?.message?.content || '';
+      console.log(`[AI] Response (前500字符): ${result.substring(0, 500)}...`);
+      return result;
     }
   }
 }

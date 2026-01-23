@@ -12,6 +12,17 @@ export class AnalysisLogger {
    */
   async add(taskId: string, log: AnalysisLog): Promise<void> {
     try {
+      // 收集所有需要保存的字段
+      const detailsToSave: Record<string, any> = {};
+
+      if (log.input) detailsToSave.input = log.input;
+      if (log.output) detailsToSave.output = log.output;
+      if (log.error) detailsToSave.error = log.error;
+      if (log.details) {
+        // 合并现有的 details
+        Object.assign(detailsToSave, log.details);
+      }
+
       await prisma.analysisLog.create({
         data: {
           taskId,
@@ -20,7 +31,7 @@ export class AnalysisLogger {
           phase: log.phase,
           step: log.step,
           status: log.status,
-          details: log.details ? JSON.stringify(log.details) : null,
+          details: Object.keys(detailsToSave).length > 0 ? JSON.stringify(detailsToSave) : null,
           duration: log.duration,
         },
       });

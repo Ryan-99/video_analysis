@@ -4,7 +4,7 @@ import { executeAnalysis } from '@/lib/analyzer/pipeline';
 
 // 配置为 Node.js 运行时，支持长时间运行
 export const runtime = 'nodejs';
-export const maxDuration = 300;
+export const maxDuration = 900; // 15分钟，支持选题生成
 
 // 标记当前正在处理的任务，防止重复处理
 let isProcessing = false;

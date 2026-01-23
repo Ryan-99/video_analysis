@@ -178,14 +178,14 @@ export function LogViewer({ logs, summary }: LogViewerProps) {
 
                   {/* 消息内容 - 优先显示 message */}
                   {(log as any).message && (
-                    <div className="text-sm text-white/80 mb-3">
+                    <div className="text-sm text-white/40 mb-3">
                       {(log as any).message}
                     </div>
                   )}
 
                   {/* 持续时间 */}
                   {log.duration && (
-                    <div className="text-xs text-white/30 mb-3">
+                    <div className="text-xs text-white/20 mb-3">
                       耗时: {formatDuration(log.duration)}
                     </div>
                   )}
@@ -193,7 +193,7 @@ export function LogViewer({ logs, summary }: LogViewerProps) {
                   {/* 详细信息 - 优先显示 details 而不是 output */}
                   {(log as any).details && (
                     <details className="group mb-3" open={log.status === 'error'}>
-                      <summary className="text-xs text-white/40 cursor-pointer hover:text-white/60 font-medium flex items-center gap-2 w-fit uppercase tracking-wider">
+                      <summary className="text-xs text-white/30 cursor-pointer hover:text-white/50 font-medium flex items-center gap-2 w-fit uppercase tracking-wider">
                         <svg className="w-3 h-3 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
@@ -202,8 +202,8 @@ export function LogViewer({ logs, summary }: LogViewerProps) {
                       <div className="mt-3 text-xs bg-white/[0.02] rounded-lg px-4 py-3 border border-white/5">
                         {Object.entries((log as any).details).map(([key, value]) => (
                           <div key={key} className="flex justify-between py-1 border-b border-white/5 last:border-0">
-                            <span className="text-white/40">{key}:</span>
-                            <span className="text-white/70 ml-4 text-right">{String(value)}</span>
+                            <span className="text-white/30">{key}:</span>
+                            <span className="text-white/50 ml-4 text-right">{String(value)}</span>
                           </div>
                         ))}
                       </div>
@@ -213,13 +213,13 @@ export function LogViewer({ logs, summary }: LogViewerProps) {
                   {/* 输入数据 - 仅在需要时显示 */}
                   {log.input && !(log as any).details && (
                     <details className="group mb-3">
-                      <summary className="text-xs text-white/40 cursor-pointer hover:text-white/60 font-medium flex items-center gap-2 w-fit uppercase tracking-wider">
+                      <summary className="text-xs text-white/30 cursor-pointer hover:text-white/50 font-medium flex items-center gap-2 w-fit uppercase tracking-wider">
                         <svg className="w-3 h-3 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                         输入数据
                       </summary>
-                      <pre className="mt-3 text-xs bg-white/[0.02] rounded-lg px-4 py-3 border border-white/5 overflow-x-auto text-white/50">
+                      <pre className="mt-3 text-xs bg-white/[0.02] rounded-lg px-4 py-3 border border-white/5 overflow-x-auto text-white/40">
                         {typeof log.input === 'string'
                           ? log.input
                           : JSON.stringify(log.input, null, 2)}
