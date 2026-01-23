@@ -13,11 +13,11 @@ export async function GET(
   try {
     const { taskId } = await params;
 
-    // 获取所有日志
-    const logs = analysisLogger.get(taskId) || [];
+    // 获取所有日志（从数据库）
+    const logs = await analysisLogger.get(taskId);
 
-    // 获取摘要
-    const summary = analysisLogger.getSummary(taskId);
+    // 获取摘要（从数据库）
+    const summary = await analysisLogger.getSummary(taskId);
 
     return NextResponse.json({
       success: true,
@@ -49,8 +49,8 @@ export async function DELETE(
   try {
     const { taskId } = await params;
 
-    // 清除日志
-    analysisLogger.clear(taskId);
+    // 清除日志（从数据库）
+    await analysisLogger.clear(taskId);
 
     return NextResponse.json({
       success: true,

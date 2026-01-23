@@ -49,8 +49,29 @@ model AnalysisTask {
   updatedAt      DateTime  @updatedAt
   completedAt    DateTime?
 
+  logs           AnalysisLog[]
+
   @@index([status])
   @@index([createdAt])
   @@index([completedAt])
   @@map("analysis_tasks")
+}
+
+// 分析日志模型 - 用于存储分析过程中的日志
+model AnalysisLog {
+  id        String   @id @default(uuid())
+  taskId    String
+  timestamp DateTime @default(now())
+  level     String   // 'info' | 'error' | 'warn'
+  phase     String   // 'parse' | 'calculate' | 'ai' | 'report' | 'system'
+  step      String
+  status    String   // 'start' | 'progress' | 'success' | 'error'
+  details   String?  // JSON 字符串，包含 input/output/error
+  duration  Int?     // 持续时间（毫秒）
+
+  task  AnalysisTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([timestamp])
+  @@map("analysis_logs")
 }

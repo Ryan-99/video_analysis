@@ -273,8 +273,8 @@ export class AIAnalysisService {
 
       let result = '';
       try {
-        // 减少超时时间从 300 秒到 60 秒，确保总时间不超过任务超时
-        result = await this.callAI(prompt, aiConfig, 60000, 8000); // 60秒，8000 tokens
+        // 每批超时 300 秒（5分钟），确保充分时间生成
+        result = await this.callAI(prompt, aiConfig, 300000, 12000); // 300秒，12000 tokens
 
         const cleaned = cleanAIResponse(result);
         const parsed = JSON.parse(cleaned);

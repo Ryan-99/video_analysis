@@ -60,7 +60,8 @@ export async function executeAnalysis(taskId: string): Promise<void> {
       status,
       ...details,
     };
-    analysisLogger.add(taskId, log);
+    // await 异步日志记录
+    await analysisLogger.add(taskId, log);
   };
 
   const startTime = Date.now();

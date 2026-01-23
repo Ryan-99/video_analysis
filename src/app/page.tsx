@@ -107,16 +107,16 @@ export default function HomePage() {
         console.log('[HomePage] 即将调用后台处理接口...');
 
         // 调用 /api/jobs/process 来触发后台任务执行
-        // 注意：这个请求会阻塞最多 5 分钟直到分析完成
-        // 我们不等待响应，直接跳转到分析页面
+        // 使用 keepalive: true 确保页面跳转后请求仍然继续
         fetch('/api/jobs/process', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
+          keepalive: true, // 允许请求在页面卸载后继续
         }).catch(processError => {
-          console.error('[HomePage] 调用后台处理失败:', processError);
-          // 不阻塞用户，分析页面会轮询任务状态
+          // 忽略错误，因为页面可能已经跳转
+          console.log('[HomePage] 后台处理请求已发送');
         });
 
         // 跳转到分析页面
