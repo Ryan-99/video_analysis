@@ -13,6 +13,13 @@ export async function GET(
     const { id } = await params;
     const task = taskQueue.get(id);
 
+    // 调试日志
+    console.log(`[Tasks API] 查询任务 ${id}, 结果:`, task ? '找到' : '未找到');
+    if (!task) {
+      const allTasks = taskQueue.getAll();
+      console.log(`[Tasks API] 当前队列中有 ${allTasks.length} 个任务:`, allTasks.map(t => t.id));
+    }
+
     if (!task) {
       return NextResponse.json(
         {

@@ -13,9 +13,20 @@ class MemoryTaskQueue {
    * @param fileName 文件名
    * @param fileSize 文件大小
    * @param columnMapping 列映射（JSON字符串）
+   * @param aiConfig AI配置（JSON字符串）
+   * @param accountName 账号名称（从文件名提取）
+   * @param fileUrl 文件URL（Vercel Blob 或本地路径）
    * @returns 创建的任务
    */
-  create(fileId: string, fileName: string, fileSize: number, columnMapping: string): Task {
+  create(
+    fileId: string,
+    fileName: string,
+    fileSize: number,
+    columnMapping: string,
+    aiConfig?: string,
+    accountName?: string | null,
+    fileUrl?: string | null
+  ): Task {
     const task: Task = {
       id: crypto.randomUUID(),
       status: 'queued',
@@ -25,8 +36,10 @@ class MemoryTaskQueue {
       fileId,
       fileName,
       fileSize,
+      fileUrl, // 保存文件URL
       columnMapping,
       aiProvider: 'claude',
+      aiConfig,
       generateTopics: true,
       resultData: null,
       reportPath: null,
@@ -34,11 +47,13 @@ class MemoryTaskQueue {
       chartPaths: null,
       recordCount: null,
       viralCount: null,
+      accountName, // 保存账号名称
       createdAt: new Date(),
       updatedAt: new Date(),
       completedAt: null,
     };
     this.tasks.set(task.id, task);
+    console.log('[MemoryTaskQueue] 创建任务:', task.id, '账号名称:', accountName || '未指定', '当前任务数:', this.tasks.size);
     return task;
   }
 
@@ -50,7 +65,10 @@ class MemoryTaskQueue {
    */
   update(id: string, updates: Partial<Task>): Task | null {
     const task = this.tasks.get(id);
-    if (!task) return null;
+    if (!task) {
+      console.log('[MemoryTaskQueue] 更新失败，任务不存在:', id);
+      return null;
+    }
 
     const updated: Task = {
       ...task,
@@ -58,6 +76,7 @@ class MemoryTaskQueue {
       updatedAt: new Date(),
     };
     this.tasks.set(id, updated);
+    console.log('[MemoryTaskQueue] 更新任务:', id, '状态:', updated.status);
     return updated;
   }
 
@@ -67,7 +86,9 @@ class MemoryTaskQueue {
    * @returns 任务对象，如果不存在则返回null
    */
   get(id: string): Task | null {
-    return this.tasks.get(id) || null;
+    const task = this.tasks.get(id) || null;
+    console.log('[MemoryTaskQueue] 获取任务:', id, task ? '找到' : '未找到', '当前任务数:', this.tasks.size);
+    return task;
   }
 
   /**
@@ -111,6 +132,15 @@ class MemoryTaskQueue {
 }
 
 /**
- * 导出单例任务队列实例
+ * 使用 globalThis 确保在 Next.js 开发模式下也是真正的单例
+ * 避免热模块替换（HMR）导致多个实例
  */
-export const taskQueue = new MemoryTaskQueue();
+const globalRef = globalThis as typeof globalThis & {
+  taskQueueInstance?: MemoryTaskQueue;
+};
+
+if (!globalRef.taskQueueInstance) {
+  globalRef.taskQueueInstance = new MemoryTaskQueue();
+}
+
+export const taskQueue = globalRef.taskQueueInstance;

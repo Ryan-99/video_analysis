@@ -1,36 +1,63 @@
 'use client';
 
 // src/app/page.tsx
-// 首页 - 文件上传
-// 现代化设计：深灰主色调、浅灰背景、唯一亮色仅用于按钮、大间距、极细边框
+// 首页 - 现代 SaaS 极简风格 + Aceternity UI
 import { FileUploader } from '@/components/upload/FileUploader';
 import { SettingsDialog } from '@/components/SettingsDialog';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings } from 'lucide-react';
+import { Settings, BarChart3, Upload, Sparkles, Zap } from 'lucide-react';
+import { DotPattern } from '@/components/ui/dot-pattern';
+import { GridPattern } from '@/components/ui/grid-pattern';
+import { HoverBorderGradient } from '@/components/ui/hover-border-gradient';
 
+/**
+ * 从文件名提取账号名称
+ */
+function extractAccountNameFromFileName(fileName: string): string {
+  // 移除文件扩展名
+  const nameWithoutExt = fileName.replace(/\.(xlsx|xls|csv)$/i, '');
+
+  // 移除常见的关键词后缀
+  const cleanName = nameWithoutExt
+    .replace(/[-_](数据|明细|视频|账号|分析|报告|统计|记录)$/gi, '')
+    .replace(/[-_]\d{4}[-_]\d{1,2}[-_]\d{1,2}/gi, '') // 移除日期格式
+    .replace(/[-_]\d{8}/gi, '') // 移除8位数字日期
+    .trim();
+
+  // 如果清理后为空，返回原始文件名（不含扩展名）
+  return cleanName || nameWithoutExt;
+}
+
+/**
+ * 首页
+ * 现代 SaaS 极简风格 + Aceternity UI 增强
+ * 深色主题 - 参考 Linear、Vercel、Stripe
+ */
 export default function HomePage() {
   const { theme } = useTheme();
   const [fileId, setFileId] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [accountName, setAccountName] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const router = useRouter();
 
-  // 获取主题色
-  const getAccentColor = () => {
+  /**
+   * 获取 CTA 按钮颜色
+   */
+  const getCtaColor = () => {
     switch (theme) {
       case 'yellow':
-        return '#d4a84b';
+        return '#facc15';
       case 'green':
-        return '#5b8c5a';
+        return '#22c55e';
       default:
-        return '#4a7cff';
+        return '#6366f1';
     }
   };
 
-  const accentColor = getAccentColor();
+  const ctaColor = getCtaColor();
 
   /**
    * 处理文件上传成功 - 直接开始分析
@@ -39,9 +66,26 @@ export default function HomePage() {
     try {
       setFileId(id);
       setFileName(name);
-      setIsAnalyzing(true);
 
-      // 直接调用分析 API，不传列映射（后端自动检测）
+      // 从文件名提取账号名称
+      const extractedAccountName = extractAccountNameFromFileName(name);
+      setAccountName(extractedAccountName);
+      console.log('[HomePage] 从文件名识别的账号名称:', extractedAccountName);
+
+      // 从 localStorage 读取 AI 配置
+      let aiConfig = undefined;
+      const savedConfig = localStorage.getItem('aiConfig');
+      if (savedConfig) {
+        try {
+          const config = JSON.parse(savedConfig);
+          // 获取默认提供商的配置
+          const defaultProvider = config.providers.find((p: any) => p.id === config.defaultProvider) || config.providers[0];
+          aiConfig = JSON.stringify(defaultProvider);
+        } catch (e) {
+          console.error('Failed to parse AI config from localStorage:', e);
+        }
+      }
+
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: {
@@ -50,6 +94,8 @@ export default function HomePage() {
         body: JSON.stringify({
           fileId: id,
           fileUrl: url,
+          aiConfig, // 传递 AI 配置
+          accountName: extractedAccountName, // 传递账号名称
         }),
       });
 
@@ -58,9 +104,10 @@ export default function HomePage() {
       if (result.success) {
         router.push(`/analyze/${result.data.taskId}`);
       } else {
-        // 显示错误信息
         console.error('分析启动失败:', result.error);
-        setIsAnalyzing(false);
+        setFileId(null);
+        setFileName(null);
+        setAccountName(null);
         if (result.error.code === 'INCOMPLETE_MAPPING') {
           alert(`字段映射不完整，缺少必要字段：${result.error.missing.join(', ')}`);
         } else {
@@ -69,177 +116,181 @@ export default function HomePage() {
       }
     } catch (error) {
       console.error('Failed to start analysis:', error);
-      setIsAnalyzing(false);
+      setFileId(null);
+      setFileName(null);
+      setAccountName(null);
       alert('分析启动失败，请重试');
     }
   };
 
   return (
-    <>
-      <main className="min-h-screen bg-gray-50">
-        {/* 顶部导航 */}
-        <header className="bg-white border-b border-gray-100">
-          <div className="max-w-5xl mx-auto px-12 py-6 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm"
-                style={{ backgroundColor: accentColor }}
-              >
-                <span className="text-white text-base font-bold">D</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900 leading-tight">
-                  抖音账号分析工具
-                </h1>
-                <p className="text-xs text-gray-500 mt-0.5">AI驱动的数据洞察</p>
-              </div>
+    <main className="min-h-screen bg-[#09090b] relative overflow-hidden">
+      {/* 背景装饰 - 极简网格 */}
+      <GridPattern className="absolute inset-0 opacity-30" />
+
+      {/* 顶部导航 */}
+      <header className="relative border-b border-white/5">
+        <div className="max-w-6xl mx-auto px-8 py-5 flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center gap-4">
+            <div className="w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center border border-white/10">
+              <BarChart3 className="w-5 h-5 text-white/60" />
             </div>
-            <button
-              onClick={() => setSettingsOpen(true)}
-              className="text-sm text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-2 px-4 py-2.5 hover:bg-gray-100 rounded-lg"
-            >
-              <Settings className="w-4 h-4" />
-              <span>设置</span>
-            </button>
+            <div className="text-white font-semibold text-lg">
+              抖音数据分析
+            </div>
           </div>
-        </header>
 
-        {/* 主内容区 - 大间距 */}
-        <div className="max-w-5xl mx-auto px-12 py-16">
-          <div className="space-y-12">
-            {/* 欢迎区域 */}
-            <section className="text-center space-y-6">
-              <h2 className="text-4xl font-bold text-gray-900 leading-tight">
-                深入了解您的<br />抖音账号表现
-              </h2>
-              <p className="text-lg text-gray-600 leading-relaxed max-w-2xl mx-auto">
-                上传您的视频数据，获取 AI 驱动的深度分析报告。
-                了解内容表现趋势，发现增长机会。
-              </p>
-            </section>
+          {/* 设置按钮 */}
+          <button
+            onClick={() => setSettingsOpen(true)}
+            className="px-4 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors flex items-center gap-2"
+          >
+            <Settings className="w-4 h-4" />
+            设置
+          </button>
+        </div>
+      </header>
 
-            {/* 特性卡片 */}
-            <section className="grid grid-cols-3 gap-8">
-              <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
-                <div
-                  className="w-14 h-14 rounded-xl flex items-center justify-center mb-6"
-                  style={{ backgroundColor: `${accentColor}15` }}
-                >
-                  <svg className="w-7 h-7" style={{ color: accentColor }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">数据统计</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">全面的月度趋势分析与数据可视化</p>
-              </div>
+      {/* 主内容 */}
+      <div className="relative max-w-4xl mx-auto px-8 py-16">
+        {/* Hero 区域 */}
+        <div className="text-center mb-12 relative">
+          {/* 标签 */}
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full border border-white/10 mb-8">
+            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: ctaColor }} />
+            <span className="text-xs text-white/50 font-medium tracking-wide uppercase">AI-Powered Analysis</span>
+          </div>
 
-              <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
-                <div
-                  className="w-14 h-14 rounded-xl flex items-center justify-center mb-6"
-                  style={{ backgroundColor: `${accentColor}15` }}
-                >
-                  <svg className="w-7 h-7" style={{ color: accentColor }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">爆款识别</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">智能发现高潜力内容与增长机会</p>
-              </div>
+          {/* 主标题 */}
+          <h1 className="text-white text-5xl md:text-6xl font-bold tracking-tight mb-6 leading-tight">
+            深度解析您的
+            <br />
+            <span style={{ color: ctaColor }}>抖音账号数据</span>
+          </h1>
 
-              <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
-                <div
-                  className="w-14 h-14 rounded-xl flex items-center justify-center mb-6"
-                  style={{ backgroundColor: `${accentColor}15` }}
-                >
-                  <svg className="w-7 h-7" style={{ color: accentColor }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9.a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">AI 分析</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">深度内容洞察与优化建议</p>
-              </div>
-            </section>
+          {/* 副标题 */}
+          <p className="text-white/40 text-lg md:text-xl leading-relaxed max-w-2xl mx-auto mb-10">
+            上传视频数据，自动识别字段，AI 智能分析
+            <br />
+            生成完整的可视化报告
+          </p>
 
-            {/* 流程说明 */}
-            <section className="bg-white p-10 rounded-2xl border border-gray-100 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-900 mb-8 uppercase tracking-wide">分析流程</h3>
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-4 mb-3">
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold text-white"
-                      style={{ backgroundColor: accentColor }}
-                    >
-                      1
-                    </div>
-                    <h4 className="text-base font-semibold text-gray-900">上传数据</h4>
-                  </div>
-                  <p className="text-sm text-gray-500 ml-14">支持 CSV / Excel 格式</p>
-                </div>
-
-                <div className="w-16 h-px bg-gray-200" />
-
-                <div className="flex-1">
-                  <div className="flex items-center gap-4 mb-3">
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold text-white"
-                      style={{ backgroundColor: accentColor }}
-                    >
-                      2
-                    </div>
-                    <h4 className="text-base font-semibold text-gray-900">自动分析</h4>
-                  </div>
-                  <p className="text-sm text-gray-500 ml-14">智能识别字段</p>
-                </div>
-
-                <div className="w-16 h-px bg-gray-200" />
-
-                <div className="flex-1">
-                  <div className="flex items-center gap-4 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm font-semibold text-gray-600">
-                      3
-                    </div>
-                    <h4 className="text-base font-semibold text-gray-900">获取报告</h4>
-                  </div>
-                  <p className="text-sm text-gray-500 ml-14">AI 生成分析</p>
-                </div>
-              </div>
-            </section>
-
-            {/* 上传区域 */}
-            {!fileId ? (
-              <FileUploader onFileUploaded={handleFileUploaded} />
-            ) : (
-              <section className="bg-white p-10 rounded-2xl border border-gray-100 shadow-sm">
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-6">
-                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">文件上传成功</h3>
-                  <p className="text-sm text-gray-500 mb-6">
-                    文件: <span className="text-gray-700">{fileName || '未知文件'}</span>
-                  </p>
-                  <div className="flex items-center justify-center gap-3">
-                    <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    <span className="text-sm text-gray-600">正在自动识别字段并开始分析...</span>
-                  </div>
-                </div>
-              </section>
-            )}
+          {/* 特性标签 */}
+          <div className="flex items-center justify-center gap-6 text-sm text-white/30">
+            <span className="flex items-center gap-2">
+              <div className="w-1 h-1 rounded-full bg-white/30" />
+              自动字段识别
+            </span>
+            <span className="flex items-center gap-2">
+              <div className="w-1 h-1 rounded-full bg-white/30" />
+              AI 智能分析
+            </span>
+            <span className="flex items-center gap-2">
+              <div className="w-1 h-1 rounded-full bg-white/30" />
+              可视化报告
+            </span>
           </div>
         </div>
-      </main>
+
+        {/* 流程说明 - 移到上传区域之前 */}
+        <div className="relative mb-16">
+          <DotPattern className="opacity-20" />
+          <div className="relative max-w-4xl mx-auto px-8 py-12">
+            <div className="text-center mb-10">
+              <h2 className="text-white/50 text-sm font-medium tracking-wider uppercase">Analysis Flow</h2>
+            </div>
+
+            <div className="grid grid-cols-3 gap-8">
+              {[
+                { num: '01', title: '上传数据', subtitle: 'Excel / CSV' },
+                { num: '02', title: '智能分析', subtitle: '自动识别 + AI' },
+                { num: '03', title: '获取报告', subtitle: '可视化结果' }
+              ].map((step, index) => (
+                <div key={index} className="text-center">
+                  <div className="text-white/5 text-6xl font-black mb-4">{step.num}</div>
+                  <h3 className="text-white font-semibold mb-1">{step.title}</h3>
+                  <p className="text-white/30 text-sm">{step.subtitle}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 上传区域 */}
+        {!fileId ? (
+          <div className="relative">
+            <FileUploader onFileUploaded={handleFileUploaded} />
+          </div>
+        ) : (
+          <div className="text-center py-20">
+            {/* 成功图标 */}
+            <div
+              className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
+              style={{ backgroundColor: `${ctaColor}15` }}
+            >
+              <svg className="w-10 h-10" style={{ color: ctaColor }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+
+            <h3 className="text-white text-2xl font-semibold mb-3">文件上传成功</h3>
+            <p className="text-white/40 mb-8">{fileName || '未知文件'}</p>
+            {accountName && (
+              <p className="text-white/30 mb-8 text-sm">账号名称：{accountName}</p>
+            )}
+
+            {/* 加载状态 */}
+            <div className="flex items-center justify-center gap-4">
+              <svg className="w-5 h-5 animate-spin text-white/40" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <span className="text-white/40">正在自动识别字段并开始分析...</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 特性卡片 - 使用 HoverBorderGradient */}
+      <div className="relative border-t border-white/5">
+        <div className="max-w-6xl mx-auto px-8 py-16">
+          <div className="grid grid-cols-3 gap-6">
+            {[
+              {
+                icon: Upload,
+                title: '数据解析',
+                description: '支持 Excel / CSV 格式，自动识别数据字段'
+              },
+              {
+                icon: Sparkles,
+                title: 'AI 分析',
+                description: '深度学习账号特征，智能划分成长阶段'
+              },
+              {
+                icon: Zap,
+                title: '选题生成',
+                description: '基于爆款分析，自动生成 30 条选题脚本'
+              }
+            ].map((feature, index) => (
+              <HoverBorderGradient
+                key={index}
+                className="group p-8 transition-all duration-300"
+              >
+                <feature.icon className="w-8 h-8 text-white/20 mb-6 group-hover:text-white/40 transition-colors" />
+                <h3 className="text-white font-semibold text-lg mb-3">{feature.title}</h3>
+                <p className="text-white/30 text-sm leading-relaxed">{feature.description}</p>
+              </HoverBorderGradient>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* 设置弹窗 */}
       <SettingsDialog
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
       />
-    </>
+    </main>
   );
 }

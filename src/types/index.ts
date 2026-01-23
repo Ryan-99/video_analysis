@@ -26,6 +26,15 @@ export type TaskStatus =
   | 'completed'
   | 'failed';
 
+export interface AIProviderConfig {
+  id: string;
+  name: string;
+  apiUrl: string;
+  model: string;
+  apiKey: string;
+  apiFormat: 'openai' | 'claude';
+}
+
 export interface Task {
   id: string;
   status: TaskStatus;
@@ -35,8 +44,10 @@ export interface Task {
   fileId: string;
   fileName: string;
   fileSize: number;
+  fileUrl?: string | null; // Vercel Blob URL 或本地文件路径
   columnMapping: string;
   aiProvider: string;
+  aiConfig?: string; // JSON string of AIProviderConfig
   generateTopics: boolean;
   resultData: string | null;
   reportPath: string | null;
@@ -44,6 +55,7 @@ export interface Task {
   chartPaths: string | null;
   recordCount: number | null;
   viralCount: number | null;
+  accountName?: string | null; // 从文件名提取的账号名称
   createdAt: Date;
   updatedAt: Date;
   completedAt: Date | null;
@@ -78,6 +90,7 @@ export interface AccountAnalysis {
 export interface Report {
   reportId: string;
   taskId: string;
+  realAccountName?: string | null; // 从文件名提取的真实账号名称
   account: AccountAnalysis;
   monthlyTrend: {
     summary: string;
@@ -96,7 +109,13 @@ export interface Report {
       category: string;
       count: number;
       avgEngagement: number;
+      description: string;
     }>;
+    patterns?: {
+      commonElements?: string;
+      timingPattern?: string;
+      titlePattern?: string;
+    };
   };
   topics: Array<{
     id: number;
@@ -104,6 +123,7 @@ export interface Report {
     titles: string[];
     script: string;
     storyboard: string[];
+    casePoint?: string;  // 案例点位
   }>;
   charts: {
     monthlyTrend: string;
@@ -161,6 +181,8 @@ export interface AnalysisLog {
   phase: LogPhase;
   step: string;
   status: LogStatus;
+  message?: string;  // 友好的消息文本
+  details?: Record<string, any>;  // 详细信息的键值对
   input?: any;
   output?: any;
   error?: string;

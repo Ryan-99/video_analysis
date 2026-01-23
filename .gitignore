@@ -51,3 +51,6 @@ next-env.d.ts
 *.db-journal
 
 /src/generated/prisma
+public/uploads/
+
+.vercel

@@ -1,66 +1,110 @@
 'use client';
 
 // src/app/analyze/[taskId]/page.tsx
-// 分析进度页面 - 显示实时进度和日志
+// 分析进度页面 - 极简 SaaS 风格 + Aceternity UI
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ProgressBar } from '@/components/analyze/ProgressBar';
 import { LogViewer } from '@/components/analyze/LogViewer';
 import { AnalysisLog } from '@/types';
+import { GridPattern } from '@/components/ui/grid-pattern';
+import { DotPattern } from '@/components/ui/dot-pattern';
+import { Sparkles } from '@/components/ui/sparkles';
+import { useTheme } from '@/contexts/ThemeContext';
+import { BackButton } from '@/components/ui/BackButton';
 
 /**
  * 分析进度页面
+ * 极简 SaaS 风格 + Aceternity UI 增强
+ * 深色主题 - 参考 Linear、Vercel、Stripe
  */
-export default function AnalyzePage({ params }: { params: { taskId: string } }) {
+export default function AnalyzePage({ params }: { params: Promise<{ taskId: string }> }) {
   const router = useRouter();
+  const { theme } = useTheme();
+  const [taskId, setTaskId] = useState<string>('');
   const [logs, setLogs] = useState<AnalysisLog[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showLogs, setShowLogs] = useState(true);
+  const [taskStatus, setTaskStatus] = useState<any>(null);
 
-  // 加载日志
-  const loadLogs = async () => {
-    try {
-      const response = await fetch(`/api/logs/${params.taskId}`);
-      const result = await response.json();
-
-      if (result.success) {
-        setLogs(result.data.logs);
-      }
-    } catch (error) {
-      console.error('加载日志失败:', error);
-    } finally {
-      setLoading(false);
+  /**
+   * 获取 CTA 颜色
+   */
+  const getCtaColor = () => {
+    switch (theme) {
+      case 'yellow':
+        return '#facc15';
+      case 'green':
+        return '#22c55e';
+      default:
+        return '#6366f1';
     }
   };
 
+  const ctaColor = getCtaColor();
+
+  // 加载日志和任务状态
+  const loadData = async () => {
+    if (!taskId) return;
+
+    try {
+      // 并行获取任务状态和日志
+      const [taskRes, logsRes] = await Promise.all([
+        fetch(`/api/tasks/${taskId}`),
+        fetch(`/api/logs/${taskId}`)
+      ]);
+
+      const taskResult = await taskRes.json();
+      if (taskResult.success) {
+        setTaskStatus(taskResult.data);
+      }
+
+      const logsResult = await logsRes.json();
+      if (logsResult.success) {
+        setLogs(logsResult.data.logs || []);
+      }
+    } catch (error) {
+      console.error('加载数据失败:', error);
+    }
+  };
+
+  // 等待params解析
+  useEffect(() => {
+    params.then(p => setTaskId(p.taskId));
+  }, [params]);
+
   // 初始加载
   useEffect(() => {
-    loadLogs();
-  }, [params.taskId]);
+    if (taskId) {
+      loadData();
+    }
+  }, [taskId]);
 
-  // 定期轮询日志更新（2秒间隔）
+  // 计算状态（需要在useEffect之前定义）
+  const isCompleted = taskStatus?.status === 'completed' ||
+    logs.some((log) => log.phase === 'report' && log.status === 'success');
+
+  const isFailed = taskStatus?.status === 'failed' ||
+    logs.some((log) => log.status === 'error');
+
+  // 定期轮询更新（2秒间隔）
   useEffect(() => {
+    if (!taskId || isFailed) return; // 失败后停止轮询
+
     const interval = setInterval(() => {
-      loadLogs();
+      loadData();
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [params.taskId]);
+  }, [taskId, isFailed]);
 
-  // 检查是否完成（从日志判断）
-  const isCompleted = logs.some(
-    (log) => log.phase === 'report' && log.status === 'success'
-  );
-
-  // 完成后跳转
+  // 完成后跳转（失败则不跳转）
   useEffect(() => {
-    if (isCompleted) {
+    if (isCompleted && !isFailed && taskId) {
       const timer = setTimeout(() => {
-        router.push(`/report/${params.taskId}`);
+        router.push(`/report/${taskId}`);
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [isCompleted, params.taskId, router]);
+  }, [isCompleted, isFailed, taskId, router]);
 
   // 计算摘要
   const summary = logs.length > 0
@@ -79,88 +123,225 @@ export default function AnalyzePage({ params }: { params: { taskId: string } }) 
       }
     : null;
 
+  // 计算进度百分比
+  const progress = taskStatus?.progress ??
+    (summary ? Math.round((summary.completedSteps || 0) / Math.max(summary.totalSteps || 1, 1) * 100) : 0);
+
+  // 当前步骤状态
+  const currentStep = taskStatus?.currentStep || logs[logs.length - 1]?.step || '准备中...';
+
   return (
-    <main className="min-h-screen bg-gray-50">
-      {/* 顶部导航 */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-gray-900">账号分析中</h1>
-          <button
-            onClick={() => setShowLogs(!showLogs)}
-            className="text-sm text-indigo-600 hover:text-indigo-700 transition-colors"
-          >
-            {showLogs ? '隐藏日志' : '显示日志'}
-          </button>
-        </div>
-      </header>
+    <main className="min-h-screen bg-[#09090b] relative overflow-hidden">
+      {/* 背景装饰 - 极简网格 */}
+      <GridPattern className="absolute inset-0 opacity-20" />
 
-      <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
-        {/* 进度条 */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium text-gray-900">分析进度</h2>
-            {isCompleted && (
-              <span className="text-sm text-green-600 font-medium">
-                分析完成，即将跳转...
-              </span>
-            )}
+      <div className="relative z-10 max-w-6xl mx-auto px-8 py-12">
+        {/* 顶部导航 - 极简风格 */}
+        <header className="flex items-center justify-between mb-16">
+          <div className="flex items-center gap-8">
+            {/* 进度数字 */}
+            <div className="hidden sm:block">
+              <div className="text-white/5 text-7xl font-black leading-none">
+                {String(progress).padStart(3, '0')}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs uppercase tracking-wider text-white/40 font-medium mb-2">
+                Analysis in Progress
+              </p>
+              <h1 className="text-white text-4xl sm:text-5xl font-bold leading-tight tracking-tight">
+                账号
+                <span style={{ color: isFailed ? '#ef4444' : ctaColor }}>
+                  {isFailed ? '分析失败' : '分析中'}
+                </span>
+              </h1>
+            </div>
           </div>
-          {/* 模拟任务对象用于进度条 */}
-          <ProgressBar
-            task={{
-              id: params.taskId,
-              status: isCompleted ? ('completed' as const) : ('analyzing' as const),
-              progress: Math.round(
-                (summary?.completedSteps || 0) / Math.max((summary?.totalSteps || 1), 1) * 100
-              ),
-              currentStep: logs[logs.length - 1]?.step || '初始化中',
-              error: null,
-              fileId: '',
-              fileName: '',
-              fileSize: 0,
-              columnMapping: '{}',
-              aiProvider: 'claude',
-              generateTopics: true,
-              resultData: null,
-              reportPath: null,
-              excelPath: null,
-              chartPaths: null,
-              recordCount: null,
-              viralCount: null,
-              completedAt: isCompleted ? new Date() : null,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            }}
-          />
+
+          <div className="flex items-center gap-3">
+            <BackButton />
+            <button
+              onClick={() => setShowLogs(!showLogs)}
+              className="px-4 py-2 bg-white/5 border border-white/10 text-sm text-white/60 hover:text-white hover:bg-white/[0.02] rounded-lg transition-colors flex items-center gap-2"
+            >
+              {showLogs ? '隐藏' : '显示'}日志
+              <svg className={`w-4 h-4 transition-transform ${showLogs ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        {/* 主要内容 */}
+        <div className="space-y-8">
+          {/* 进度展示区 - 极简风格 */}
+          <div className="relative">
+            <div className="relative bg-white/5 border border-white/10 overflow-hidden rounded-2xl">
+              <div className="p-8 sm:p-12">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                  {/* 左侧：进度数字 */}
+                  <div className="space-y-6">
+                    <p className="text-xs uppercase tracking-wider text-white/40 font-medium">
+                      Completion Rate
+                    </p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-white text-8xl sm:text-9xl font-bold leading-none tracking-tight">
+                        {progress}
+                      </span>
+                      <span className="text-3xl sm:text-4xl font-bold text-white/30">%</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                          isFailed ? 'bg-red-500' : isCompleted ? 'bg-green-400' : 'animate-pulse'
+                        }`}
+                        style={{ backgroundColor: isFailed ? '#ef4444' : isCompleted ? '#22c55e' : ctaColor }}
+                      />
+                      <span className="text-sm text-white/60">
+                        {isFailed
+                          ? (taskStatus?.error || '分析失败')
+                          : isCompleted
+                          ? '分析完成'
+                          : currentStep}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 右侧：进度条和统计 */}
+                  <div className="space-y-6">
+                    {/* 进度条 */}
+                    <div className="relative">
+                      <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-700 ease-out relative"
+                          style={{
+                            width: `${isFailed ? 100 : progress}%`,
+                            backgroundColor: isFailed ? '#ef4444' : ctaColor
+                          }}
+                        >
+                          {/* 闪光动画 */}
+                          {!isCompleted && !isFailed && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 统计信息 */}
+                    {summary && (
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="text-center p-4 bg-white/[0.02] rounded-lg border border-white/5">
+                          <div className="text-2xl font-bold text-white mb-1">{summary.totalSteps}</div>
+                          <div className="text-xs text-white/30 uppercase tracking-wider">总步骤</div>
+                        </div>
+                        <div className="text-center p-4 bg-white/[0.02] rounded-lg border border-white/5">
+                          <div className="text-2xl font-bold text-green-400 mb-1">{summary.completedSteps}</div>
+                          <div className="text-xs text-white/30 uppercase tracking-wider">已完成</div>
+                        </div>
+                        <div className="text-center p-4 bg-white/[0.02] rounded-lg border border-white/5">
+                          <div className="text-2xl font-bold text-red-400 mb-1">{summary.failedSteps}</div>
+                          <div className="text-xs text-white/30 uppercase tracking-wider">失败</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          {/* 日志查看器 */}
+          {showLogs && (
+            <div className="relative">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xs uppercase tracking-wider text-white/40 font-medium">
+                  Execution Log
+                </h3>
+              </div>
+
+              <div className="relative bg-white/5 border border-white/10 overflow-hidden rounded-xl">
+                {/* 点阵背景 */}
+                <DotPattern className="opacity-10" />
+
+                <div className="relative p-6">
+                  <LogViewer logs={logs} summary={summary} />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* 日志查看器 */}
-        {showLogs && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-medium text-gray-900">执行日志</h2>
-              {loading && (
-                <span className="text-xs text-gray-500">加载中...</span>
+        {/* 底部状态栏 */}
+        <div className="fixed bottom-0 left-0 right-0 bg-[#09090b]/90 backdrop-blur-xl border-t border-white/5">
+          <div className="max-w-6xl mx-auto px-8 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {isFailed ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center border border-white/10">
+                    <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm text-red-400">分析失败</span>
+                    {taskStatus?.error && (
+                      <span className="text-xs text-white/30">{taskStatus.error}</span>
+                    )}
+                  </div>
+                </div>
+              ) : isCompleted ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center border border-white/10">
+                    <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-sm text-white/80">分析完成</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center border border-white/10">
+                    <svg className="w-4 h-4 animate-spin" style={{ color: ctaColor }} fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  </div>
+                  <span className="text-sm text-white/80">正在处理中...</span>
+                </div>
               )}
             </div>
-            <LogViewer logs={logs} summary={summary} />
-          </div>
-        )}
 
-        {/* 说明 */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-blue-900 mb-2">
-            分析过程中
-          </h3>
-          <ul className="text-xs text-blue-800 space-y-1">
-            <li>• 数据解析：提取视频数据和关键指标</li>
-            <li>• 数据计算：统计月度趋势和识别爆款视频</li>
-            <li>• AI分析：调用AI服务生成分析内容</li>
-            <li>• 图表生成：生成可视化图表</li>
-            <li>• 报告生成：整合所有内容生成最终报告</li>
-          </ul>
+            <div className="flex items-center gap-4">
+              {/* 失败时显示重试按钮 */}
+              {isFailed && (
+                <button
+                  onClick={() => router.push('/')}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/[0.02] transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <span>返回首页</span>
+                </button>
+              )}
+
+              {isCompleted && !isFailed && (
+                <div className="flex items-center gap-2 text-xs text-white/30">
+                  <span>2秒后自动跳转</span>
+                  <svg className="w-4 h-4" style={{ color: ctaColor }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* 微妙的闪烁效果 */}
+      <Sparkles count={10} className="opacity-30" />
     </main>
   );
 }

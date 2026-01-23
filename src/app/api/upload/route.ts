@@ -3,13 +3,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadFile } from '@/lib/blob';
 
-// 配置运行时为 Edge，以便支持 Vercel Blob
+// 配置运行时为 Edge（Vercel Blob 需要）
 export const runtime = 'edge';
 export const maxDuration = 10;
 
 /**
  * POST /api/upload
- * 处理文件上传请求
+ * 处理文件上传请求，使用 Vercel Blob 存储
  */
 export async function POST(request: NextRequest) {
   try {
@@ -65,34 +65,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 生成唯一文件ID并重命名文件
+    // 生成唯一文件ID
     const fileId = crypto.randomUUID();
-    const fileName = `${fileId}-${file.name}`;
-    const renamedFile = new File([file], fileName, { type: file.type });
 
-    // 上传到 Vercel Blob
+    // 使用 Vercel Blob 上传文件
+    // 修改文件名为唯一ID格式，避免冲突
+    const uniqueFileName = `${fileId}-${file.name}`;
+    const renamedFile = new File([file], uniqueFileName, {
+      type: file.type,
+    });
+
+    console.log('[Upload API] 开始上传到 Vercel Blob:', uniqueFileName);
     const url = await uploadFile(renamedFile);
+    console.log('[Upload API] 上传成功:', url);
 
     // 返回成功响应
     return NextResponse.json({
       success: true,
       data: {
         fileId,
-        fileName: file.name,
+        fileName: file.name, // 原始文件名
         fileSize: file.size,
         contentType: file.type,
-        url,
+        url, // Vercel Blob 的公开访问 URL
         uploadedAt: new Date().toISOString(),
       },
     });
   } catch (error) {
-    console.error('Upload error:', error);
+    console.error('[Upload API] 上传失败:', error);
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'UPLOAD_FAILED',
-          message: '文件上传失败'
+          message: '文件上传失败',
+          details: error instanceof Error ? error.message : String(error)
         }
       },
       { status: 500 }

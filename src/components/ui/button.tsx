@@ -1,35 +1,40 @@
 import * as React from 'react';
+import { cn } from '@/lib/utils';
 
 /**
  * Button组件 - 按钮
+ * 极简 SaaS 风格
  */
 const Button = React.forwardRef<
   HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement> & {
     variant?: 'default' | 'outline' | 'ghost';
-    asChild?: boolean;
+    size?: 'default' | 'sm' | 'lg';
   }
->(({ className = '', variant = 'default', asChild = false, children, ...props }, ref) => {
-  const baseStyles = 'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50';
+>(({ className = '', variant = 'default', size = 'default', children, ...props }, ref) => {
+  const baseStyles = 'inline-flex items-center justify-center rounded-xl text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 disabled:pointer-events-none disabled:opacity-50';
 
-  const variantStyles = {
-    default: 'bg-blue-600 text-white hover:bg-blue-700',
-    outline: 'border border-gray-300 bg-white hover:bg-gray-50',
-    ghost: 'hover:bg-gray-100',
+  const sizeStyles = {
+    default: 'h-10 px-4 py-2',
+    sm: 'h-8 px-3 text-xs',
+    lg: 'h-12 px-6 text-base',
   };
 
-  // 如果是asChild模式，直接渲染子元素并添加样式
-  if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children, {
-      className: `${baseStyles} ${variantStyles[variant]} ${className}`,
-      ...props,
-    } as any);
-  }
+  const variantStyles = {
+    default: 'text-white',
+    outline: 'border border-white/10 text-white/60 hover:text-white hover:bg-white/5',
+    ghost: 'text-white/60 hover:text-white hover:bg-white/5',
+  };
 
   return (
     <button
       ref={ref}
-      className={`${baseStyles} ${variantStyles[variant]} ${className}`}
+      className={cn(
+        baseStyles,
+        sizeStyles[size],
+        variantStyles[variant],
+        className
+      )}
       {...props}
     >
       {children}
