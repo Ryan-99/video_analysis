@@ -3,7 +3,10 @@ import { taskQueue } from '@/lib/queue/memory';
 import { executeAnalysis } from '@/lib/analyzer/pipeline';
 import { validateColumnMapping } from '@/lib/parser';
 
+// 配置运行时为 Node.js
 export const runtime = 'nodejs';
+// 设置最大执行时间为 5 分钟（AI 分析需要较长时间）
+export const maxDuration = 300;
 
 /**
  * POST /api/analyze
@@ -36,6 +39,55 @@ export async function POST(request: NextRequest) {
           error: {
             code: 'INVALID_REQUEST',
             message: '缺少文件ID',
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    // 验证 AI 配置
+    if (!finalAiConfig) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'NO_AI_CONFIG',
+            message: 'AI配置未设置，请在设置中配置AI服务',
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    // 验证 AI 配置是否包含有效的 API Key
+    try {
+      const parsedConfig = JSON.parse(finalAiConfig);
+      const apiKey = parsedConfig.apiKey || '';
+
+      // 检查 API Key 是否为空或是占位符
+      if (!apiKey ||
+          apiKey === '' ||
+          apiKey.includes('your_') ||
+          apiKey.includes('YOUR_') ||
+          apiKey.startsWith('{{')) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: 'INVALID_API_KEY',
+              message: 'API密钥未配置或无效，请在设置中配置有效的API密钥',
+            },
+          },
+          { status: 400 }
+        );
+      }
+    } catch (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'INVALID_AI_CONFIG',
+            message: 'AI配置格式无效',
           },
         },
         { status: 400 }
@@ -138,10 +190,16 @@ export async function POST(request: NextRequest) {
 
     // 异步执行分析
     executeAnalysis(task.id).catch((error) => {
-      console.error('分析执行失败:', error);
+      console.error('[Analyze API] 分析执行失败:', error);
+      // 确保错误信息是字符串
+      const errorMessage = error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+          ? error
+          : '未知错误';
       taskQueue.update(task.id, {
         status: 'failed',
-        error: error.message,
+        error: errorMessage,
       });
     });
 
