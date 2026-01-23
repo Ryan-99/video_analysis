@@ -97,11 +97,28 @@ class KVTaskQueue {
     };
 
     // 存储到 KV（设置 7 天过期）
+    console.log('[KVTaskQueue] 开始获取 KV 客户端...');
     const kv = await this.getKV();
     const key = `${KV_PREFIX}${id}`;
-    await kv.put(key, JSON.stringify(taskToKV(task)), {
-      expirationTtl: 7 * 24 * 60 * 60, // 7天
-    });
+    console.log('[KVTaskQueue] 准备存储任务，键:', key);
+
+    try {
+      await kv.put(key, JSON.stringify(taskToKV(task)), {
+        expirationTtl: 7 * 24 * 60 * 60, // 7天
+      });
+      console.log('[KVTaskQueue] 任务存储成功:', id);
+
+      // 验证存储是否成功 - 立即读取
+      const verify = await kv.get(key);
+      if (!verify) {
+        console.error('[KVTaskQueue] 存储验证失败 - 任务未被正确保存');
+        throw new Error('任务存储后无法读取');
+      }
+      console.log('[KVTaskQueue] 存储验证成功，任务已正确保存');
+    } catch (error) {
+      console.error('[KVTaskQueue] 存储任务失败:', error);
+      throw error;
+    }
 
     console.log('[KVTaskQueue] 创建任务:', id, '账号名称:', accountName || '未指定');
 
@@ -154,15 +171,27 @@ class KVTaskQueue {
    * 获取任务
    */
   async get(id: string): Promise<Task | null> {
+    console.log('[KVTaskQueue] 开始获取任务:', id);
     const kv = await this.getKV();
     const key = `${KV_PREFIX}${id}`;
+    console.log('[KVTaskQueue] 查询键:', key);
 
     const result = await kv.get(key);
     if (!result) {
       console.log('[KVTaskQueue] 任务不存在:', id);
+
+      // 列出所有键以诊断
+      try {
+        const allKeys = await kv.list({ prefix: KV_PREFIX });
+        console.log('[KVTaskQueue] 当前 KV 中所有任务键:', allKeys.keys.map(k => k.name));
+      } catch (e) {
+        console.log('[KVTaskQueue] 无法列出任务键:', e);
+      }
+
       return null;
     }
 
+    console.log('[KVTaskQueue] 找到任务:', id);
     return kvToTask(JSON.parse(result.value!));
   }
 
@@ -240,9 +269,22 @@ class KVTaskQueue {
    * 获取 KV 存储实例
    */
   private async getKV() {
-    // 动态导入 @vercel/kv
-    const { kv } = await import('@vercel/kv');
-    return kv;
+    try {
+      // 动态导入 @vercel/kv
+      const { kv } = await import('@vercel/kv');
+
+      // 验证 KV 是否配置
+      if (!kv) {
+        console.error('[KVTaskQueue] KV 客户端未初始化 - 请在 Vercel 控制台创建 KV 数据库');
+        throw new Error('KV 未配置，请在 Vercel 控制台创建 KV 数据库');
+      }
+
+      console.log('[KVTaskQueue] KV 客户端获取成功');
+      return kv;
+    } catch (error) {
+      console.error('[KVTaskQueue] 获取 KV 客户端失败:', error);
+      throw new Error(`KV 连接失败: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 }
 
