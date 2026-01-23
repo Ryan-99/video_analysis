@@ -78,7 +78,8 @@
       "Bash(C:\\\\Users\\\\Ryan\\\\AppData\\\\Roaming\\\\npm\\\\vercel.cmd --yes)",
       "Bash(C:\\\\\\\\Users\\\\\\\\Ryan\\\\\\\\AppData\\\\\\\\Roaming\\\\\\\\npm\\\\\\\\vercel.cmd:*)",
       "Bash(\"C:\\\\Users\\\\Ryan\\\\AppData\\\\Roaming\\\\npm\\\\vercel.cmd\" --yes --prod)",
-      "Bash(npx next lint:*)"
+      "Bash(npx next lint:*)",
+      "Bash(git push:*)"
     ]
   }
 }

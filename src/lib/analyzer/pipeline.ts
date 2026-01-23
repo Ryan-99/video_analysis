@@ -72,7 +72,6 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     const videos = await parseData(task.fileId, task.fileName, task.columnMapping, task.fileUrl);
     await logStep('parse', '数据解析完成', 'success', {
       output: { recordCount: videos.length },
-      duration: Date.now() - startTime,
     });
 
     // 步骤2: 计算指标
@@ -101,7 +100,6 @@ export async function executeAnalysis(taskId: string): Promise<void> {
         viralThreshold: threshold.toFixed(2),
         viralCount: virals.length,
       },
-      duration: Date.now() - calcStartTime,
     });
 
     // 步骤3: AI分析 - 账号概况
@@ -125,7 +123,6 @@ export async function executeAnalysis(taskId: string): Promise<void> {
         目标受众: accountAnalysis.audience,
         初级变现: accountAnalysis.monetization.level1,
       },
-      duration: Date.now() - accountStartTime,
     });
 
     // 步骤4: AI分析 - 月度趋势和阶段划分
@@ -151,7 +148,6 @@ export async function executeAnalysis(taskId: string): Promise<void> {
         发展阶段: monthlyTrendAnalysis.stages?.length || 0,
         阶段列表: stagesInfo,
       },
-      duration: Date.now() - monthlyStartTime,
     });
 
     // 步骤5: AI分析 - 爆款视频分类
@@ -180,7 +176,6 @@ export async function executeAnalysis(taskId: string): Promise<void> {
         分类列表: categories,
         共同元素: viralAnalysis.patterns?.commonElements || '暂无',
       },
-      duration: Date.now() - viralStartTime,
     });
 
     // 步骤6: AI分析 - 生成选题库
@@ -206,7 +201,6 @@ export async function executeAnalysis(taskId: string): Promise<void> {
         选题分类: topics.map(t => `${t.category}(${t.id})`).join('、'),
         生成状态: topics.length >= 30 ? '完整' : `不足（缺少${30 - topics.length}条）`,
       },
-      duration: Date.now() - topicsStartTime,
     });
 
     // 步骤7: 汇总结果
