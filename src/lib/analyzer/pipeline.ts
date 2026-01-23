@@ -1,6 +1,6 @@
 // src/lib/analyzer/pipeline.ts
 // 分析流程 - 带完整日志记录
-import { taskQueue } from '@/lib/queue/memory';
+import { taskQueue } from '@/lib/queue/database';
 import { analysisLogger } from '@/lib/logger';
 import { VideoData, AccountAnalysis, AnalysisLog, ViralVideo } from '@/types';
 import {
@@ -63,7 +63,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
   try {
     // 步骤1: 解析数据（使用真实Excel文件）
     await logStep('parse', '开始解析数据', 'start');
-    taskQueue.update(taskId, {
+    await taskQueue.update(taskId, {
       status: 'parsing',
       currentStep: '正在解析数据...',
       progress: 5,
@@ -76,7 +76,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
 
     // 步骤2: 计算指标
     await logStep('calculate', '开始计算指标', 'start');
-    taskQueue.update(taskId, {
+    await taskQueue.update(taskId, {
       status: 'calculating',
       currentStep: '正在计算指标...',
       progress: 15,
@@ -107,7 +107,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     // 步骤3: AI分析 - 账号概况
     await logStep('ai', '开始AI分析 - 账号概况', 'start', {
     });
-    taskQueue.update(taskId, {
+    await taskQueue.update(taskId, {
       status: 'analyzing',
       currentStep: '正在分析账号概况...',
       progress: 25,
@@ -128,7 +128,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     // 步骤4: AI分析 - 月度趋势和阶段划分
     await logStep('ai', '开始AI分析 - 月度趋势', 'start', {
     });
-    taskQueue.update(taskId, {
+    await taskQueue.update(taskId, {
       currentStep: '正在分析月度趋势...',
       progress: 40,
     });
@@ -151,7 +151,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     // 步骤5: AI分析 - 爆款视频分类
     await logStep('ai', '开始AI分析 - 爆款分类', 'start', {
     });
-    taskQueue.update(taskId, {
+    await taskQueue.update(taskId, {
       currentStep: '正在分析爆款视频...',
       progress: 55,
     });
@@ -177,7 +177,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     // 步骤6: AI分析 - 生成选题库
     await logStep('ai', '开始AI分析 - 选题库生成', 'start', {
     });
-    taskQueue.update(taskId, {
+    await taskQueue.update(taskId, {
       currentStep: '正在生成选题库...',
       progress: 70,
     });
@@ -199,7 +199,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
 
     // 步骤7: 汇总结果
     await logStep('report', '生成报告', 'start');
-    taskQueue.update(taskId, {
+    await taskQueue.update(taskId, {
       status: 'generating_charts',
       currentStep: '正在生成报告...',
       progress: 90,
@@ -227,7 +227,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     });
 
     // 步骤8: 完成任务
-    taskQueue.update(taskId, {
+    await taskQueue.update(taskId, {
       status: 'completed',
       progress: 100,
       currentStep: '分析完成',
@@ -252,7 +252,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     });
 
     // 更新任务状态
-    taskQueue.update(taskId, {
+    await taskQueue.update(taskId, {
       status: 'failed',
       error: error instanceof Error ? error.message : '未知错误',
     });

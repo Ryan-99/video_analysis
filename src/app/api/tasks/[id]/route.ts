@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { taskQueue } from '@/lib/queue/memory';
+import { taskQueue } from '@/lib/queue/database';
 
 /**
  * GET /api/tasks/[id]
@@ -11,12 +11,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const task = taskQueue.get(id);
+    const task = await taskQueue.get(id);
 
     // 调试日志
     console.log(`[Tasks API] 查询任务 ${id}, 结果:`, task ? '找到' : '未找到');
     if (!task) {
-      const allTasks = taskQueue.getAll();
+      const allTasks = await taskQueue.getAll();
       console.log(`[Tasks API] 当前队列中有 ${allTasks.length} 个任务:`, allTasks.map(t => t.id));
     }
 

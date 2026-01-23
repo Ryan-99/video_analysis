@@ -26,9 +26,11 @@ model AnalysisTask {
   fileId         String
   fileName       String
   fileSize       Int
+  fileUrl        String?    // Vercel Blob URL 或本地文件路径
   columnMapping  String
 
   aiProvider     String   @default("claude")
+  aiConfig       String?  // AI 配置（JSON 字符串）
   generateTopics Boolean  @default(true)
 
   resultData     String?
@@ -39,6 +41,8 @@ model AnalysisTask {
 
   recordCount    Int?
   viralCount     Int?
+
+  accountName    String?   // 账号名称
 
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt

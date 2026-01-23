@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { taskQueue } from '@/lib/queue/memory';
+import { taskQueue } from '@/lib/queue/database';
 import { executeAnalysis } from '@/lib/analyzer/pipeline';
 import { validateColumnMapping } from '@/lib/parser';
 
@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
     // 创建任务
     console.log('[Analyze API] 准备创建任务...');
     console.log('[Analyze API] 账号名称:', accountName || '未指定');
-    const task = taskQueue.create(
+    const task = await taskQueue.create(
       fileId,
       fileName, // 使用真实文件名
       0, // TODO: 从文件系统获取真实文件大小
@@ -182,14 +182,15 @@ export async function POST(request: NextRequest) {
     console.log('[Analyze API] 任务已创建:', task.id);
     console.log('[Analyze API] 文件名:', task.fileName);
     console.log('[Analyze API] 文件URL:', fileUrl || '无');
-    console.log('[Analyze API] 当前队列任务数:', taskQueue.getAll().length);
+    const allTasks = await taskQueue.getAll();
+    console.log('[Analyze API] 当前队列任务数:', allTasks.length);
 
     // 验证任务可以被立即获取
-    const verifyTask = taskQueue.get(task.id);
+    const verifyTask = await taskQueue.get(task.id);
     console.log('[Analyze API] 验证获取任务:', verifyTask ? '成功' : '失败');
 
-    // 异步执行分析
-    executeAnalysis(task.id).catch((error) => {
+    // 异步执行分析（不阻塞响应）
+    executeAnalysis(task.id).catch(async (error) => {
       console.error('[Analyze API] 分析执行失败:', error);
       // 确保错误信息是字符串
       const errorMessage = error instanceof Error
@@ -197,7 +198,7 @@ export async function POST(request: NextRequest) {
         : typeof error === 'string'
           ? error
           : '未知错误';
-      taskQueue.update(task.id, {
+      await taskQueue.update(task.id, {
         status: 'failed',
         error: errorMessage,
       });
