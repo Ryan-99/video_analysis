@@ -245,13 +245,10 @@ export class AIAnalysisService {
     aiConfig?: string,
     batchSize: number = 10
   ): Promise<FullTopic[]> {
-    console.log('[AIAnalysisService] ===== 开始分批生成选题详情 =====');
-    console.log('[AIAnalysisService] 总选题数:', outlines.length);
-    console.log('[AIAnalysisService] 每批数量:', batchSize);
+    console.log('[Topics] 开始分批生成, 总数:', outlines.length, ', 每批:', batchSize);
 
     const allTopics: FullTopic[] = [];
     const batches = Math.ceil(outlines.length / batchSize);
-    console.log('[AIAnalysisService] 总批次数:', batches);
 
     // 格式化爆款规律
     const patternsText = `共同元素：${viralPatterns.commonElements}\n发布时间规律：${viralPatterns.timingPattern}\n标题规律：${viralPatterns.titlePattern}`;
@@ -261,7 +258,7 @@ export class AIAnalysisService {
       const endIdx = Math.min(startIdx + batchSize, outlines.length);
       const batch = outlines.slice(startIdx, endIdx);
 
-      console.log(`[AIAnalysisService] --- 第 ${i + 1}/${batches} 批选题 (${startIdx + 1}-${endIdx}) ---`);
+      console.log(`[Topics] 第 ${i + 1}/${batches} 批 (${startIdx + 1}-${endIdx})`);
 
       // 格式化选题大纲
       const outlinesText = batch.map(t =>
@@ -274,22 +271,14 @@ export class AIAnalysisService {
         topic_outlines: outlinesText,
       });
 
-      console.log(`[AIAnalysisService] 第 ${i + 1}/${batches} 批 Prompt 长度:`, prompt.length);
-
       let result = '';
       try {
-        console.log(`[AIAnalysisService] 第 ${i + 1}/${batches} 批调用 AI，超时: 300秒（5分钟），最大 Tokens: 12000`);
-        result = await this.callAI(prompt, aiConfig, 300000, 12000); // 5分钟，12000 tokens
-
-        console.log(`[AIAnalysisService] 第 ${i + 1}/${batches} 批 AI 返回完成，响应长度:`, result.length);
+        // 减少超时时间从 300 秒到 60 秒，确保总时间不超过任务超时
+        result = await this.callAI(prompt, aiConfig, 60000, 8000); // 60秒，8000 tokens
 
         const cleaned = cleanAIResponse(result);
-        console.log(`[AIAnalysisService] 第 ${i + 1}/${batches} 批清理后长度:`, cleaned.length);
-
         const parsed = JSON.parse(cleaned);
         const batchTopics = parsed.topics || [];
-
-        console.log(`[AIAnalysisService] 第 ${i + 1}/${batches} 批解析成功，选题数:`, batchTopics.length);
 
         // 合并原始大纲数据和新生成的详情
         for (const detail of batchTopics) {
@@ -299,18 +288,12 @@ export class AIAnalysisService {
               ...outline,
               ...detail,
             });
-          } else {
-            console.warn(`[AIAnalysisService] 第 ${i + 1}/${batches} 批警告: 找不到 ID ${detail.id} 的大纲数据`);
           }
         }
 
-        console.log(`[AIAnalysisService] 第 ${i + 1}/${batches} 批完成，累计 ${allTopics.length} 条`);
+        console.log(`[Topics] 第 ${i + 1}/${batches} 批完成, 累计 ${allTopics.length} 条`);
       } catch (error) {
-        console.error(`[AIAnalysisService] ❌ 第 ${i + 1}/${batches} 批选题详情生成失败:`, error);
-        if (error instanceof SyntaxError) {
-          console.error(`[AIAnalysisService] JSON 解析错误，响应可能不是有效的 JSON`);
-          console.error(`[AIAnalysisService] 响应预览:`, result.substring(0, Math.min(500, result.length)));
-        }
+        console.error(`[Topics] 第 ${i + 1}/${batches} 批失败:`, error instanceof Error ? error.message : error);
         // 失败的批次只保留大纲数据
         for (const outline of batch) {
           allTopics.push({
@@ -324,12 +307,11 @@ export class AIAnalysisService {
 
       // 添加延迟避免 API 速率限制
       if (i < batches - 1) {
-        console.log(`[AIAnalysisService] 等待 1 秒后继续下一批...`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
 
-    console.log(`[AIAnalysisService] ===== 选题详情生成完成，共 ${allTopics.length} 条 =====`);
+    console.log('[Topics] 完成, 总数:', allTopics.length);
     return allTopics;
   }
 
@@ -342,17 +324,16 @@ export class AIAnalysisService {
     aiConfig?: string
   ): Promise<Array<{ id: number; category: string; titles: string[]; script: string; storyboard: string[]; casePoint?: string }>> {
     try {
+      console.log('[Topics] 开始生成选题库...');
       // 阶段1：生成选题大纲（30条 id+category+titles）
-      console.log('[AIAnalysisService] 开始生成选题大纲...');
       const outlines = await this.generateTopicOutline(account, viralAnalysis, aiConfig);
 
       if (outlines.length === 0) {
-        console.warn('[AIAnalysisService] 选题大纲生成失败，返回空数组');
+        console.warn('[Topics] 大纲生成失败');
         return [];
       }
 
       // 阶段2：分批生成完整内容（每批10条）
-      console.log('[AIAnalysisService] 开始分批生成选题详情...');
       const fullTopics = await this.generateTopicDetails(
         outlines,
         account,
@@ -361,15 +342,13 @@ export class AIAnalysisService {
         10 // 每批10条
       );
 
-      // 验证是否生成了足够的选题
       if (fullTopics.length < 30) {
-        console.warn(`[AIAnalysisService] 选题数量不足：期望30条，实际${fullTopics.length}条`);
+        console.warn(`[Topics] 数量不足: ${fullTopics.length}/30`);
       }
 
       return fullTopics;
     } catch (error) {
-      // 如果选题库生成失败，返回空数组而不是中断整个流程
-      console.error('[AIAnalysisService] 选题库生成失败，将跳过:', error);
+      console.error('[Topics] 生成失败:', error);
       return [];
     }
   }

@@ -29,21 +29,15 @@ async function callAIWithConfig(
  * @param taskId 任务ID
  */
 export async function executeAnalysis(taskId: string): Promise<void> {
-  console.log('[executeAnalysis] ========== 函数被调用 ==========');
-  console.log('[executeAnalysis] 任务 ID:', taskId);
+  console.log('[Analysis] 开始任务:', taskId);
 
   const task = await taskQueue.get(taskId);
   if (!task) {
-    console.error('[executeAnalysis] 任务不存在:', taskId);
+    console.error('[Analysis] 任务不存在:', taskId);
     throw new Error('任务不存在');
   }
 
-  console.log('[executeAnalysis] 任务信息:');
-  console.log('[executeAnalysis]   - fileId:', task.fileId);
-  console.log('[executeAnalysis]   - fileName:', task.fileName);
-  console.log('[executeAnalysis]   - fileUrl:', task.fileUrl);
-  console.log('[executeAnalysis]   - columnMapping:', task.columnMapping);
-  console.log('[executeAnalysis] 准备开始分析...');
+  console.log('[Analysis] 文件:', task.fileName, '| URL:', task.fileUrl ? '已设置' : '未设置');
 
   /**
    * 辅助函数：记录日志
@@ -287,19 +281,12 @@ async function parseData(
 ): Promise<VideoData[]> {
   const columnMapping = JSON.parse(columnMappingStr);
 
-  console.log('[parseData] ========== 开始解析数据 ==========');
-  console.log('[parseData] 文件ID:', fileId);
-  console.log('[parseData] 文件名:', fileName);
-  console.log('[parseData] fileUrl 类型:', typeof fileUrl);
-  console.log('[parseData] fileUrl 值:', fileUrl);
-  console.log('[parseData] fileUrl 是否为 null:', fileUrl === null);
-  console.log('[parseData] fileUrl 是否以 http 开头:', fileUrl?.startsWith('http'));
+  console.log('[Parse] 开始:', fileName, '| Blob URL:', fileUrl ? '是' : '否');
 
   let arrayBuffer: ArrayBuffer;
 
   // 优先使用 Vercel Blob URL（生产环境）
   if (fileUrl && fileUrl.startsWith('http')) {
-    console.log('[parseData] 分支: 从 Vercel Blob 获取文件');
     try {
       const response = await fetch(fileUrl);
       if (!response.ok) {
@@ -307,27 +294,20 @@ async function parseData(
       }
       const buffer = await response.arrayBuffer();
       arrayBuffer = buffer;
-      console.log('[parseData] Vercel Blob 文件大小:', arrayBuffer.byteLength);
+      console.log('[Parse] 从 Blob 获取文件, 大小:', arrayBuffer.byteLength);
     } catch (error) {
-      console.error('[parseData] Vercel Blob 获取失败:', error);
+      console.error('[Parse] Blob 获取失败:', error);
       throw new Error(`从 Vercel Blob 获取文件失败: ${error instanceof Error ? error.message : String(error)}`);
     }
   } else {
     // 本地开发：从文件系统读取（兼容本地开发）
-    console.log('[parseData] 分支: 从本地文件系统获取文件');
-    console.log('[parseData] 警告: 生产环境不应该走这个分支!');
-    console.log('[parseData] fileUrl 为空的原因可能是:');
-    console.log('[parseData]   1. 上传时没有正确保存 fileUrl');
-    console.log('[parseData]   2. 数据库中 fileUrl 字段为 null');
-    console.log('[parseData]   3. 任务创建时 fileUrl 参数未传递');
+    console.warn('[Parse] 使用本地文件系统 (生产环境不应走此分支)');
 
     const { readFile } = await import('fs/promises');
     const { join } = await import('path');
 
     const uploadsDir = join(process.cwd(), 'public', 'uploads');
     const filePath = join(uploadsDir, fileName);
-
-    console.log('[parseData] 本地文件路径:', filePath);
 
     const buffer = await readFile(filePath);
 
@@ -340,7 +320,7 @@ async function parseData(
     } else {
       arrayBuffer = buffer;
     }
-    console.log('[parseData] 本地文件大小:', arrayBuffer.byteLength);
+    console.log('[Parse] 本地文件大小:', arrayBuffer.byteLength);
   }
 
   // 读取工作簿
@@ -355,8 +335,6 @@ async function parseData(
     raw: false,
     dateNF: 'yyyy-mm-dd hh:mm:ss',
   }) as Record<string, any>[];
-
-  console.log('[parseData] 读取到数据行数:', jsonData.length);
 
   // 映射到VideoData结构
   const videos: VideoData[] = [];
@@ -396,11 +374,11 @@ async function parseData(
         });
       }
     } catch (error) {
-      console.error('[parseData] 解析行数据失败:', row, error);
+      console.error('[Parse] 解析行失败:', error);
     }
   }
 
-  console.log('[parseData] 有效数据行数:', videos.length);
+  console.log('[Parse] 完成, 有效数据:', videos.length, '行');
 
   if (videos.length === 0) {
     throw new Error('未找到有效数据，请检查Excel文件格式和列映射配置');

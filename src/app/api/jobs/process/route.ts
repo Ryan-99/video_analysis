@@ -15,15 +15,12 @@ let isProcessing = false;
  * 可以被 Cron Job 定期调用
  */
 export async function POST(request: NextRequest) {
-  console.log('[Jobs API] ========== POST /api/jobs/process 被调用 ==========');
-  console.log('[Jobs API] 请求 URL:', request.url);
-  console.log('[Jobs API] 请求方法:', request.method);
-  console.log('[Jobs API] 当前处理状态:', isProcessing);
+  console.log('[Jobs] POST /api/jobs/process - 处理状态:', isProcessing);
 
   try {
     // 防止并发处理
     if (isProcessing) {
-      console.log('[Jobs API] 已有任务在处理中，跳过');
+      console.log('[Jobs] 已有任务在处理中');
       return NextResponse.json({
         success: true,
         message: '已有任务在处理中',
@@ -32,16 +29,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 获取状态为 queued 的任务
-    console.log('[Jobs API] 正在获取所有任务...');
     const allTasks = await taskQueue.getAll();
-    console.log('[Jobs API] 总任务数:', allTasks.length);
-    console.log('[Jobs API] 所有任务状态:', allTasks.map(t => `${t.id}:${t.status}`));
-
     const queuedTasks = allTasks.filter(t => t.status === 'queued');
-    console.log('[Jobs API] queued 状态任务数:', queuedTasks.length);
 
     if (queuedTasks.length === 0) {
-      console.log('[Jobs API] 没有待处理的任务');
       return NextResponse.json({
         success: true,
         message: '没有待处理的任务',
@@ -49,28 +40,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 取最早的任务
     const task = queuedTasks[0];
-    console.log('[Jobs API] ========== 找到待处理任务 ==========');
-    console.log('[Jobs API] 任务 ID:', task.id);
-    console.log('[Jobs API] 任务文件:', task.fileName);
-    console.log('[Jobs API] fileUrl:', task.fileUrl);
-    console.log('[Jobs API] fileUrl 类型:', typeof task.fileUrl);
-    console.log('[Jobs API] fileUrl 是否为 null:', task.fileUrl === null);
+    console.log('[Jobs] 开始处理任务:', task.id, '| 文件:', task.fileName);
 
-    isProcessing = true;
-
-    console.log('[Jobs API] 即将同步调用 executeAnalysis, taskId:', task.id);
-
-    // 同步执行分析（阻塞响应直到完成）
-    // 在 Vercel Serverless 中，必须等待任务完成才能返回响应
-    // 否则响应返回后执行环境会被冻结，未完成的 Promise 会被丢弃
     try {
       await executeAnalysis(task.id);
-      console.log('[Jobs API] ========== 任务处理完成 ==========');
+      console.log('[Jobs] 任务完成:', task.id);
     } catch (error) {
-      console.error('[Jobs API] ========== 任务处理失败 ==========');
-      console.error('[Jobs API] 错误:', error);
+      console.error('[Jobs] 任务失败:', task.id, '| 错误:', error instanceof Error ? error.message : error);
       const errorMessage = error instanceof Error ? error.message : '未知错误';
       await taskQueue.update(task.id, {
         status: 'failed',
@@ -87,7 +64,7 @@ export async function POST(request: NextRequest) {
       processing: false,
     });
   } catch (error) {
-    console.error('[Jobs API] 错误:', error);
+    console.error('[Jobs] 错误:', error);
     isProcessing = false;
     return NextResponse.json(
       {
