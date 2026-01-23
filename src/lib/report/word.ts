@@ -94,6 +94,7 @@ function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buf
           new ImageRun({
             data: chartBuffer,
             transformation: { width: 600, height: 300 },
+            type: 'png',
           }),
         ],
         alignment: AlignmentType.CENTER,
@@ -183,6 +184,7 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): P
           new ImageRun({
             data: chartBuffer,
             transformation: { width: 600, height: 300 },
+            type: 'png',
           }),
         ],
         alignment: AlignmentType.CENTER,
