@@ -1,6 +1,6 @@
 // src/lib/analyzer/pipeline.ts
 // 分析流程 - 带完整日志记录
-import { taskQueue } from '@/lib/queue/kv';
+import { taskQueue } from '@/lib/queue/database';
 import { analysisLogger } from '@/lib/logger';
 import { VideoData, AccountAnalysis, AnalysisLog, ViralVideo } from '@/types';
 import {
