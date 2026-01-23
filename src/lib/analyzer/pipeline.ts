@@ -2,7 +2,7 @@
 // 分析流程 - 带完整日志记录
 import { taskQueue } from '@/lib/queue/memory';
 import { analysisLogger } from '@/lib/logger';
-import { VideoData, AccountAnalysis, AnalysisLog } from '@/types';
+import { VideoData, AccountAnalysis, AnalysisLog, ViralVideo } from '@/types';
 import {
   calculateAllMetrics,
   groupByMonth,
@@ -92,6 +92,8 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     const allEngagements = metrics.map(m => m.totalEngagement);
     const threshold = calculateThreshold(allEngagements);
     const virals = filterVirals(metrics, threshold);
+    // 转换为 ViralVideo 类型（添加 threshold 属性）
+    const viralVideos: ViralVideo[] = virals.map(v => ({ ...v, threshold }));
 
     await logStep('calculate', '指标计算完成', 'success', {
       output: {
@@ -134,7 +136,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     const monthlyStartTime = Date.now();
     const monthlyTrendAnalysis = await aiAnalysisService.analyzeMonthlyTrend(
       monthlyData,
-      virals,
+      viralVideos,
       task.aiConfig
     );
     const stagesInfo = monthlyTrendAnalysis.stages?.map(s => s.type).join('、') || '无';
@@ -156,7 +158,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
 
     const viralStartTime = Date.now();
     const viralAnalysis = await aiAnalysisService.analyzeViralVideos(
-      virals,
+      viralVideos,
       threshold,
       task.aiConfig
     );
