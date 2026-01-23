@@ -107,20 +107,17 @@ export default function HomePage() {
         console.log('[HomePage] 即将调用后台处理接口...');
 
         // 调用 /api/jobs/process 来触发后台任务执行
-        try {
-          const processResponse = await fetch('/api/jobs/process', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          });
-
-          const processResult = await processResponse.json();
-          console.log('[HomePage] 后台处理响应:', processResult);
-        } catch (processError) {
+        // 注意：这个请求会阻塞最多 5 分钟直到分析完成
+        // 我们不等待响应，直接跳转到分析页面
+        fetch('/api/jobs/process', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }).catch(processError => {
           console.error('[HomePage] 调用后台处理失败:', processError);
-          // 不阻塞用户跳转，即使后台处理失败也可以继续
-        }
+          // 不阻塞用户，分析页面会轮询任务状态
+        });
 
         // 跳转到分析页面
         router.push(`/analyze/${result.data.taskId}`);

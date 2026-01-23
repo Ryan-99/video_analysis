@@ -60,32 +60,31 @@ export async function POST(request: NextRequest) {
 
     isProcessing = true;
 
-    console.log('[Jobs API] 即将调用 executeAnalysis, taskId:', task.id);
+    console.log('[Jobs API] 即将同步调用 executeAnalysis, taskId:', task.id);
 
-    // 异步执行分析（不阻塞响应）
-    executeAnalysis(task.id)
-      .then(() => {
-        console.log('[Jobs API] ========== 任务处理完成 ==========');
-      })
-      .catch(async (error) => {
-        console.error('[Jobs API] ========== 任务处理失败 ==========');
-        console.error('[Jobs API] 错误:', error);
-        const errorMessage = error instanceof Error ? error.message : '未知错误';
-        await taskQueue.update(task.id, {
-          status: 'failed',
-          error: errorMessage,
-        });
-      })
-      .finally(() => {
-        console.log('[Jobs API] executeAnalysis 执行完成，重置 isProcessing');
-        isProcessing = false;
+    // 同步执行分析（阻塞响应直到完成）
+    // 在 Vercel Serverless 中，必须等待任务完成才能返回响应
+    // 否则响应返回后执行环境会被冻结，未完成的 Promise 会被丢弃
+    try {
+      await executeAnalysis(task.id);
+      console.log('[Jobs API] ========== 任务处理完成 ==========');
+    } catch (error) {
+      console.error('[Jobs API] ========== 任务处理失败 ==========');
+      console.error('[Jobs API] 错误:', error);
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      await taskQueue.update(task.id, {
+        status: 'failed',
+        error: errorMessage,
       });
+    } finally {
+      isProcessing = false;
+    }
 
     return NextResponse.json({
       success: true,
-      message: '开始处理任务',
+      message: '任务处理完成',
       taskId: task.id,
-      processing: true,
+      processing: false,
     });
   } catch (error) {
     console.error('[Jobs API] 错误:', error);
