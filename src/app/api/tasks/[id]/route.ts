@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { taskQueue } from '@/lib/queue/database';
+import { taskQueue } from '@/lib/queue/kv';
 
 /**
  * GET /api/tasks/[id]

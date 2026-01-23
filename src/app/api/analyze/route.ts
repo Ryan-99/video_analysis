@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { taskQueue } from '@/lib/queue/database';
+import { taskQueue } from '@/lib/queue/kv';
 import { executeAnalysis } from '@/lib/analyzer/pipeline';
 import { validateColumnMapping } from '@/lib/parser';
 

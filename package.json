@@ -13,6 +13,7 @@
     "@anthropic-ai/sdk": "^0.71.2",
     "@prisma/client": "^7.2.0",
     "@vercel/blob": "^2.0.0",
+    "@vercel/kv": "^2.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "docx": "^9.5.1",
