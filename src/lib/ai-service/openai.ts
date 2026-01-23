@@ -46,7 +46,6 @@ ${titles}
         },
       ],
       response_format: { type: 'json_object' },
-      timeout: 60000, // 60秒超时
     });
 
     return JSON.parse(response.choices[0].message.content || '{}');
