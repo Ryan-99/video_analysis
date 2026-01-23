@@ -23,7 +23,7 @@ export async function parseExcel(buffer: Buffer | ArrayBuffer): Promise<ParsedDa
     arrayBuffer = buffer.buffer.slice(
       buffer.byteOffset,
       buffer.byteOffset + buffer.byteLength
-    );
+    ) as ArrayBuffer;
   } else {
     arrayBuffer = buffer;
   }
