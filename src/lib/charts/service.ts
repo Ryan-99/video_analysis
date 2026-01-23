@@ -27,10 +27,18 @@ export interface ChartConfig {
     scales?: {
       x?: {
         display: boolean;
+        title?: {
+          display: boolean;
+          text: string;
+        };
       };
       y?: {
         display: boolean;
         beginAtZero?: boolean;
+        title?: {
+          display: boolean;
+          text: string;
+        };
       };
     };
   };
