@@ -114,7 +114,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     const accountStartTime = Date.now();
     const accountAnalysis = await aiAnalysisService.analyzeAccountOverview(videos, task.aiConfig);
     await logStep('ai', '账号概况分析完成', 'success', {
-      details: {
+      output: {
         账号名称: accountAnalysis.name,
         账号类型: accountAnalysis.type,
         核心主题: accountAnalysis.coreTopic,
@@ -139,7 +139,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     );
     const stagesInfo = monthlyTrendAnalysis.stages?.map(s => s.type).join('、') || '无';
     await logStep('ai', '月度趋势分析完成', 'success', {
-      details: {
+      output: {
         趋势总结: monthlyTrendAnalysis.summary,
         发展阶段: monthlyTrendAnalysis.stages?.length || 0,
         阶段列表: stagesInfo,
@@ -162,7 +162,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     );
     const categories = viralAnalysis.byCategory?.map(c => c.category).join('、') || '无';
     await logStep('ai', '爆款分析完成', 'success', {
-      details: {
+      output: {
         爆款总结: viralAnalysis.summary,
         爆款总数: virals.length,
         判定阈值: Math.round(threshold).toLocaleString(),
@@ -188,7 +188,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     );
     const topicCategories = topics.map(t => t.category).slice(0, 6).join('、');
     await logStep('ai', '选题库生成完成', 'success', {
-      details: {
+      output: {
         选题总数: topics.length,
         选题分类: topics.map(t => `${t.category}(${t.id})`).join('、'),
         生成状态: topics.length >= 30 ? '完整' : `不足（缺少${30 - topics.length}条）`,
