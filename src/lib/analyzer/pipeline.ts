@@ -180,28 +180,45 @@ export async function executeAnalysis(taskId: string): Promise<void> {
       },
     });
 
-    // 步骤6: AI分析 - 生成选题库
+    // 步骤6: AI分析 - 生成选题库（分步执行）
     await logStep('ai', '开始AI分析 - 选题库生成', 'start', {
     });
     await taskQueue.update(taskId, {
       currentStep: '正在生成选题库...',
       progress: 70,
+      topicStep: 'outline',
     });
 
-    const topicsStartTime = Date.now();
-    const topics = await aiAnalysisService.generateTopics(
-      accountAnalysis,
-      viralAnalysis,
-      task.aiConfig
-    );
-    const topicCategories = topics.map(t => t.category).slice(0, 6).join('、');
-    await logStep('ai', '选题库生成完成', 'success', {
-      output: {
-        选题总数: topics.length,
-        选题分类: topics.map(t => `${t.category}(${t.id})`).join('、'),
-        生成状态: topics.length >= 30 ? '完整' : `不足（缺少${30 - topics.length}条）`,
-      },
+    // 选题生成由独立API端点处理，这里设置状态后暂停
+    // /api/topics/generate-outline 和 /api/topics/generate-details 将继续处理
+    await taskQueue.update(taskId, {
+      status: 'topic_generating',
     });
+
+    // 保存当前进度到数据库，供后续步骤使用
+    const intermediateResult = JSON.stringify({
+      account: accountAnalysis,
+      monthlyTrend: {
+        summary: monthlyTrendAnalysis.summary || `共分析了 ${videos.length} 条视频，覆盖 ${monthlyData.length} 个月份`,
+        data: monthlyData,
+        stages: monthlyTrendAnalysis.stages || [],
+      },
+      virals: {
+        summary: viralAnalysis.summary || `发现 ${virals.length} 条爆款视频`,
+        total: virals.length,
+        threshold,
+        byCategory: viralAnalysis.byCategory || [],
+        patterns: viralAnalysis.patterns || {},
+      },
+      topics: [], // 待选题生成完成后再填充
+    });
+
+    await taskQueue.update(taskId, {
+      resultData: intermediateResult,
+    });
+
+    console.log('[Analysis] 选题生成由独立端点处理, 暂停主流程');
+    return; // 退出，等待选题生成完成后再继续
 
     // 步骤7: 汇总结果
     await logStep('report', '生成报告', 'start');
@@ -387,3 +404,113 @@ async function parseData(
 
   return videos;
 }
+
+/**
+ * 完成分析流程（选题生成后的后续步骤）
+ * @param taskId 任务ID
+ */
+export async function completeAnalysis(taskId: string): Promise<void> {
+  console.log('[Analysis] 完成分析流程, taskId:', taskId);
+
+  const task = await taskQueue.get(taskId);
+  if (!task) {
+    console.error('[Analysis] 任务不存在:', taskId);
+    throw new Error('任务不存在');
+  }
+
+  if (task.topicStep !== 'complete') {
+    console.warn('[Analysis] 选题未完成, topicStep:', task.topicStep);
+    return;
+  }
+
+  /**
+   * 辅助函数：记录日志
+   */
+  const logStep = async (
+    phase: string,
+    step: string,
+    status: 'start' | 'progress' | 'success' | 'error',
+    details?: {
+      input?: any;
+      output?: any;
+      error?: string;
+    }
+  ) => {
+    const log: AnalysisLog = {
+      timestamp: new Date().toISOString(),
+      level: status === 'error' ? 'error' : 'info',
+      phase: phase as any,
+      step,
+      status,
+      ...details,
+    };
+    await analysisLogger.add(taskId, log);
+  };
+
+  try {
+    // 解析结果数据
+    let resultData: any;
+    try {
+      resultData = JSON.parse(task.resultData || '{}');
+    } catch {
+      throw new Error('结果数据格式错误');
+    }
+
+    const topics = resultData.topics || [];
+    const viralCount = resultData.virals?.total || 0;
+
+    // 记录选题生成完成日志
+    await logStep('ai', '选题库生成完成', 'success', {
+      output: {
+        选题总数: topics.length,
+        选题分类: topics.slice(0, 6).map((t: any) => `${t.category}(${t.id})`).join('、'),
+        生成状态: topics.length >= 30 ? '完整' : `不足（缺少${30 - topics.length}条）`,
+      },
+    });
+
+    // 生成报告
+    await logStep('report', '生成报告', 'start');
+    await taskQueue.update(taskId, {
+      status: 'generating_charts',
+      currentStep: '正在生成报告...',
+      progress: 90,
+    });
+
+    await logStep('report', '报告生成完成', 'success', {
+      output: { resultSize: task.resultData?.length || 0 },
+    });
+
+    // 完成任务
+    await taskQueue.update(taskId, {
+      status: 'completed',
+      progress: 100,
+      currentStep: '分析完成',
+      recordCount: task.recordCount,
+      viralCount,
+      completedAt: new Date(),
+    });
+
+    await logStep('system', '任务完成', 'success', {
+      output: {
+        recordCount: task.recordCount,
+        viralCount,
+        topicCount: topics.length,
+      },
+    });
+
+    console.log('[Analysis] 分析流程完成, taskId:', taskId);
+
+  } catch (error) {
+    await logStep('system', '完成分析失败', 'error', {
+      error: error instanceof Error ? error.message : '未知错误',
+    });
+
+    await taskQueue.update(taskId, {
+      status: 'failed',
+      error: error instanceof Error ? error.message : '未知错误',
+    });
+
+    throw error;
+  }
+}
+

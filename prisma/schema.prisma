@@ -12,6 +12,7 @@ enum TaskStatus {
   parsing
   calculating
   analyzing
+  topic_generating
   generating_charts
   completed
   failed
@@ -44,6 +45,12 @@ model AnalysisTask {
   viralCount     Int?
 
   accountName    String?   // 账号名称
+
+  // 选题生成分步执行字段
+  topicStep           String?  // 'outline' | 'details' | 'complete'
+  topicOutlineData    String?  // 临时存储大纲数据（JSON）
+  topicDetailIndex    Int?     // 当前详情批次索引 (0-2)
+  topicBatchSize      Int      @default(10)  // 每批次数量
 
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
