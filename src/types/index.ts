@@ -57,6 +57,13 @@ export interface Task {
   recordCount: number | null;
   viralCount: number | null;
   accountName?: string | null; // 从文件名提取的账号名称
+
+  // 选题生成分步执行字段
+  topicStep?: string | null;  // 'outline' | 'details' | 'complete'
+  topicOutlineData?: string | null;  // 临时存储大纲数据（JSON）
+  topicDetailIndex?: number | null;  // 当前详情批次索引 (0-2)
+  topicBatchSize?: number;  // 每批次数量
+
   createdAt: Date;
   updatedAt: Date;
   completedAt: Date | null;
