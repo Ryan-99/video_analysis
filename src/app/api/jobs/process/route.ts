@@ -15,12 +15,14 @@ let isProcessing = false;
  * 可以被 Cron Job 定期调用
  */
 export async function POST(request: NextRequest) {
-  console.log('[Jobs] POST /api/jobs/process - 处理状态:', isProcessing);
+  const timestamp = new Date().toISOString();
+  console.log(`[Jobs] ${timestamp} - Cron Job 触发`);
+  console.log(`[Jobs] 当前处理状态: ${isProcessing}`);
 
   try {
     // 防止并发处理
     if (isProcessing) {
-      console.log('[Jobs] 已有任务在处理中');
+      console.log('[Jobs] 已有任务在处理中，跳过本次执行');
       return NextResponse.json({
         success: true,
         message: '已有任务在处理中',
@@ -32,23 +34,36 @@ export async function POST(request: NextRequest) {
 
     // 获取所有待处理任务
     const allTasks = await taskQueue.getAll();
+    console.log(`[Jobs] 数据库中共有 ${allTasks.length} 个任务`);
+
+    // 统计各状态任务数量
+    const statusCount = allTasks.reduce((acc, t) => {
+      acc[t.status] = (acc[t.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    console.log('[Jobs] 任务状态分布:', JSON.stringify(statusCount));
 
     // 优先处理正在生成选题的任务
     const topicTasks = allTasks.filter(t => t.status === 'topic_generating');
     const queuedTasks = allTasks.filter(t => t.status === 'queued');
+
+    console.log(`[Jobs] 选题生成中: ${topicTasks.length}, 队列中: ${queuedTasks.length}`);
 
     let task: typeof allTasks[0] | null = null;
 
     if (topicTasks.length > 0) {
       // 优先选题生成任务
       task = topicTasks[0];
-      console.log('[Jobs] 继续选题生成任务:', task.id);
+      console.log(`[Jobs] ========== 继续选题生成任务: ${task.id} ==========`);
+      console.log(`[Jobs] topicStep: ${task.topicStep}, topicDetailIndex: ${task.topicDetailIndex}`);
     } else if (queuedTasks.length > 0) {
       // 新任务
       task = queuedTasks[0];
-      console.log('[Jobs] 开始新任务:', task.id, '| 文件:', task.fileName);
+      console.log(`[Jobs] ========== 开始新任务: ${task.id} ==========`);
+      console.log(`[Jobs] 文件: ${task.fileName}`);
     } else {
       isProcessing = false;
+      console.log('[Jobs] 没有待处理的任务');
       return NextResponse.json({
         success: true,
         message: '没有待处理的任务',
@@ -58,6 +73,7 @@ export async function POST(request: NextRequest) {
 
     if (!task) {
       isProcessing = false;
+      console.log('[Jobs] 没有有效任务');
       return NextResponse.json({
         success: true,
         message: '没有有效任务',
@@ -68,14 +84,20 @@ export async function POST(request: NextRequest) {
     try {
       if (task.status === 'queued') {
         // 新任务：执行完整分析流程（到选题生成阶段）
+        console.log('[Jobs] 执行完整分析流程');
         await executeAnalysis(task.id);
       } else if (task.status === 'topic_generating') {
         // 选题生成任务：继续处理
+        console.log('[Jobs] 继续选题生成流程');
         await handleTopicGeneration(task.id);
       }
-      console.log('[Jobs] 任务步骤完成:', task.id);
+      console.log(`[Jobs] ========== 任务步骤完成: ${task.id} ==========`);
     } catch (error) {
-      console.error('[Jobs] 任务失败:', task.id, '| 错误:', error instanceof Error ? error.message : error);
+      console.error(`[Jobs] ========== 任务失败: ${task.id} ==========`);
+      console.error('[Jobs] 错误类型:', error instanceof Error ? error.constructor.name : typeof error);
+      console.error('[Jobs] 错误信息:', error instanceof Error ? error.message : String(error));
+      console.error('[Jobs] 错误堆栈:', error instanceof Error ? error.stack : '无堆栈');
+
       const errorMessage = error instanceof Error ? error.message : '未知错误';
       await taskQueue.update(task.id, {
         status: 'failed',
@@ -92,6 +114,7 @@ export async function POST(request: NextRequest) {
       processing: false,
     });
   } catch (error) {
+    console.error('[Jobs] ========== 未捕获的错误 ==========');
     console.error('[Jobs] 错误:', error);
     isProcessing = false;
     return NextResponse.json(
@@ -116,27 +139,37 @@ async function handleTopicGeneration(taskId: string): Promise<void> {
     throw new Error('任务不存在');
   }
 
+  console.log(`[Jobs] 选题生成状态: topicStep=${task.topicStep}, topicDetailIndex=${task.topicDetailIndex}`);
+
   const baseUrl = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
     : 'http://localhost:3000';
 
+  console.log('[Jobs] 使用 baseUrl:', baseUrl);
+
   // 根据当前步骤决定下一步操作
   if (task.topicStep === 'outline' || task.topicStep === null) {
     // 生成选题大纲
-    console.log('[Jobs] 调用选题大纲生成 API');
-    const response = await fetch(`${baseUrl}/api/topics/generate-outline`, {
+    console.log('[Jobs] --- 阶段: 生成选题大纲 ---');
+    const url = `${baseUrl}/api/topics/generate-outline`;
+    console.log('[Jobs] 调用 API:', url);
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ taskId }),
     });
 
+    console.log('[Jobs] 响应状态:', response.status);
+
     if (!response.ok) {
       const error = await response.json();
+      console.error('[Jobs] API 错误:', error);
       throw new Error(error.error?.message || '大纲生成失败');
     }
 
     const data = await response.json();
-    console.log('[Jobs] 大纲生成完成:', data.data);
+    console.log('[Jobs] 大纲生成完成:', JSON.stringify(data.data));
   } else if (task.topicStep === 'details') {
     // 生成选题详情（可能需要多次调用）
     const batchSize = task.topicBatchSize || 10;
@@ -145,22 +178,28 @@ async function handleTopicGeneration(taskId: string): Promise<void> {
     const totalBatches = Math.ceil(outlines.length / batchSize);
     const currentIndex = task.topicDetailIndex || 0;
 
-    console.log(`[Jobs] 选题详情批次 ${currentIndex + 1}/${totalBatches}`);
+    console.log(`[Jobs] --- 阶段: 生成选题详情 ---`);
+    console.log(`[Jobs] 批次 ${currentIndex + 1}/${totalBatches}, 每批 ${batchSize} 条, 共 ${outlines.length} 条`);
 
-    // 调用详情生成 API
-    const response = await fetch(`${baseUrl}/api/topics/generate-details`, {
+    const url = `${baseUrl}/api/topics/generate-details`;
+    console.log('[Jobs] 调用 API:', url);
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ taskId }),
     });
 
+    console.log('[Jobs] 响应状态:', response.status);
+
     if (!response.ok) {
       const error = await response.json();
+      console.error('[Jobs] API 错误:', error);
       throw new Error(error.error?.message || '详情生成失败');
     }
 
     const data = await response.json();
-    console.log('[Jobs] 详情批次完成:', data.data);
+    console.log('[Jobs] 详情批次完成:', JSON.stringify(data.data));
 
     // 如果所有批次完成，执行完成流程
     if (data.data?.completed) {
@@ -174,6 +213,8 @@ async function handleTopicGeneration(taskId: string): Promise<void> {
     // 选题已完成，执行完成流程
     console.log('[Jobs] 选题已完成，执行完成流程');
     await completeAnalysis(taskId);
+  } else {
+    console.warn('[Jobs] 未知的 topicStep:', task.topicStep);
   }
 }
 
