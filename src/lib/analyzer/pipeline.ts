@@ -220,54 +220,6 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     console.log('[Analysis] 选题生成由独立端点处理, 暂停主流程');
     return; // 退出，等待选题生成完成后再继续
 
-    // 步骤7: 汇总结果
-    await logStep('report', '生成报告', 'start');
-    await taskQueue.update(taskId, {
-      status: 'generating_charts',
-      currentStep: '正在生成报告...',
-      progress: 90,
-    });
-
-    const resultData = JSON.stringify({
-      account: accountAnalysis,
-      monthlyTrend: {
-        summary: monthlyTrendAnalysis.summary || `共分析了 ${videos.length} 条视频，覆盖 ${monthlyData.length} 个月份`,
-        data: monthlyData,
-        stages: monthlyTrendAnalysis.stages || [],
-      },
-      virals: {
-        summary: viralAnalysis.summary || `发现 ${virals.length} 条爆款视频`,
-        total: virals.length,
-        threshold,
-        byCategory: viralAnalysis.byCategory || [],
-        patterns: viralAnalysis.patterns || {},
-      },
-      topics,
-    });
-
-    await logStep('report', '报告生成完成', 'success', {
-      output: { resultSize: resultData.length },
-    });
-
-    // 步骤8: 完成任务
-    await taskQueue.update(taskId, {
-      status: 'completed',
-      progress: 100,
-      currentStep: '分析完成',
-      resultData,
-      recordCount: videos.length,
-      viralCount: virals.length,
-      completedAt: new Date(),
-    });
-
-    await logStep('system', '任务完成', 'success', {
-      output: {
-        totalDuration: Date.now() - startTime,
-        recordCount: videos.length,
-        viralCount: virals.length,
-      },
-    });
-
   } catch (error) {
     // 记录错误日志
     await logStep('system', '任务失败', 'error', {
