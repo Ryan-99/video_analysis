@@ -22,6 +22,7 @@ export type TaskStatus =
   | 'parsing'
   | 'calculating'
   | 'analyzing'
+  | 'topic_generating'
   | 'generating_charts'
   | 'completed'
   | 'failed';
