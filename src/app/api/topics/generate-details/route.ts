@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { taskQueue } from '@/lib/queue/database';
 import { aiAnalysisService } from '@/lib/ai-analysis/service';
 import { analysisLogger } from '@/lib/logger';
-import type { AnalysisLog, TopicOutline, FullTopic } from '@/types';
+import type { AnalysisLog } from '@/types';
+import type { TopicOutline, FullTopic } from '@/lib/ai-analysis/service';
 
 // 配置为 Node.js 运行时，最大 300 秒（Hobby 计划限制）
 export const runtime = 'nodejs';
