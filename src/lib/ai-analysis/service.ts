@@ -316,44 +316,6 @@ export class AIAnalysisService {
   }
 
   /**
-   * 步骤4：生成选题库（两阶段：大纲+详情）
-   */
-  async generateTopics(
-    account: AccountAnalysis,
-    viralAnalysis: { byCategory: Array<{ category: string; count: number; avgEngagement: number; description: string }>; patterns: any },
-    aiConfig?: string
-  ): Promise<Array<{ id: number; category: string; titles: string[]; script: string; storyboard: string[]; casePoint?: string }>> {
-    try {
-      console.log('[Topics] 开始生成选题库...');
-      // 阶段1：生成选题大纲（30条 id+category+titles）
-      const outlines = await this.generateTopicOutline(account, viralAnalysis, aiConfig);
-
-      if (outlines.length === 0) {
-        console.warn('[Topics] 大纲生成失败');
-        return [];
-      }
-
-      // 阶段2：分批生成完整内容（每批10条）
-      const fullTopics = await this.generateTopicDetails(
-        outlines,
-        account,
-        viralAnalysis.patterns,
-        aiConfig,
-        10 // 每批10条
-      );
-
-      if (fullTopics.length < 30) {
-        console.warn(`[Topics] 数量不足: ${fullTopics.length}/30`);
-      }
-
-      return fullTopics;
-    } catch (error) {
-      console.error('[Topics] 生成失败:', error);
-      return [];
-    }
-  }
-
-  /**
    * 调用AI的通用方法
    * @param prompt - 提示词
    * @param aiConfig - AI配置（JSON字符串）

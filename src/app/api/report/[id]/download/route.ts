@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { taskQueue } from '@/lib/queue/memory';
+import { taskQueue } from '@/lib/queue/database';
 import { generateWordReport, generateExcelReport } from '@/lib/report';
 import { generateMonthlyTrendConfig, generateDailyViralsConfig, downloadChartImage, generateChartImageUrl } from '@/lib/charts/service';
 import { ChartBuffers } from '@/lib/report/word';
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const format = searchParams.get('format') || 'word';
     console.log('[Download API] 格式:', format);
 
-    const task = taskQueue.get(id);
+    const task = await taskQueue.get(id);
     if (!task || task.status !== 'completed') {
       console.log('[Download API] 任务不存在或未完成:', task?.status);
       return NextResponse.json({ success: false, error: { code: 'REPORT_NOT_FOUND', message: '报告不存在' } }, { status: 404 });
