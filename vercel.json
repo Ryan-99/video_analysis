@@ -3,11 +3,5 @@
   "devCommand": "next dev",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "regions": ["hkg1"],
-  "crons": [
-    {
-      "path": "/api/jobs/process",
-      "schedule": "*/2 * * * *"
-    }
-  ]
+  "regions": ["hkg1"]
 }

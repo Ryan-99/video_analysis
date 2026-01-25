@@ -2,7 +2,7 @@
 
 // src/app/analyze/[taskId]/page.tsx
 // 分析进度页面 - 极简 SaaS 风格 + Aceternity UI
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogViewer } from '@/components/analyze/LogViewer';
 import { AnalysisLog } from '@/types';
@@ -41,6 +41,37 @@ export default function AnalyzePage({ params }: { params: Promise<{ taskId: stri
 
   const ctaColor = getCtaColor();
 
+  // 防止重复触发处理
+  const [isProcessing, setIsProcessing] = useState(false);
+  const lastTriggerRef = useRef<number>(0);
+  const TRIGGER_COOLDOWN = 10000; // 10秒冷却时间
+
+  // 触发任务处理（用于选题生成等需要分步执行的任务）
+  const triggerJobProcessing = async () => {
+    const now = Date.now();
+    if (now - lastTriggerRef.current < TRIGGER_COOLDOWN) {
+      return; // 冷却中，跳过
+    }
+    if (isProcessing) {
+      return; // 已有触发在处理中
+    }
+
+    lastTriggerRef.current = now;
+    setIsProcessing(true);
+
+    try {
+      const response = await fetch('/api/jobs/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      // 不等待响应，让后台处理
+    } catch (error) {
+      // 静默失败，不影响用户体验
+    } finally {
+      setTimeout(() => setIsProcessing(false), 5000);
+    }
+  };
+
   // 加载日志和任务状态
   const loadData = async () => {
     if (!taskId) return;
@@ -54,7 +85,13 @@ export default function AnalyzePage({ params }: { params: Promise<{ taskId: stri
 
       const taskResult = await taskRes.json();
       if (taskResult.success) {
-        setTaskStatus(taskResult.data);
+        const newTaskStatus = taskResult.data;
+        setTaskStatus(newTaskStatus);
+
+        // 检测到选题生成状态，自动触发处理
+        if (newTaskStatus?.status === 'topic_generating') {
+          triggerJobProcessing();
+        }
       }
 
       const logsResult = await logsRes.json();
@@ -62,7 +99,7 @@ export default function AnalyzePage({ params }: { params: Promise<{ taskId: stri
         setLogs(logsResult.data.logs || []);
       }
     } catch (error) {
-      console.error('加载数据失败:', error);
+      // 静默处理错误
     }
   };
 
