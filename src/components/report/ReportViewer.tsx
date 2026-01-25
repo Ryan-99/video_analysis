@@ -5,19 +5,58 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { Report } from '@/types';
+import { generateMonthlyTrendConfig, generateChartImageUrl } from '@/lib/charts/service';
 
 interface ReportViewerProps { reportId: string; }
 
 export function ReportViewer({ reportId }: ReportViewerProps) {
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
+  const [monthlyChartUrl, setMonthlyChartUrl] = useState<string>('');
+  const [dailyChartUrl, setDailyChartUrl] = useState<string>('');
 
   useEffect(() => {
     async function loadReport() {
       try {
         const response = await fetch(`/api/report/${reportId}`);
         const result = await response.json();
-        if (result.success) setReport(result.data);
+        if (result.success) {
+          setReport(result.data);
+
+          // 生成图表 URL
+          const data = result.data;
+          if (data.monthlyTrend?.data) {
+            const monthlyConfig = generateMonthlyTrendConfig(data.monthlyTrend.data);
+            setMonthlyChartUrl(generateChartImageUrl(monthlyConfig, 800, 400));
+
+            // 每日爆点图（使用月度数据生成趋势图）
+            const dailyConfig = {
+              type: 'line' as const,
+              data: {
+                labels: data.monthlyTrend.data.map((d: any) => d.month),
+                datasets: [{
+                  label: '月度平均互动',
+                  data: data.monthlyTrend.data.map((d: any) => Math.round(d.avgEngagement)),
+                  borderColor: 'rgb(239, 68, 68)',
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  borderWidth: 2,
+                }],
+              },
+              options: {
+                responsive: true,
+                plugins: {
+                  title: { display: true, text: '全周期互动趋势' },
+                  legend: { display: false },
+                },
+                scales: {
+                  x: { display: true, title: { display: true, text: '月份' } },
+                  y: { display: true, beginAtZero: true, title: { display: true, text: '互动量' } },
+                },
+              },
+            };
+            setDailyChartUrl(generateChartImageUrl(dailyConfig, 800, 400));
+          }
+        }
       } catch (error) {
         console.error('Failed to load report:', error);
       } finally {
@@ -93,6 +132,22 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
       <Card className="p-6">
         <h3 className="text-lg font-semibold mb-4">二、月度趋势分析</h3>
         <p className="text-sm text-gray-300 mb-6">{report.monthlyTrend.summary}</p>
+
+        {/* 图表展示 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          {monthlyChartUrl && (
+            <div>
+              <h4 className="text-sm font-medium mb-3 text-gray-200">月度平均互动趋势</h4>
+              <img src={monthlyChartUrl} alt="月度趋势图" className="w-full rounded border border-white/10" />
+            </div>
+          )}
+          {dailyChartUrl && (
+            <div>
+              <h4 className="text-sm font-medium mb-3 text-gray-200">全周期互动趋势</h4>
+              <img src={dailyChartUrl} alt="全周期趋势图" className="w-full rounded border border-white/10" />
+            </div>
+          )}
+        </div>
 
         {/* 月度数据表格 */}
         <div>
