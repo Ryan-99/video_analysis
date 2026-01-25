@@ -6,6 +6,11 @@ import { analysisLogger } from '@/lib/logger';
 import type { AnalysisLog } from '@/types';
 import type { TopicOutline, FullTopic } from '@/lib/ai-analysis/service';
 
+// 选题详情生成结果
+type TopicDetailsResult =
+  | { completed: true; totalTopics: number; message: string }
+  | { completed: false; currentBatch: number; totalBatches: number; totalTopics: number; message: string };
+
 /**
  * 生成选题大纲
  */
@@ -92,11 +97,7 @@ export async function generateTopicOutline(taskId: string): Promise<void> {
 /**
  * 生成选题详情（单批次）
  */
-export async function generateTopicDetails(taskId: string): Promise<{
-  completed: boolean;
-  totalTopics: number;
-  message: string;
-}> {
+export async function generateTopicDetails(taskId: string): Promise<TopicDetailsResult> {
   console.log('[Topics] 开始生成详情, taskId:', taskId);
 
   const task = await taskQueue.get(taskId);
