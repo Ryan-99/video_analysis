@@ -316,13 +316,13 @@ export class AIAnalysisService {
   }
 
   /**
-   * 调用AI的通用方法
+   * 调用AI的通用方法（带重试机制）
    * @param prompt - 提示词
    * @param aiConfig - AI配置（JSON字符串）
    * @param timeout - 超时时间（毫秒）
    * @param maxTokens - 最大token数（默认8000）
    */
-  private async callAI(prompt: string, aiConfig?: string, timeout: number = 120000, maxTokens: number = 8000): Promise<string> {
+  private async callAI(prompt: string, aiConfig?: string, timeout: number = 120000, maxTokens: number = 8000, retries: number = 2): Promise<string> {
     if (!aiConfig) {
       throw new Error('AI配置未设置');
     }
@@ -338,14 +338,55 @@ export class AIAnalysisService {
       throw new Error('API密钥未配置，请在设置中配置API密钥');
     }
 
-    console.log(`[AI] 调用AI: ${providerConfig.model}, 超时: ${timeout/1000}秒`);
+    console.log(`[AI] 调用AI: ${providerConfig.model}, 超时: ${timeout/1000}秒, 重试次数: ${retries}`);
+    console.log(`[AI] API URL: ${providerConfig.apiUrl}`);
     console.log(`[AI] Prompt (前200字符): ${prompt.substring(0, 200)}...`);
+
+    // 重试循环
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        return await this.executeFetch(prompt, providerConfig, apiKey, timeout, maxTokens, attempt);
+      } catch (error) {
+        const isLastAttempt = attempt === retries;
+        const errorMsg = error instanceof Error ? error.message : String(error);
+
+        console.error(`[AI] 请求失败 (尝试 ${attempt + 1}/${retries + 1}): ${errorMsg}`);
+
+        // 网络错误且非最后一次尝试，则重试
+        if (!isLastAttempt && (errorMsg.includes('fetch failed') || errorMsg.includes('ECONNREFUSED') || errorMsg.includes('ETIMEDOUT'))) {
+          const delay = Math.pow(2, attempt) * 1000; // 指数退避: 1s, 2s, 4s...
+          console.log(`[AI] 等待 ${delay}ms 后重试...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+
+        // 最后一次尝试或非网络错误，抛出异常
+        throw new Error(`AI请求失败: ${errorMsg}`);
+      }
+    }
+
+    throw new Error('AI请求失败: 未知错误');
+  }
+
+  /**
+   * 执行实际的 fetch 请求
+   */
+  private async executeFetch(
+    prompt: string,
+    providerConfig: any,
+    apiKey: string,
+    timeout: number,
+    maxTokens: number,
+    attempt: number
+  ): Promise<string> {
+    console.log(`[AI] 发送请求 (尝试 ${attempt + 1})...`);
 
     // 构建请求
     let url = providerConfig.apiUrl;
     if (providerConfig.apiFormat === 'claude') {
       const baseUrl = providerConfig.apiUrl.replace(/\/v1\/messages$/, '').replace(/\/$/, '');
       url = `${baseUrl}/v1/messages`;
+      console.log(`[AI] Claude URL: ${url}`);
 
       const response = await fetch(url, {
         method: 'POST',
@@ -356,7 +397,7 @@ export class AIAnalysisService {
         },
         body: JSON.stringify({
           model: providerConfig.model,
-          max_tokens: maxTokens, // 使用传入的maxTokens参数
+          max_tokens: maxTokens,
           messages: [{ role: 'user', content: prompt }],
         }),
         signal: AbortSignal.timeout(timeout),
@@ -377,6 +418,7 @@ export class AIAnalysisService {
         const baseUrl = url.replace(/\/$/, '');
         url = `${baseUrl}/chat/completions`;
       }
+      console.log(`[AI] OpenAI URL: ${url}`);
 
       const response = await fetch(url, {
         method: 'POST',
