@@ -9,9 +9,16 @@ import { VideoData, MonthlyData, ViralVideo, AccountAnalysis } from '@/types';
  * - AI 添加的额外说明文字
  * - JSON 前后的多余空白
  * - 多个代码块
+ * - 中文引号问题
  */
 function cleanAIResponse(response: string): string {
   let cleaned = response.trim();
+
+  // 0. 先替换中文引号为英文引号（在整个文本上替换，避免破坏 JSON 结构）
+  // 中文全角引号 -> 英文半角引号
+  cleaned = cleaned.replace(/"/g, '"').replace(/"/g, '"');
+  // 中文逗号 -> 英文逗号（在 JSON 中使用）
+  cleaned = cleaned.replace(/，/g, ',');
 
   // 1. 尝试提取第一个有效的 JSON 对象/数组
   // 查找 { 或 [ 的位置（可能被 markdown 包围）
