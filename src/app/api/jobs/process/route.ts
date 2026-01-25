@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { taskQueue } from '@/lib/queue/database';
 import { executeAnalysis, completeAnalysis } from '@/lib/analyzer/pipeline';
+import { generateTopicOutline, generateTopicDetails } from '@/lib/topics/service';
 
 // 配置为 Node.js 运行时，最大 300 秒（Hobby 计划限制）
 export const runtime = 'nodejs';
@@ -12,11 +13,11 @@ let isProcessing = false;
 /**
  * POST /api/jobs/process
  * 处理队列中的待处理任务
- * 可以被 Cron Job 定期调用
+ * 可以被前端定时触发
  */
 export async function POST(request: NextRequest) {
   const timestamp = new Date().toISOString();
-  console.log(`[Jobs] ${timestamp} - Cron Job 触发`);
+  console.log(`[Jobs] ${timestamp} - 触发`);
   console.log(`[Jobs] 当前处理状态: ${isProcessing}`);
 
   try {
@@ -141,35 +142,12 @@ async function handleTopicGeneration(taskId: string): Promise<void> {
 
   console.log(`[Jobs] 选题生成状态: topicStep=${task.topicStep}, topicDetailIndex=${task.topicDetailIndex}`);
 
-  const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : 'http://localhost:3000';
-
-  console.log('[Jobs] 使用 baseUrl:', baseUrl);
-
   // 根据当前步骤决定下一步操作
   if (task.topicStep === 'outline' || task.topicStep === null) {
-    // 生成选题大纲
+    // 生成选题大纲 - 直接调用内部函数
     console.log('[Jobs] --- 阶段: 生成选题大纲 ---');
-    const url = `${baseUrl}/api/topics/generate-outline`;
-    console.log('[Jobs] 调用 API:', url);
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ taskId }),
-    });
-
-    console.log('[Jobs] 响应状态:', response.status);
-
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('[Jobs] API 错误:', error);
-      throw new Error(error.error?.message || '大纲生成失败');
-    }
-
-    const data = await response.json();
-    console.log('[Jobs] 大纲生成完成:', JSON.stringify(data.data));
+    await generateTopicOutline(taskId);
+    console.log('[Jobs] 大纲生成完成');
   } else if (task.topicStep === 'details') {
     // 生成选题详情（可能需要多次调用）
     const batchSize = task.topicBatchSize || 10;
@@ -181,28 +159,11 @@ async function handleTopicGeneration(taskId: string): Promise<void> {
     console.log(`[Jobs] --- 阶段: 生成选题详情 ---`);
     console.log(`[Jobs] 批次 ${currentIndex + 1}/${totalBatches}, 每批 ${batchSize} 条, 共 ${outlines.length} 条`);
 
-    const url = `${baseUrl}/api/topics/generate-details`;
-    console.log('[Jobs] 调用 API:', url);
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ taskId }),
-    });
-
-    console.log('[Jobs] 响应状态:', response.status);
-
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('[Jobs] API 错误:', error);
-      throw new Error(error.error?.message || '详情生成失败');
-    }
-
-    const data = await response.json();
-    console.log('[Jobs] 详情批次完成:', JSON.stringify(data.data));
+    const result = await generateTopicDetails(taskId);
+    console.log('[Jobs] 详情批次完成:', JSON.stringify(result));
 
     // 如果所有批次完成，执行完成流程
-    if (data.data?.completed) {
+    if (result.completed) {
       console.log('[Jobs] 所有选题详情生成完成，执行完成流程');
       await completeAnalysis(taskId);
     } else {
