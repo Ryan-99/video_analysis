@@ -107,8 +107,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     console.log('[Download API] 文件生成成功，大小:', buffer.length);
 
     // 处理中文文件名编码 - 使用 RFC 5987 格式
+    // 注意：filename 参数必须是 ASCII，filename* 支持 UTF-8
+    const asciiFilename = `analysis-report-${id}.${format === 'word' ? 'docx' : 'xlsx'}`;
     const encodedFilename = encodeURIComponent(filename);
-    const contentDisposition = `attachment; filename="${filename}"; filename*=UTF-8''${encodedFilename}`;
+    const contentDisposition = `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodedFilename}`;
 
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
