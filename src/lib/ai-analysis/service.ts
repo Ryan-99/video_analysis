@@ -14,6 +14,10 @@ import { VideoData, MonthlyData, ViralVideo, AccountAnalysis } from '@/types';
 function cleanAIResponse(response: string): string {
   let cleaned = response.trim();
 
+  // 调试：记录原始响应的前500字符
+  console.log('[cleanAIResponse] 原始响应长度:', cleaned.length);
+  console.log('[cleanAIResponse] 原始响应预览:', cleaned.substring(0, 500));
+
   // 1. 尝试提取第一个有效的 JSON 对象/数组
   // 查找 { 或 [ 的位置（可能被 markdown 包围）
   const jsonStartPattern = /[\{\[]/;
@@ -22,6 +26,7 @@ function cleanAIResponse(response: string): string {
   if (startMatch && startMatch.index !== undefined) {
     // 找到了 JSON 起始，截取从这里开始的内容
     cleaned = cleaned.substring(startMatch.index);
+    console.log('[cleanAIResponse] 提取JSON后长度:', cleaned.length);
   }
 
   // 2. 移除 markdown 代码块语言标记（如 ```json）
@@ -71,6 +76,18 @@ function cleanAIResponse(response: string): string {
   // 4. 移除可能残留的 ``` 标记
   cleaned = cleaned.replace(/```/g, '').trim();
 
+  // 调试：在替换前检查是否有中文引号
+  const hasLeftQuote = cleaned.includes('"');
+  const hasRightQuote = cleaned.includes('"');
+  console.log('[cleanAIResponse] 替换前 - 包含中文左引号:"', hasLeftQuote, '中文右引号:"', hasRightQuote);
+  if (hasLeftQuote || hasRightQuote) {
+    // 找到第一个中文引号的位置
+    const leftQuoteIdx = cleaned.indexOf('"');
+    const rightQuoteIdx = cleaned.indexOf('"');
+    console.log('[cleanAIResponse] 中文引号位置 - 左:', leftQuoteIdx, '右:', rightQuoteIdx);
+    console.log('[cleanAIResponse] 引号周围内容:', cleaned.substring(Math.max(0, (leftQuoteIdx ?? 0) - 20), (leftQuoteIdx ?? 0) + 30));
+  }
+
   // 5. 替换中文标点符号为英文（在提取JSON内容后进行）
   // 中文全角引号 -> 英文半角引号
   cleaned = cleaned.replace(/"/g, '"').replace(/"/g, '"');
@@ -85,7 +102,73 @@ function cleanAIResponse(response: string): string {
   // 中文感叹号 -> 英文感叹号
   cleaned = cleaned.replace(/！/g, '!');
 
+  // 调试：替换后再次检查
+  const stillHasLeftQuote = cleaned.includes('"');
+  const stillHasRightQuote = cleaned.includes('"');
+  console.log('[cleanAIResponse] 替换后 - 仍包含中文左引号:"', stillHasLeftQuote, '中文右引号:"', stillHasRightQuote);
+
   return cleaned;
+}
+
+/**
+ * 安全地解析 AI 返回的 JSON
+ * 尝试多种策略来解析可能包含问题的 JSON
+ */
+function safeParseJSON(jsonString: string, maxAttempts = 3): any {
+  const attempts: Array<{ name: string; transform: (s: string) => string }> = [
+    {
+      name: '直接解析',
+      transform: (s) => s,
+    },
+    {
+      name: '替换所有中文标点',
+      transform: (s) => {
+        let result = s;
+        // 替换所有可能的全角标点为半角
+        result = result.replace(/"/g, '"').replace(/"/g, '"');
+        result = result.replace(/'/g, "'").replace(/'/g, "'");
+        result = result.replace(/，/g, ',');
+        result = result.replace(/：/g, ':');
+        result = result.replace(/；/g, ';');
+        result = result.replace(/？/g, '?');
+        result = result.replace(/！/g, '!');
+        result = result.replace(/（/g, '(').replace(/）/g, ')');
+        result = result.replace(/【/g, '[').replace(/】/g, ']');
+        return result;
+      },
+    },
+    {
+      name: '移除所有不可见字符',
+      transform: (s) => {
+        // 移除可能存在的零宽字符、BOM等
+        let result = s.replace(/[\u200B-\u200D\uFEFF]/g, '');
+        // 再替换中文标点
+        result = result.replace(/"/g, '"').replace(/"/g, '"');
+        result = result.replace(/'/g, "'").replace(/'/g, "'");
+        result = result.replace(/，/g, ',');
+        result = result.replace(/：/g, ':');
+        return result;
+      },
+    },
+  ];
+
+  for (let i = 0; i < Math.min(attempts.length, maxAttempts); i++) {
+    const attempt = attempts[i];
+    try {
+      const transformed = attempt.transform(jsonString);
+      const parsed = JSON.parse(transformed);
+      console.log(`[safeParseJSON] ✅ 尝试 ${i + 1} (${attempt.name}) 成功`);
+      return parsed;
+    } catch (error) {
+      console.log(`[safeParseJSON] ❌ 尝试 ${i + 1} (${attempt.name}) 失败:`, error instanceof Error ? error.message : String(error));
+      if (i === Math.min(attempts.length, maxAttempts) - 1) {
+        // 最后一次尝试也失败了，抛出错误
+        throw error;
+      }
+    }
+  }
+
+  throw new Error('JSON 解析失败');
 }
 
 /**
@@ -127,7 +210,7 @@ export class AIAnalysisService {
     });
 
     const result = await this.callAI(prompt, aiConfig, 180000, 8000); // 3分钟，8000 tokens
-    return JSON.parse(cleanAIResponse(result)) as AccountAnalysis;
+    return safeParseJSON(cleanAIResponse(result)) as AccountAnalysis;
   }
 
   /**
@@ -154,7 +237,7 @@ export class AIAnalysisService {
     });
 
     const result = await this.callAI(prompt, aiConfig, 180000, 8000); // 3分钟，8000 tokens
-    return JSON.parse(cleanAIResponse(result));
+    return safeParseJSON(cleanAIResponse(result));
   }
 
   /**
@@ -180,7 +263,7 @@ export class AIAnalysisService {
     });
 
     const result = await this.callAI(prompt, aiConfig, 300000, 12000); // 5分钟，12000 tokens
-    return JSON.parse(cleanAIResponse(result));
+    return safeParseJSON(cleanAIResponse(result));
   }
 
   /**
@@ -226,7 +309,7 @@ export class AIAnalysisService {
       const cleaned = cleanAIResponse(result);
       console.log('[AIAnalysisService] 清理后长度:', cleaned.length);
 
-      const parsed = JSON.parse(cleaned);
+      const parsed = safeParseJSON(cleaned);
       let outlines = parsed.topics || [];
 
       console.log(`[AIAnalysisService] 选题大纲生成完成，共 ${outlines.length} 条`);
@@ -240,7 +323,7 @@ export class AIAnalysisService {
         const supplementPrompt = this.generateSupplementPrompt(account, viralAnalysis, outlines, needMore);
         const supplementResult = await this.callAI(supplementPrompt, aiConfig, 180000, 8000);
         const supplementCleaned = cleanAIResponse(supplementResult);
-        const supplementParsed = JSON.parse(supplementCleaned);
+        const supplementParsed = safeParseJSON(supplementCleaned);
         const supplementTopics = supplementParsed.topics || [];
 
         // 调整补充选题的 ID
@@ -367,7 +450,7 @@ ${existingCategories}
         result = await this.callAI(prompt, aiConfig, 300000, 12000); // 300秒，12000 tokens
 
         const cleaned = cleanAIResponse(result);
-        const parsed = JSON.parse(cleaned);
+        const parsed = safeParseJSON(cleaned);
         const batchTopics = parsed.topics || [];
 
         // 合并原始大纲数据和新生成的详情
