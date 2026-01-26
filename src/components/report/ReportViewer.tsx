@@ -428,6 +428,66 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
           </div>
         </div>
 
+        {/* 数据分析口径说明 */}
+        {report.virals.dataScopeNote && (
+          <div className="mb-6 p-4 bg-gray-800/50 rounded-lg">
+            <h4 className="text-sm font-medium mb-2 text-gray-200">数据分析口径说明</h4>
+            <p className="text-xs text-gray-400 whitespace-pre-line">{report.virals.dataScopeNote}</p>
+          </div>
+        )}
+
+        {/* 逐月爆款清单 */}
+        {report.virals.monthlyList && report.virals.monthlyList.length > 0 && (
+          <div className="mb-6">
+            <h4 className="text-sm font-medium mb-3 text-gray-200">逐月爆款清单</h4>
+            <div className="space-y-4">
+              {report.virals.monthlyList.map((monthData, idx) => (
+                <details key={idx} className="group">
+                  <summary className="cursor-pointer text-sm text-white font-medium p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors">
+                    {monthData.month} - {monthData.videos.length}条爆款（阈值={Math.round(monthData.threshold).toLocaleString()}）
+                  </summary>
+                  <div className="mt-3 p-3 bg-gray-900/30 rounded-lg">
+                    {/* 爆款表格 */}
+                    <div className="overflow-x-auto mb-3">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-white/10">
+                            <th className="text-left py-1 px-2 text-gray-400">发布时间</th>
+                            <th className="text-left py-1 px-2 text-gray-400">标题</th>
+                            <th className="text-right py-1 px-2 text-gray-400">互动</th>
+                            <th className="text-right py-1 px-2 text-gray-400">收藏率</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {monthData.videos.map((video, vIdx) => (
+                            <tr key={vIdx} className="border-b border-white/5">
+                              <td className="py-1 px-2 text-gray-300">{video.publishTime}</td>
+                              <td className="py-1 px-2 text-gray-300 max-w-md truncate">{video.title}</td>
+                              <td className="text-right py-1 px-2 text-gray-300">{video.totalEngagement.toLocaleString()}</td>
+                              <td className="text-right py-1 px-2 text-green-400">{video.saveRate.toFixed(2)}%</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {/* Top10标题汇总 */}
+                    {monthData.top10Titles && monthData.top10Titles.length > 0 && (
+                      <div className="p-2 bg-gray-800/30 rounded">
+                        <p className="text-xs text-gray-400 mb-1">当月Top10标题汇总：</p>
+                        <ol className="text-xs text-gray-300 space-y-0.5">
+                          {monthData.top10Titles.map((title, tIdx) => (
+                            <li key={tIdx}>{tIdx + 1}. {title}</li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                  </div>
+                </details>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 每日Top1爆点图表（可交互） */}
         {dailyTop1ChartData && (
           <div className="mb-6">
@@ -446,8 +506,215 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
           </div>
         )}
 
-        {/* 爆款规律 */}
-        {report.virals.patterns && (
+        {/* 爆款分析总览（扩展版） */}
+        {report.virals.byCategory && report.virals.byCategory.length > 0 && (
+          <div className="mt-6">
+            <h4 className="text-sm font-medium mb-3 text-gray-200">爆款分析总览</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="text-left py-2 px-3 text-gray-400">分类</th>
+                    <th className="text-right py-2 px-3 text-gray-400">数量</th>
+                    <th className="text-right py-2 px-3 text-gray-400">互动中位数</th>
+                    <th className="text-right py-2 px-3 text-gray-400">收藏率中位数</th>
+                    <th className="text-right py-2 px-3 text-gray-400">收藏率P90</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.virals.byCategory.map((item, index) => (
+                    <tr key={index} className="border-b border-white/5">
+                      <td className="py-2 px-3 text-gray-200">{item.category}</td>
+                      <td className="text-right py-2 px-3 text-gray-200">{item.count}</td>
+                      <td className="text-right py-2 px-3 text-gray-200">
+                        {'medianEngagement' in item ? Math.round((item as any).medianEngagement).toLocaleString() : Math.round((item as any).avgEngagement).toLocaleString()}
+                      </td>
+                      <td className="text-right py-2 px-3 text-gray-200">
+                        {'medianSaveRate' in item ? (item as any).medianSaveRate.toFixed(2) + '%' : '-'}
+                      </td>
+                      <td className="text-right py-2 px-3 text-green-400">
+                        {'p90SaveRate' in item ? (item as any).p90SaveRate.toFixed(2) + '%' : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* 特征描述 */}
+            {report.virals.byCategory.some((c: any) => c.description) && (
+              <div className="mt-3 space-y-2 text-xs text-gray-400">
+                {report.virals.byCategory.map((item: any, index: number) => (
+                  item.description ? (
+                    <p key={index}><strong className="text-gray-300">{item.category}：</strong>{item.description}</p>
+                  ) : null
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 共性机制（当不可分类时） */}
+        {report.virals.commonMechanisms && !report.virals.commonMechanisms.hasCategories && report.virals.commonMechanisms.mechanisms && (
+          <div className="mt-6">
+            <h4 className="text-sm font-medium mb-3 text-gray-200">共性机制</h4>
+            {report.virals.commonMechanisms.reason && (
+              <p className="text-xs text-gray-500 mb-2">{report.virals.commonMechanisms.reason}</p>
+            )}
+            <div className="space-y-3">
+              {report.virals.commonMechanisms.mechanisms.map((mechanism, idx) => (
+                <div key={idx} className="p-3 bg-gray-800/30 rounded-lg">
+                  <p className="text-sm font-medium text-white mb-2">{mechanism.pattern}</p>
+                  {mechanism.evidence && mechanism.evidence.length > 0 && (
+                    <div className="text-xs text-gray-400">
+                      <p className="mb-1">举证：</p>
+                      <ul className="list-disc list-inside space-y-0.5">
+                        {mechanism.evidence.map((ev, eIdx) => (
+                          <li key={eIdx}>{ev}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 方法论抽象模块 */}
+        {report.virals.methodology && (
+          <div className="mt-6">
+            <h4 className="text-sm font-medium mb-3 text-gray-200">方法论抽象</h4>
+
+            {/* 爆款母题 */}
+            {report.virals.methodology.viralTheme && (
+              <div className="mb-4 p-3 bg-gray-800/30 rounded-lg">
+                <h5 className="text-xs font-medium text-gray-300 mb-2">爆款母题公式</h5>
+                <p className="text-xs text-gray-400 mb-2">{report.virals.methodology.viralTheme.formula}</p>
+                <p className="text-sm text-white mb-2">{report.virals.methodology.viralTheme.conclusion}</p>
+                {report.virals.methodology.viralTheme.evidence && (
+                  <div className="text-xs text-gray-400">
+                    <p className="mb-1">数值证据：</p>
+                    <ul className="list-disc list-inside space-y-0.5">
+                      {report.virals.methodology.viralTheme.evidence.map((ev, idx) => (
+                        <li key={idx}>{ev}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 爆款发布时间分布 */}
+            {report.virals.methodology.timeDistribution && report.virals.methodology.timeDistribution.length > 0 && (
+              <div className="mb-4 p-3 bg-gray-800/30 rounded-lg">
+                <h5 className="text-xs font-medium text-gray-300 mb-2">爆款发布时间分布</h5>
+                <div className="flex flex-wrap gap-2">
+                  {report.virals.methodology.timeDistribution.map((dist, idx) => (
+                    <span key={idx} className="text-xs px-2 py-1 bg-blue-900/30 text-blue-300 rounded">
+                      {dist.timeWindow}（{dist.percentage}%）
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 选题公式 */}
+            {report.virals.methodology.topicFormulas && report.virals.methodology.topicFormulas.length > 0 && (
+              <div className="mb-4 p-3 bg-gray-800/30 rounded-lg">
+                <h5 className="text-xs font-medium text-gray-300 mb-2">选题公式</h5>
+                <div className="space-y-3">
+                  {report.virals.methodology.topicFormulas.map((formula, idx) => (
+                    <details key={idx} className="group">
+                      <summary className="cursor-pointer text-xs text-white font-medium hover:text-gray-300">
+                        {formula.theme}
+                      </summary>
+                      <div className="mt-2 pl-3 text-xs text-gray-400 space-y-1">
+                        <p><strong className="text-gray-300">高频场景：</strong>{formula.scenarios}</p>
+                        <p><strong className="text-gray-300">隐藏规则：</strong>{formula.hiddenRules}</p>
+                        <p><strong className="text-gray-300">反常识结论：</strong>{formula.counterIntuitive}</p>
+                        <p><strong className="text-gray-300">动作：</strong>{formula.actions?.join('、')}</p>
+                        <p className="mt-2"><strong className="text-gray-300">模板：</strong></p>
+                        <ul className="list-disc list-inside pl-2">
+                          {formula.templates?.map((tpl, tIdx) => (
+                            <li key={tIdx} className="text-gray-300">{tpl}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 标题公式 */}
+            {report.virals.methodology.titleFormulas && report.virals.methodology.titleFormulas.length > 0 && (
+              <div className="mb-4 p-3 bg-gray-800/30 rounded-lg">
+                <h5 className="text-xs font-medium text-gray-300 mb-2">标题公式</h5>
+                <div className="grid grid-cols-2 gap-2">
+                  {report.virals.methodology.titleFormulas.map((formula, idx) => (
+                    <div key={idx} className="p-2 bg-gray-900/50 rounded">
+                      <p className="text-xs font-medium text-white mb-1">{formula.type}</p>
+                      <p className="text-xs text-gray-400">{formula.template}</p>
+                      {formula.example && (
+                        <p className="text-xs text-gray-500 mt-1">例：{formula.example}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 脚本公式 */}
+            {report.virals.methodology.scriptFormula && (
+              <div className="mb-4 p-3 bg-gray-800/30 rounded-lg">
+                <h5 className="text-xs font-medium text-gray-300 mb-2">脚本公式</h5>
+                <p className="text-sm text-white mb-2">{report.virals.methodology.scriptFormula.mainFramework}</p>
+                <p className="text-xs text-gray-400 mb-2">{report.virals.methodology.scriptFormula.explanation}</p>
+                {report.virals.methodology.scriptFormula.alternativeFramework && (
+                  <p className="text-xs text-gray-500">备选：{report.virals.methodology.scriptFormula.alternativeFramework}</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 爆款选题库（聚合表） */}
+        {report.virals.topicLibrary && report.virals.topicLibrary.length > 0 && (
+          <div className="mt-6">
+            <h4 className="text-sm font-medium mb-3 text-gray-200">爆款选题库（聚合表）</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="text-left py-2 px-3 text-gray-400">ID</th>
+                    <th className="text-left py-2 px-3 text-gray-400">发布时间</th>
+                    <th className="text-left py-2 px-3 text-gray-400">标题</th>
+                    <th className="text-left py-2 px-3 text-gray-400">分类</th>
+                    <th className="text-right py-2 px-3 text-gray-400">互动</th>
+                    <th className="text-right py-2 px-3 text-gray-400">收藏率</th>
+                    <th className="text-left py-2 px-3 text-gray-400">核心观点</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.virals.topicLibrary.map((item) => (
+                    <tr key={item.id} className="border-b border-white/5">
+                      <td className="py-2 px-3 text-gray-400">{item.id}</td>
+                      <td className="py-2 px-3 text-gray-300">{item.publishTime}</td>
+                      <td className="py-2 px-3 text-gray-300 max-w-md truncate">{item.title}</td>
+                      <td className="py-2 px-3 text-gray-300">{item.category || '-'}</td>
+                      <td className="text-right py-2 px-3 text-gray-300">{item.totalEngagement.toLocaleString()}</td>
+                      <td className="text-right py-2 px-3 text-green-400">{item.saveRate.toFixed(2)}%</td>
+                      <td className="py-2 px-3 text-gray-400 text-xs">{item.keyTakeaway || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* 旧版爆款规律（兼容旧数据） */}
+        {report.virals.patterns && (!report.virals.byCategory || report.virals.byCategory.length === 0) && (
           <div className="mt-6">
             <h4 className="text-sm font-medium mb-3 text-gray-200">爆款规律</h4>
             <div className="space-y-3 text-sm text-gray-200">
@@ -473,35 +740,11 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
           </div>
         )}
 
-        {/* 爆款分类数据表格 */}
-        {report.virals.byCategory && report.virals.byCategory.length > 0 && (
-          <div className="mt-6">
-            <h4 className="text-sm font-medium mb-3 text-gray-200">爆款分类详情</h4>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="text-left py-2 px-3 text-gray-400">分类</th>
-                    <th className="text-right py-2 px-3 text-gray-400">数量</th>
-                    <th className="text-right py-2 px-3 text-gray-400">平均互动</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.virals.byCategory.map((item, index) => (
-                    <tr key={index} className="border-b border-white/5">
-                      <td className="py-2 px-3 text-gray-200">{item.category}</td>
-                      <td className="text-right py-2 px-3 text-gray-200">{item.count}</td>
-                      <td className="text-right py-2 px-3 text-gray-200">{Math.round(item.avgEngagement).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {(!report.virals.byCategory || report.virals.byCategory.length === 0) && (
-          <p className="text-sm text-gray-500 italic">暂无分类数据</p>
+        {/* 旧版提示（如果没有新数据） */}
+        {(!report.virals.byCategory || report.virals.byCategory.length === 0) &&
+         !report.virals.methodology &&
+         !report.virals.topicLibrary && (
+          <p className="text-sm text-gray-500 italic mt-4">暂无分类数据</p>
         )}
       </Card>
 

@@ -428,10 +428,72 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): P
     new Paragraph({ children: [new TextRun({ text: '爆款总数：', bold: true }), new TextRun({ text: virals.total.toString(), bold: true })] }),
     new Paragraph({ children: [new TextRun({ text: '判定阈值：', bold: true }), new TextRun({ text: Math.round(virals.threshold).toLocaleString(), bold: true })] }),
     new Paragraph({ text: '' }),
-
-    // 每日Top1爆点图表（标注已直接渲染在图表上）
-    new Paragraph({ children: [new TextRun({ text: '全周期每日Top1爆点趋势（标注版）', bold: true, size: 28, underline: {} })] }),
   ];
+
+  // 数据分析口径说明
+  if (virals.dataScopeNote) {
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '数据分析口径说明', bold: true, size: 26 })] }));
+    const scopeLines = virals.dataScopeNote.split('\n');
+    for (const line of scopeLines) {
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: line, size: 20 })] }));
+    }
+    paragraphs.push(new Paragraph({ text: '' }));
+  }
+
+  // 逐月爆款清单
+  if (virals.monthlyList && virals.monthlyList.length > 0) {
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '逐月爆款清单', bold: true, size: 28, underline: {} })] }));
+    for (const monthData of virals.monthlyList) {
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: `${monthData.month} - ${monthData.videos.length}条爆款（阈值=${Math.round(monthData.threshold).toLocaleString()}）`, bold: true, size: 24 })] }));
+      paragraphs.push(new Paragraph({ text: '' }));
+
+      // 爆款表格
+      const videoTable = new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph({ text: '发布时间' })], width: { size: 18, type: WidthType.PERCENTAGE } }),
+              new TableCell({ children: [new Paragraph({ text: '标题' })], width: { size: 32, type: WidthType.PERCENTAGE } }),
+              new TableCell({ children: [new Paragraph({ text: '点赞' })], width: { size: 10, type: WidthType.PERCENTAGE } }),
+              new TableCell({ children: [new Paragraph({ text: '评论' })], width: { size: 10, type: WidthType.PERCENTAGE } }),
+              new TableCell({ children: [new Paragraph({ text: '收藏' })], width: { size: 10, type: WidthType.PERCENTAGE } }),
+              new TableCell({ children: [new Paragraph({ text: '转发' })], width: { size: 10, type: WidthType.PERCENTAGE } }),
+              new TableCell({ children: [new Paragraph({ text: '互动' })], width: { size: 10, type: WidthType.PERCENTAGE } }),
+            ],
+          }),
+          ...monthData.videos.map(video =>
+            new TableRow({
+              children: [
+                new TableCell({ children: [new Paragraph({ text: video.publishTime, size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ text: video.title, size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ text: video.likes.toLocaleString(), size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ text: video.comments.toLocaleString(), size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ text: video.saves.toLocaleString(), size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ text: video.shares.toLocaleString(), size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ text: video.totalEngagement.toLocaleString(), size: 18 })] }),
+              ],
+            })
+          ),
+        ],
+      });
+      paragraphs.push(new Paragraph({ children: [videoTable] }));
+
+      // Top10标题汇总
+      if (monthData.top10Titles && monthData.top10Titles.length > 0) {
+        paragraphs.push(new Paragraph({ text: '' }));
+        paragraphs.push(new Paragraph({ children: [new TextRun({ text: '当月Top10标题汇总：', size: 20, bold: true })] }));
+        for (let i = 0; i < monthData.top10Titles.length; i++) {
+          paragraphs.push(new Paragraph({ children: [new TextRun({ text: `${i + 1}. ${monthData.top10Titles[i]}`, size: 20 })] }));
+        }
+      }
+      paragraphs.push(new Paragraph({ text: '' }));
+    }
+    paragraphs.push(new Paragraph({ text: '' }));
+  }
+
+  // 每日Top1爆点图表（标注已直接渲染在图表上）
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '全周期每日Top1爆点趋势（标注版）', bold: true, size: 28, underline: {} })] }));
 
   // 添加图表图片（如果有）
   if (chartBuffer && chartBuffer.length > 0) {
@@ -452,32 +514,228 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): P
   }
   paragraphs.push(new Paragraph({ text: '' }));
 
-  // 爆款规律
-  if (virals.patterns) {
+  // 爆款分析总览（扩展版）
+  if (virals.byCategory && virals.byCategory.length > 0) {
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '爆款分析总览', bold: true, size: 28, underline: {} })] }));
+    paragraphs.push(...generateViralCategoriesTableExtended(virals.byCategory));
+    paragraphs.push(new Paragraph({ text: '' }));
+  }
+
+  // 共性机制（当不可分类时）
+  if (virals.commonMechanisms && !virals.commonMechanisms.hasCategories && virals.commonMechanisms.mechanisms) {
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '共性机制', bold: true, size: 28, underline: {} })] }));
+    if (virals.commonMechanisms.reason) {
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: virals.commonMechanisms.reason, size: 22 })] }));
+      paragraphs.push(new Paragraph({ text: '' }));
+    }
+    for (const mechanism of virals.commonMechanisms.mechanisms) {
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: mechanism.pattern, bold: true, size: 24 })] }));
+      if (mechanism.evidence && mechanism.evidence.length > 0) {
+        paragraphs.push(new Paragraph({ children: [new TextRun({ text: '举证：', size: 20, bold: true })] }));
+        for (const ev of mechanism.evidence) {
+          paragraphs.push(new Paragraph({ children: [new TextRun({ text: `• ${ev}`, size: 20 })] }));
+        }
+      }
+      paragraphs.push(new Paragraph({ text: '' }));
+    }
+  }
+
+  // 方法论抽象模块
+  if (virals.methodology) {
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '方法论抽象', bold: true, size: 28, underline: {} })] }));
+
+    // 爆款母题
+    if (virals.methodology.viralTheme) {
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: '爆款母题公式', bold: true, size: 24 })] }));
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: virals.methodology.viralTheme.formula, size: 20 })] }));
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: virals.methodology.viralTheme.conclusion, size: 22 })] }));
+      if (virals.methodology.viralTheme.evidence && virals.methodology.viralTheme.evidence.length > 0) {
+        paragraphs.push(new Paragraph({ children: [new TextRun({ text: '数值证据：', size: 20, bold: true })] }));
+        for (const ev of virals.methodology.viralTheme.evidence) {
+          paragraphs.push(new Paragraph({ children: [new TextRun({ text: `• ${ev}`, size: 20 })] }));
+        }
+      }
+      paragraphs.push(new Paragraph({ text: '' }));
+    }
+
+    // 爆款发布时间分布
+    if (virals.methodology.timeDistribution && virals.methodology.timeDistribution.length > 0) {
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: '爆款发布时间分布', bold: true, size: 24 })] }));
+      const timeText = virals.methodology.timeDistribution.map(d => `${d.timeWindow}（${d.percentage}%）`).join('；');
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: timeText, size: 22 })] }));
+      paragraphs.push(new Paragraph({ text: '' }));
+    }
+
+    // 选题公式
+    if (virals.methodology.topicFormulas && virals.methodology.topicFormulas.length > 0) {
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: '选题公式', bold: true, size: 24 })] }));
+      for (const formula of virals.methodology.topicFormulas) {
+        paragraphs.push(new Paragraph({ children: [new TextRun({ text: formula.theme, bold: true, size: 22 })] }));
+        paragraphs.push(new Paragraph({ children: [new TextRun({ text: `高频场景：${formula.scenarios}`, size: 20 })] }));
+        paragraphs.push(new Paragraph({ children: [new TextRun({ text: `隐藏规则：${formula.hiddenRules}`, size: 20 })] }));
+        paragraphs.push(new Paragraph({ children: [new TextRun({ text: `反常识结论：${formula.counterIntuitive}`, size: 20 })] }));
+        paragraphs.push(new Paragraph({ children: [new TextRun({ text: `动作：${formula.actions?.join('、') || ''}`, size: 20 })] }));
+        paragraphs.push(new Paragraph({ children: [new TextRun({ text: '模板：', size: 20, bold: true })] }));
+        for (const tpl of formula.templates || []) {
+          paragraphs.push(new Paragraph({ children: [new TextRun({ text: `• ${tpl}`, size: 20 })] }));
+        }
+        paragraphs.push(new Paragraph({ text: '' }));
+      }
+    }
+
+    // 标题公式
+    if (virals.methodology.titleFormulas && virals.methodology.titleFormulas.length > 0) {
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: '标题公式', bold: true, size: 24 })] }));
+      for (const formula of virals.methodology.titleFormulas) {
+        paragraphs.push(new Paragraph({ children: [
+          new TextRun({ text: formula.type, bold: true, size: 20 }),
+          new TextRun({ text: `：${formula.template}`, size: 20 }),
+        ] }));
+        if (formula.example) {
+          paragraphs.push(new Paragraph({ children: [new TextRun({ text: `  例：${formula.example}`, size: 18 })] }));
+        }
+      }
+      paragraphs.push(new Paragraph({ text: '' }));
+    }
+
+    // 脚本公式
+    if (virals.methodology.scriptFormula) {
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: '脚本公式', bold: true, size: 24 })] }));
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: virals.methodology.scriptFormula.mainFramework, size: 22 })] }));
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: virals.methodology.scriptFormula.explanation, size: 20 })] }));
+      if (virals.methodology.scriptFormula.alternativeFramework) {
+        paragraphs.push(new Paragraph({ children: [new TextRun({ text: `备选：${virals.methodology.scriptFormula.alternativeFramework}`, size: 18 })] }));
+      }
+      paragraphs.push(new Paragraph({ text: '' }));
+    }
+  }
+
+  // 爆款选题库（聚合表）
+  if (virals.topicLibrary && virals.topicLibrary.length > 0) {
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '爆款选题库（聚合表）', bold: true, size: 28, underline: {} })] }));
+    paragraphs.push(...generateTopicLibraryTable(virals.topicLibrary));
+    paragraphs.push(new Paragraph({ text: '' }));
+  }
+
+  // 旧版爆款规律（兼容旧数据）
+  if (virals.patterns && (!virals.byCategory || virals.byCategory.length === 0)) {
     paragraphs.push(new Paragraph({ children: [new TextRun({ text: '爆款规律', bold: true, size: 28, underline: {} })] }));
-    // 共同元素
     if (virals.patterns.commonElements) {
       paragraphs.push(...generateFormattedParagraphs(virals.patterns.commonElements, { boldPrefix: '共同元素：', size: 24 }));
     }
-    // 时间规律
     if (virals.patterns.timingPattern) {
       paragraphs.push(...generateFormattedParagraphs(virals.patterns.timingPattern, { boldPrefix: '时间规律：', size: 24 }));
     }
-    // 标题规律
     if (virals.patterns.titlePattern) {
       paragraphs.push(...generateFormattedParagraphs(virals.patterns.titlePattern, { boldPrefix: '标题规律：', size: 24 }));
     }
     paragraphs.push(new Paragraph({ text: '' }));
   }
 
-  // 爆款分类
-  if (virals.byCategory && virals.byCategory.length > 0) {
-    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '爆款分类详情', bold: true, size: 28, underline: {} })] }));
-    paragraphs.push(...generateViralCategoriesTable(virals.byCategory));
+  return paragraphs;
+}
+
+/**
+ * 生成扩展版爆款分类表格（包含中位数和P90）
+ */
+function generateViralCategoriesTableExtended(categories: Report['virals']['byCategory']): Paragraph[] {
+  console.log('[Word Report] generateViralCategoriesTableExtended - categories.length:', categories?.length || 0);
+
+  if (!categories || categories.length === 0) {
+    return [new Paragraph({ children: [new TextRun({ text: '暂无分类数据', italics: true })] })];
+  }
+
+  // 表头
+  const headerRow = new TableRow({
+    children: [
+      new TableCell({ children: [new Paragraph({ text: '分类' })], width: { size: 25, type: WidthType.PERCENTAGE } }),
+      new TableCell({ children: [new Paragraph({ text: '数量' })], width: { size: 15, type: WidthType.PERCENTAGE } }),
+      new TableCell({ children: [new Paragraph({ text: '互动中位数' })], width: { size: 20, type: WidthType.PERCENTAGE } }),
+      new TableCell({ children: [new Paragraph({ text: '收藏率中位数' })], width: { size: 20, type: WidthType.PERCENTAGE } }),
+      new TableCell({ children: [new Paragraph({ text: '收藏率P90' })], width: { size: 20, type: WidthType.PERCENTAGE } }),
+    ],
+  });
+
+  // 数据行
+  const dataRows = categories.map((cat: any) =>
+    new TableRow({
+      children: [
+        new TableCell({ children: [new Paragraph({ text: cat.category })] }),
+        new TableCell({ children: [new Paragraph({ text: cat.count.toString() })] }),
+        new TableCell({ children: [new Paragraph({ text: 'medianEngagement' in cat ? Math.round(cat.medianEngagement).toLocaleString() : Math.round(cat.avgEngagement).toLocaleString() })] }),
+        new TableCell({ children: [new Paragraph({ text: 'medianSaveRate' in cat ? `${cat.medianSaveRate.toFixed(2)}%` : '-' })] }),
+        new TableCell({ children: [new Paragraph({ text: 'p90SaveRate' in cat ? `${cat.p90SaveRate.toFixed(2)}%` : '-' })] }),
+      ],
+    })
+  );
+
+  const table = new Table({
+    rows: [headerRow, ...dataRows],
+    width: { size: 100, type: WidthType.PERCENTAGE },
+  });
+
+  const paragraphs: Paragraph[] = [new Paragraph({ children: [table] })];
+
+  // 特征描述
+  const hasDescription = categories.some((c: any) => c.description);
+  if (hasDescription) {
     paragraphs.push(new Paragraph({ text: '' }));
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '特征描述', bold: true, size: 22 })] }));
+    for (const cat of categories) {
+      if ((cat as any).description) {
+        paragraphs.push(new Paragraph({ children: [
+          new TextRun({ text: `${cat.category}：`, bold: true, size: 20 }),
+          new TextRun({ text: (cat as any).description, size: 20 }),
+        ] }));
+      }
+    }
   }
 
   return paragraphs;
+}
+
+/**
+ * 生成爆款选题库表格
+ */
+function generateTopicLibraryTable(topicLibrary: Report['virals']['topicLibrary']): Paragraph[] {
+  if (!topicLibrary || topicLibrary.length === 0) {
+    return [new Paragraph({ children: [new TextRun({ text: '暂无选题库数据', italics: true })] })];
+  }
+
+  // 表头
+  const headerRow = new TableRow({
+    children: [
+      new TableCell({ children: [new Paragraph({ text: 'ID' })], width: { size: 5, type: WidthType.PERCENTAGE } }),
+      new TableCell({ children: [new Paragraph({ text: '发布时间' })], width: { size: 15, type: WidthType.PERCENTAGE } }),
+      new TableCell({ children: [new Paragraph({ text: '标题' })], width: { size: 30, type: WidthType.PERCENTAGE } }),
+      new TableCell({ children: [new Paragraph({ text: '分类' })], width: { size: 15, type: WidthType.PERCENTAGE } }),
+      new TableCell({ children: [new Paragraph({ text: '互动量' })], width: { size: 12, type: WidthType.PERCENTAGE } }),
+      new TableCell({ children: [new Paragraph({ text: '收藏率' })], width: { size: 10, type: WidthType.PERCENTAGE } }),
+      new TableCell({ children: [new Paragraph({ text: '核心观点' })], width: { size: 13, type: WidthType.PERCENTAGE } }),
+    ],
+  });
+
+  // 数据行
+  const dataRows = topicLibrary.map(item =>
+    new TableRow({
+      children: [
+        new TableCell({ children: [new Paragraph({ text: item.id.toString(), size: 18 })] }),
+        new TableCell({ children: [new Paragraph({ text: item.publishTime, size: 18 })] }),
+        new TableCell({ children: [new Paragraph({ text: item.title, size: 18 })] }),
+        new TableCell({ children: [new Paragraph({ text: item.category || '-', size: 18 })] }),
+        new TableCell({ children: [new Paragraph({ text: item.totalEngagement.toLocaleString(), size: 18 })] }),
+        new TableCell({ children: [new Paragraph({ text: `${item.saveRate.toFixed(2)}%`, size: 18 })] }),
+        new TableCell({ children: [new Paragraph({ text: item.keyTakeaway || '-', size: 18 })] }),
+      ],
+    })
+  );
+
+  const table = new Table({
+    rows: [headerRow, ...dataRows],
+    width: { size: 100, type: WidthType.PERCENTAGE },
+  });
+
+  return [new Paragraph({ children: [table] })];
 }
 
 function generateViralCategoriesTable(categories: Report['virals']['byCategory']): Paragraph[] {
