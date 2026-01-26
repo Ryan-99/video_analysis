@@ -464,13 +464,13 @@ export class AIAnalysisService {
     return `你是专业的抖音内容策划师。请为以下账号补充生成 ${needCount} 条选题大纲。
 
 【账号核心主题】
-${account.coreTopic}
+${account.coreTopics.join('、')}
 
 【账号类型】
-${account.type}
+${account.accountType}
 
 【目标受众】
-${account.audience}
+${account.audience.description}
 
 【爆款分类】
 ${categoriesText}
