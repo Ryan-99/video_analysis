@@ -95,6 +95,12 @@ function generateAccountSection(account: Report['account']): Paragraph[] {
 }
 
 function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buffer): Paragraph[] {
+  console.log('[Word Report] generateMonthlySection - trend.keys:', Object.keys(trend));
+  console.log('[Word Report] generateMonthlySection - trend.data 存在:', !!trend.data);
+  if (trend.data) {
+    console.log('[Word Report] generateMonthlySection - trend.data.length:', trend.data.length);
+  }
+
   const paragraphs: Paragraph[] = [
     // 总结
     new Paragraph({ children: [new TextRun({ text: '【趋势总结】', bold: true, size: 28 })] }),
@@ -180,6 +186,12 @@ function generateMonthlyTable(data: Report['monthlyTrend']['data']): Paragraph[]
 }
 
 function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer, annotations: string[] = []): Paragraph[] {
+  console.log('[Word Report] generateViralSection - virals.keys:', Object.keys(virals));
+  console.log('[Word Report] generateViralSection - byCategory 存在:', !!virals.byCategory);
+  if (virals.byCategory) {
+    console.log('[Word Report] generateViralSection - byCategory.length:', virals.byCategory.length);
+  }
+
   const paragraphs: Paragraph[] = [
     // 总结和统计
     new Paragraph({ children: [new TextRun({ text: '【爆款总结】', bold: true, size: 28 })] }),
