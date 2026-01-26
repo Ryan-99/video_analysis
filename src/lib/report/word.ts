@@ -352,19 +352,25 @@ function generateTopicsSection(topics: Report['topics']): Paragraph[] {
     // 口播稿
     if (topic.script) {
       paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【60秒口播稿】', bold: true })] }));
-      paragraphs.push(...generateFormattedParagraphs(topic.script, { size: 20 }).map(p => {
-        p.indent = { left: 300 };
-        return p;
-      }));
+      const scriptLines = formatListText(topic.script);
+      for (const line of scriptLines) {
+        paragraphs.push(new Paragraph({
+          children: [new TextRun({ text: line, size: 20 })],
+          indent: { left: 300 },
+        }));
+      }
     }
 
     // 案例点位
     if (topic.casePoint) {
       paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【案例点位】', bold: true })] }));
-      paragraphs.push(...generateFormattedParagraphs(topic.casePoint, { size: 20 }).map(p => {
-        p.indent = { left: 300 };
-        return p;
-      }));
+      const casePointLines = formatListText(topic.casePoint);
+      for (const line of casePointLines) {
+        paragraphs.push(new Paragraph({
+          children: [new TextRun({ text: line, size: 20 })],
+          indent: { left: 300 },
+        }));
+      }
     }
 
     // 分镜说明
