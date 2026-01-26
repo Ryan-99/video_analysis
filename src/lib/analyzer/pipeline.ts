@@ -199,9 +199,10 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     // 按日期分组，找出每天的Top1视频（用于图表）
     const dailyTop1 = new Map<string, { engagement: number; title: string; date: string }>();
     for (const video of videos) {
-      const date = typeof video.publishTime === 'string'
-        ? video.publishTime.split('T')[0]
-        : video.publishTime.toISOString().split('T')[0];
+      const publishTime = video.publishTime as unknown as Date | string;
+      const date = typeof publishTime === 'string'
+        ? publishTime.split('T')[0]
+        : (publishTime as Date).toISOString().split('T')[0];
       const engagement = video.likes + video.comments + video.saves + video.shares;
       const existing = dailyTop1.get(date);
       if (!existing || engagement > existing.engagement) {
