@@ -533,7 +533,7 @@ ${existingCategories}
       ).join('\n\n');
 
       const prompt = promptEngine.render('topic_detail_generation', {
-        core_topic: account.coreTopic,
+        core_topic: account.coreTopics.join('、'),
         viral_patterns: patternsText,
         topic_outlines: outlinesText,
       });
