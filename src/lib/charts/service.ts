@@ -11,6 +11,8 @@ export interface ChartConfig {
       borderColor?: string;
       backgroundColor?: string;
       borderWidth?: number;
+      pointRadius?: number;
+      pointHoverRadius?: number;
     }>;
   };
   options?: {
@@ -30,6 +32,10 @@ export interface ChartConfig {
         title?: {
           display: boolean;
           text: string;
+        };
+        ticks?: {
+          maxRotation?: number;
+          minRotation?: number;
         };
       };
       y?: {
