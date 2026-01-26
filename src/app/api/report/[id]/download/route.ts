@@ -31,6 +31,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     console.log('[Download API] 账号名称:', accountName);
 
     console.log('[Download API] 数据解析成功，开始生成文件');
+    console.log('[Download API] resultData 结构:', {
+      hasAccount: !!resultData.account,
+      hasMonthlyTrend: !!resultData.monthlyTrend,
+      hasMonthlyTrendData: !!resultData.monthlyTrend?.data,
+      monthlyTrendDataLength: resultData.monthlyTrend?.data?.length || 0,
+      monthlyTrendDataKeys: resultData.monthlyTrend?.data?.[0] ? Object.keys(resultData.monthlyTrend.data[0]) : [],
+      hasVirals: !!resultData.virals,
+      hasByCategory: !!resultData.virals?.byCategory,
+      byCategoryLength: resultData.virals?.byCategory?.length || 0,
+      byCategoryKeys: resultData.virals?.byCategory?.[0] ? Object.keys(resultData.virals.byCategory[0]) : [],
+      hasDailyTop1: !!resultData.dailyTop1,
+      dailyTop1Length: resultData.dailyTop1?.length || 0,
+    });
 
     let buffer: Buffer, filename: string, contentType: string;
     if (format === 'excel') {

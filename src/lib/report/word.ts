@@ -99,6 +99,9 @@ function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buf
   console.log('[Word Report] generateMonthlySection - trend.data 存在:', !!trend.data);
   if (trend.data) {
     console.log('[Word Report] generateMonthlySection - trend.data.length:', trend.data.length);
+    if (trend.data.length > 0) {
+      console.log('[Word Report] generateMonthlySection - 第一条数据:', JSON.stringify(trend.data[0]));
+    }
   }
 
   const paragraphs: Paragraph[] = [
@@ -151,6 +154,13 @@ function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buf
 }
 
 function generateMonthlyTable(data: Report['monthlyTrend']['data']): Paragraph[] {
+  console.log('[Word Report] generateMonthlyTable - data.length:', data?.length || 0);
+
+  if (!data || data.length === 0) {
+    console.log('[Word Report] generateMonthlyTable - 数据为空，返回提示段落');
+    return [new Paragraph({ children: [new TextRun({ text: '暂无月度数据', italics: true })] })];
+  }
+
   // 表头
   const headerRow = new TableRow({
     children: [
@@ -190,6 +200,9 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer, an
   console.log('[Word Report] generateViralSection - byCategory 存在:', !!virals.byCategory);
   if (virals.byCategory) {
     console.log('[Word Report] generateViralSection - byCategory.length:', virals.byCategory.length);
+    if (virals.byCategory.length > 0) {
+      console.log('[Word Report] generateViralSection - 第一条分类:', JSON.stringify(virals.byCategory[0]));
+    }
   }
 
   const paragraphs: Paragraph[] = [
@@ -255,6 +268,13 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer, an
 }
 
 function generateViralCategoriesTable(categories: Report['virals']['byCategory']): Paragraph[] {
+  console.log('[Word Report] generateViralCategoriesTable - categories.length:', categories?.length || 0);
+
+  if (!categories || categories.length === 0) {
+    console.log('[Word Report] generateViralCategoriesTable - 数据为空，返回提示段落');
+    return [new Paragraph({ children: [new TextRun({ text: '暂无分类数据', italics: true })] })];
+  }
+
   // 表头
   const headerRow = new TableRow({
     children: [
