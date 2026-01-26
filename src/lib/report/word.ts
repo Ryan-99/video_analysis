@@ -1,5 +1,42 @@
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, WidthType, ImageRun } from 'docx';
 import { Report } from '@/types';
+import { formatListText } from './formatter';
+
+/**
+ * 根据文本生成格式化的段落数组（处理编号列表换行）
+ */
+function generateFormattedParagraphs(text: string, options?: { boldPrefix?: string; size?: number }): Paragraph[] {
+  const lines = formatListText(text);
+
+  if (lines.length === 1) {
+    if (options?.boldPrefix) {
+      return [new Paragraph({
+        children: [
+          new TextRun({ text: options.boldPrefix, bold: true, size: options.size }),
+          new TextRun({ text, size: options.size }),
+        ]
+      })];
+    }
+    return [new Paragraph({ children: [new TextRun({ text, size: options?.size })] })];
+  }
+
+  const paragraphs: Paragraph[] = [];
+  for (const line of lines) {
+    if (options?.boldPrefix && line === lines[0]) {
+      // 第一行带前缀
+      paragraphs.push(new Paragraph({
+        children: [
+          new TextRun({ text: options.boldPrefix, bold: true, size: options.size }),
+          new TextRun({ text: line, size: options.size }),
+        ]
+      }));
+    } else {
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: line, size: options?.size })] }));
+    }
+  }
+
+  return paragraphs;
+}
 
 export interface ChartBuffers {
   monthlyTrend?: Buffer;
@@ -107,7 +144,7 @@ function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buf
   const paragraphs: Paragraph[] = [
     // 总结
     new Paragraph({ children: [new TextRun({ text: '【趋势总结】', bold: true, size: 28 })] }),
-    new Paragraph({ children: [new TextRun({ text: trend.summary })] }),
+    ...generateFormattedParagraphs(trend.summary, { size: 24 }),
     new Paragraph({ text: '' }),
 
     // 月度趋势图表
@@ -208,7 +245,7 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer, an
   const paragraphs: Paragraph[] = [
     // 总结和统计
     new Paragraph({ children: [new TextRun({ text: '【爆款总结】', bold: true, size: 28 })] }),
-    new Paragraph({ children: [new TextRun({ text: virals.summary })] }),
+    ...generateFormattedParagraphs(virals.summary, { size: 24 }),
     new Paragraph({ text: '' }),
 
     new Paragraph({ children: [new TextRun({ text: '【爆款统计】', bold: true, size: 28 })] }),
@@ -251,9 +288,18 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer, an
   // 爆款规律
   if (virals.patterns) {
     paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【爆款规律】', bold: true, size: 28 })] }));
-    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '共同元素：', bold: true }), new TextRun({ text: virals.patterns.commonElements || '暂无' })] }));
-    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '时间规律：', bold: true }), new TextRun({ text: virals.patterns.timingPattern || '暂无' })] }));
-    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '标题规律：', bold: true }), new TextRun({ text: virals.patterns.titlePattern || '暂无' })] }));
+    // 共同元素
+    if (virals.patterns.commonElements) {
+      paragraphs.push(...generateFormattedParagraphs(virals.patterns.commonElements, { boldPrefix: '共同元素：', size: 24 }));
+    }
+    // 时间规律
+    if (virals.patterns.timingPattern) {
+      paragraphs.push(...generateFormattedParagraphs(virals.patterns.timingPattern, { boldPrefix: '时间规律：', size: 24 }));
+    }
+    // 标题规律
+    if (virals.patterns.titlePattern) {
+      paragraphs.push(...generateFormattedParagraphs(virals.patterns.titlePattern, { boldPrefix: '标题规律：', size: 24 }));
+    }
     paragraphs.push(new Paragraph({ text: '' }));
   }
 
@@ -329,13 +375,19 @@ function generateTopicsSection(topics: Report['topics']): Paragraph[] {
     // 口播稿
     if (topic.script) {
       paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【60秒口播稿】', bold: true })] }));
-      paragraphs.push(new Paragraph({ children: [new TextRun({ text: topic.script })], indent: { left: 300 } }));
+      paragraphs.push(...generateFormattedParagraphs(topic.script, { size: 20 }).map(p => {
+        p.indent = { left: 300 };
+        return p;
+      }));
     }
 
     // 案例点位
     if (topic.casePoint) {
       paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【案例点位】', bold: true })] }));
-      paragraphs.push(new Paragraph({ children: [new TextRun({ text: topic.casePoint })], indent: { left: 300 } }));
+      paragraphs.push(...generateFormattedParagraphs(topic.casePoint, { size: 20 }).map(p => {
+        p.indent = { left: 300 };
+        return p;
+      }));
     }
 
     // 分镜说明

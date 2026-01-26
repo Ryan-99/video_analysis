@@ -6,6 +6,28 @@ import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { Report } from '@/types';
 import { InteractiveChart } from '@/components/charts/InteractiveChart';
+import { formatListText } from '@/lib/report/formatter';
+
+/**
+ * 渲染格式化文本的组件，自动处理编号列表换行
+ */
+function FormattedText({ text, className = '' }: { text: string; className?: string }) {
+  const lines = formatListText(text);
+
+  if (lines.length === 1) {
+    return <p className={className}>{text}</p>;
+  }
+
+  return (
+    <div className={className}>
+      {lines.map((line, index) => (
+        <p key={index} className="mb-1 last:mb-0">
+          {line}
+        </p>
+      ))}
+    </div>
+  );
+}
 
 interface ReportViewerProps { reportId: string; }
 
@@ -144,7 +166,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
       {/* 二、月度趋势分析 */}
       <Card className="p-6">
         <h3 className="text-lg font-semibold mb-4 text-white">二、月度趋势分析</h3>
-        <p className="text-sm text-gray-300 mb-6">{report.monthlyTrend.summary}</p>
+        <FormattedText text={report.monthlyTrend.summary} className="text-sm text-gray-300 mb-6" />
 
         {/* 月度趋势图表（可交互） */}
         {monthlyChartData && (
@@ -194,7 +216,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
       {/* 三、爆款视频分析 */}
       <Card className="p-6">
         <h3 className="text-lg font-semibold mb-4 text-white">三、爆款视频分析</h3>
-        <p className="text-sm text-gray-300 mb-4">{report.virals.summary}</p>
+        <FormattedText text={report.virals.summary} className="text-sm text-gray-300 mb-4" />
         <div className="flex gap-6 text-sm mb-6">
           <div>
             <span className="text-gray-400">爆款总数：</span>
@@ -227,15 +249,24 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
         {report.virals.patterns && (
           <div className="mt-6">
             <h4 className="text-sm font-medium mb-3 text-gray-200">爆款规律</h4>
-            <div className="space-y-2 text-sm text-gray-200">
+            <div className="space-y-3 text-sm text-gray-200">
               {report.virals.patterns.commonElements && (
-                <p><span className="text-gray-400">共同元素：</span>{report.virals.patterns.commonElements}</p>
+                <div>
+                  <span className="text-gray-400">共同元素：</span>
+                  <FormattedText text={report.virals.patterns.commonElements} className="inline-block ml-1" />
+                </div>
               )}
               {report.virals.patterns.timingPattern && (
-                <p><span className="text-gray-400">发布时间：</span>{report.virals.patterns.timingPattern}</p>
+                <div>
+                  <span className="text-gray-400">发布时间：</span>
+                  <FormattedText text={report.virals.patterns.timingPattern} className="inline-block ml-1" />
+                </div>
               )}
               {report.virals.patterns.titlePattern && (
-                <p><span className="text-gray-400">标题规律：</span>{report.virals.patterns.titlePattern}</p>
+                <div>
+                  <span className="text-gray-400">标题规律：</span>
+                  <FormattedText text={report.virals.patterns.titlePattern} className="inline-block ml-1" />
+                </div>
               )}
             </div>
           </div>
