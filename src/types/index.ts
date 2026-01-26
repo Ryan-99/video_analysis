@@ -211,12 +211,90 @@ export interface Report {
     summary: string;
     total: number;
     threshold: number;
-    byCategory: Array<{
+
+    // 新增：数据分析口径说明
+    dataScopeNote?: string;
+
+    // 新增：逐月爆款清单
+    monthlyList?: Array<{
+      month: string;
+      threshold: number;
+      videos: Array<{
+        publishTime: string;
+        title: string;
+        likes: number;
+        comments: number;
+        saves: number;
+        shares: number;
+        totalEngagement: number;
+        saveRate: number;
+      }>;
+      top10Titles: string[];
+    }>;
+
+    // 扩展：爆款分析总览（改用中位数）
+    byCategory?: Array<{
       category: string;
       count: number;
-      avgEngagement: number;
+      medianEngagement: number;
+      medianSaveRate: number;
+      p90SaveRate: number;
       description: string;
     }>;
+
+    // 新增：共性机制（当不可分类时）
+    commonMechanisms?: {
+      hasCategories: boolean;
+      mechanisms?: Array<{
+        pattern: string;
+        evidence: string[];
+      }>;
+      reason?: string;
+    };
+
+    // 新增：方法论抽象模块
+    methodology?: {
+      viralTheme: {
+        formula: string;
+        conclusion: string;
+        evidence: string[];
+      };
+      timeDistribution: Array<{
+        timeWindow: string;
+        percentage: number;
+      }>;
+      topicFormulas: Array<{
+        theme: string;
+        scenarios: string;
+        hiddenRules: string;
+        counterIntuitive: string;
+        actions: string[];
+        templates: string[];
+      }>;
+      titleFormulas: Array<{
+        type: string;
+        template: string;
+        example?: string;
+      }>;
+      scriptFormula: {
+        mainFramework: string;
+        explanation: string;
+        alternativeFramework?: string;
+      };
+    };
+
+    // 新增：爆款选题库（聚合表）
+    topicLibrary?: Array<{
+      id: number;
+      publishTime: string;
+      title: string;
+      category: string;
+      totalEngagement: number;
+      saveRate: number;
+      keyTakeaway: string;
+    }>;
+
+    // 保留兼容：原有 patterns 字段
     patterns?: {
       commonElements?: string;
       timingPattern?: string;

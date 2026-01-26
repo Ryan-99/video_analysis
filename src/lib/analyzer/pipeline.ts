@@ -171,7 +171,10 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     const viralAnalysis = await aiAnalysisService.analyzeViralVideos(
       viralVideos,
       threshold,
-      task.aiConfig
+      monthlyData,
+      task.aiConfig,
+      task.fileName,
+      videos.length
     );
     const categories = viralAnalysis.byCategory?.map(c => c.category).join('、') || '无';
     await logStep('ai', '爆款分析完成', 'success', {

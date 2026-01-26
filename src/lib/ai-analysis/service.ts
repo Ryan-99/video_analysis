@@ -542,28 +542,223 @@ export class AIAnalysisService {
 
   /**
    * 步骤3：分析爆款视频分类
+   * 采用分开生成策略：
+   * - 第一次调用：主分析（数据口径、逐月清单、分类总览、共性机制）
+   * - 第二次调用：方法论抽象（母题、公式、选题库）
    */
   async analyzeViralVideos(
     virals: ViralVideo[],
     threshold: number,
-    aiConfig?: string
+    monthlyData: MonthlyData[],
+    aiConfig?: string,
+    fileName?: string,
+    totalVideos?: number
   ): Promise<{
     summary: string;
-    byCategory: Array<{ category: string; count: number; avgEngagement: number; description: string }>;
-    patterns: { commonElements: string; timingPattern: string; titlePattern: string };
+    total: number;
+    threshold: number;
+    dataScopeNote?: string;
+    monthlyList?: Array<{
+      month: string;
+      threshold: number;
+      videos: Array<{
+        publishTime: string;
+        title: string;
+        likes: number;
+        comments: number;
+        saves: number;
+        shares: number;
+        totalEngagement: number;
+        saveRate: number;
+      }>;
+      top10Titles: string[];
+    }>;
+    byCategory?: Array<{
+      category: string;
+      count: number;
+      medianEngagement: number;
+      medianSaveRate: number;
+      p90SaveRate: number;
+      description: string;
+    }>;
+    commonMechanisms?: {
+      hasCategories: boolean;
+      mechanisms?: Array<{
+        pattern: string;
+        evidence: string[];
+      }>;
+      reason?: string;
+    };
+    methodology?: {
+      viralTheme: {
+        formula: string;
+        conclusion: string;
+        evidence: string[];
+      };
+      timeDistribution: Array<{
+        timeWindow: string;
+        percentage: number;
+      }>;
+      topicFormulas: Array<{
+        theme: string;
+        scenarios: string;
+        hiddenRules: string;
+        counterIntuitive: string;
+        actions: string[];
+        templates: string[];
+      }>;
+      titleFormulas: Array<{
+        type: string;
+        template: string;
+        example?: string;
+      }>;
+      scriptFormula: {
+        mainFramework: string;
+        explanation: string;
+        alternativeFramework?: string;
+      };
+    };
+    topicLibrary?: Array<{
+      id: number;
+      publishTime: string;
+      title: string;
+      category: string;
+      totalEngagement: number;
+      saveRate: number;
+      keyTakeaway: string;
+    }>;
+    patterns?: {
+      commonElements?: string;
+      timingPattern?: string;
+      titlePattern?: string;
+    };
   }> {
-    // 格式化爆款视频列表
-    const viralText = virals.map(v =>
-      `${v.title} | 互动${Math.round(v.totalEngagement)}`
-    ).join('\n');
+    console.log('[analyzeViralVideos] 第一次 AI 调用：主分析...');
 
-    const prompt = promptEngine.render('viral_analysis', {
-      viral_videos: viralText,
+    // 1. 格式化逐月数据摘要
+    const monthlySummary = this.formatViralMonthlySummary(virals, monthlyData);
+
+    // 2. 格式化爆款视频详细信息
+    const viralDetail = virals.map(v => {
+      const saveRate = v.totalEngagement > 0 ? (v.saves / v.totalEngagement * 100) : 0;
+      const date = new Date(v.publishTime);
+      const publishTime = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+      return `${publishTime} | ${v.title} | 👍${v.likes.toLocaleString()} | 💬${v.comments.toLocaleString()} | ⭐${v.saves.toLocaleString()} | 🔁${v.shares.toLocaleString()} | 👉${v.totalEngagement.toLocaleString()} | 收藏率${saveRate.toFixed(2)}%`;
+    }).join('\n');
+
+    // 3. 第一次 AI 调用：主分析
+    const prompt1 = promptEngine.render('viral_analysis_main', {
+      file_name: fileName || '未知文件',
+      total_videos: totalVideos || virals.length,
+      total_virals: virals.length,
       threshold: Math.round(threshold).toString(),
+      monthly_summary: monthlySummary,
+      viral_videos_detail: viralDetail,
     });
 
-    const result = await this.callAI(prompt, aiConfig, 300000, 12000); // 5分钟，12000 tokens
-    return safeParseJSON(cleanAIResponse(result));
+    const result1 = await this.callAI(prompt1, aiConfig, 300000, 16000); // 5分钟，16000 tokens
+    const mainAnalysis = safeParseJSON(cleanAIResponse(result1));
+    console.log('[analyzeViralVideos] 主分析完成');
+
+    // 4. 第二次 AI 调用：方法论抽象
+    console.log('[analyzeViralVideos] 第二次 AI 调用：方法论抽象...');
+
+    const categorySummary = this.formatCategorySummary(mainAnalysis.byCategory);
+    const viralTitlesWithTime = this.formatViralTitlesWithTime(virals);
+    const viralSamples = this.formatViralSamples(virals, 20); // 取前20条作为样本
+
+    const prompt2 = promptEngine.render('viral_analysis_methodology', {
+      category_summary: categorySummary,
+      viral_titles_with_time: viralTitlesWithTime,
+      viral_samples: viralSamples,
+    });
+
+    const result2 = await this.callAI(prompt2, aiConfig, 300000, 16000); // 5分钟，16000 tokens
+    const methodology = safeParseJSON(cleanAIResponse(result2));
+    console.log('[analyzeViralVideos] 方法论抽象完成');
+
+    // 5. 生成爆款选题库（基础数据，后续可扩展）
+    const topicLibrary = virals.map((v, idx) => {
+      const saveRate = v.totalEngagement > 0 ? (v.saves / v.totalEngagement * 100) : 0;
+      return {
+        id: idx + 1,
+        publishTime: new Date(v.publishTime).toLocaleString('zh-CN'),
+        title: v.title,
+        category: '', // TODO: 从 byCategory 推断分类
+        totalEngagement: v.totalEngagement,
+        saveRate: saveRate,
+        keyTakeaway: '', // TODO: 可以从标题提取核心观点或后续AI提炼
+      };
+    });
+
+    // 6. 返回完整结果
+    return {
+      summary: mainAnalysis.summary || '',
+      total: virals.length,
+      threshold: threshold,
+      dataScopeNote: mainAnalysis.dataScopeNote,
+      monthlyList: mainAnalysis.monthlyList,
+      byCategory: mainAnalysis.byCategory,
+      commonMechanisms: mainAnalysis.commonMechanisms,
+      methodology,
+      topicLibrary,
+    };
+  }
+
+  /**
+   * 格式化逐月爆款数据摘要
+   */
+  private formatViralMonthlySummary(virals: ViralVideo[], monthlyData: MonthlyData[]): string {
+    // 按月分组爆款视频
+    const monthlyVirals = new Map<string, ViralVideo[]>();
+    for (const v of virals) {
+      const date = new Date(v.publishTime);
+      const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+      if (!monthlyVirals.has(monthKey)) {
+        monthlyVirals.set(monthKey, []);
+      }
+      monthlyVirals.get(monthKey)!.push(v);
+    }
+
+    // 格式化输出
+    const summary: string[] = [];
+    for (const [month, videos] of Array.from(monthlyVirals.entries())) {
+      const monthData = monthlyData.find(m => m.month === month);
+      summary.push(`${month}：${videos.length}条爆款，阈值=${monthData?.threshold ? Math.round(monthData.threshold).toLocaleString() : 'N/A'}`);
+    }
+    return summary.join('\n');
+  }
+
+  /**
+   * 格式化分类摘要
+   */
+  private formatCategorySummary(byCategory?: Array<{...}>): string {
+    if (!byCategory || byCategory.length === 0) {
+      return '无分类数据';
+    }
+    return byCategory.map(c =>
+      `${c.category}：${c.count}条，互动中位数${Math.round(c.medianEngagement || 0).toLocaleString()}，收藏率中位数${(c.medianSaveRate || 0).toFixed(2)}%`
+    ).join('\n');
+  }
+
+  /**
+   * 格式化爆款标题+发布时间
+   */
+  private formatViralTitlesWithTime(virals: ViralVideo[]): string {
+    return virals.map(v => {
+      const date = new Date(v.publishTime);
+      const hour = date.getHours();
+      return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${hour}:00 | ${v.title}`;
+    }).join('\n');
+  }
+
+  /**
+   * 格式化爆款样本
+   */
+  private formatViralSamples(virals: ViralVideo[], count: number): string {
+    return virals.slice(0, count).map(v =>
+      `${v.title} | 互动${Math.round(v.totalEngagement).toLocaleString()} | 收藏率${((v.saves / v.totalEngagement) * 100).toFixed(2)}%`
+    ).join('\n');
   }
 
   /**
@@ -571,20 +766,30 @@ export class AIAnalysisService {
    */
   async generateTopicOutline(
     account: AccountAnalysis,
-    viralAnalysis: { byCategory: Array<{ category: string; count: number; avgEngagement: number; description: string }>; patterns: any },
+    viralAnalysis: {
+      byCategory: Array<{
+        category: string;
+        count: number;
+        avgEngagement?: number;  // 旧格式兼容
+        medianEngagement?: number; // 新格式
+        description: string;
+      }>;
+      patterns: any;
+    },
     aiConfig?: string
   ): Promise<TopicOutline[]> {
     console.log('[AIAnalysisService] ===== 开始生成选题大纲 =====');
     console.log('[AIAnalysisService] 账号类型:', account.accountType);
-    console.log('[AIAnalysisService] 爆款分类数:', viralAnalysis.byCategory.length);
+    console.log('[AIAnalysisService] 爆款分类数:', viralAnalysis.byCategory?.length || 0);
 
-    // 格式化爆款分类
-    const categoriesText = viralAnalysis.byCategory.map(c =>
-      `${c.category}: ${c.count}条, 平均互动${Math.round(c.avgEngagement)}\n描述：${c.description}`
-    ).join('\n\n');
+    // 格式化爆款分类（兼容新旧格式）
+    const categoriesText = (viralAnalysis.byCategory || []).map(c => {
+      const engagement = c.medianEngagement ?? c.avgEngagement ?? 0;
+      return `${c.category}: ${c.count}条, 平均互动${Math.round(engagement)}\n描述：${c.description}`;
+    }).join('\n\n');
 
     // 格式化爆款规律
-    const patternsText = `共同元素：${viralAnalysis.patterns.commonElements}\n发布时间规律：${viralAnalysis.patterns.timingPattern}\n标题规律：${viralAnalysis.patterns.titlePattern}`;
+    const patternsText = `共同元素：${viralAnalysis.patterns?.commonElements || '暂无'}\n发布时间规律：${viralAnalysis.patterns?.timingPattern || '暂无'}\n标题规律：${viralAnalysis.patterns?.titlePattern || '暂无'}`;
 
     console.log('[AIAnalysisService] Prompt 数据准备完成');
 
