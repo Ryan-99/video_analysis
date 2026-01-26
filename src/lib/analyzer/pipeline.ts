@@ -196,6 +196,24 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     });
 
     // 保存当前进度到数据库，供后续步骤使用
+    // 按日期分组，找出每天的Top1视频（用于图表）
+    const dailyTop1 = new Map<string, { engagement: number; title: string; date: string }>();
+    for (const video of videos) {
+      const date = typeof video.publishTime === 'string'
+        ? video.publishTime.split('T')[0]
+        : video.publishTime.toISOString().split('T')[0];
+      const engagement = video.likes + video.comments + video.saves + video.shares;
+      const existing = dailyTop1.get(date);
+      if (!existing || engagement > existing.engagement) {
+        dailyTop1.set(date, {
+          engagement,
+          title: video.title,
+          date,
+        });
+      }
+    }
+    const dailyTop1Data = Array.from(dailyTop1.values()).sort((a, b) => a.date.localeCompare(b.date));
+
     const intermediateResult = JSON.stringify({
       account: accountAnalysis,
       monthlyTrend: {
@@ -210,6 +228,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
         byCategory: viralAnalysis.byCategory || [],
         patterns: viralAnalysis.patterns || {},
       },
+      dailyTop1: dailyTop1Data, // 每日Top1数据，用于生成图表
       topics: [], // 待选题生成完成后再填充
     });
 

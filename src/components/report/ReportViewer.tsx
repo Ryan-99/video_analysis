@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { Report } from '@/types';
-import { generateMonthlyTrendConfig, generateChartImageUrl } from '@/lib/charts/service';
+import { generateMonthlyTrendConfig, generateDailyTop1Config, generateChartImageUrl } from '@/lib/charts/service';
 
 interface ReportViewerProps { reportId: string; }
 
@@ -13,7 +13,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [monthlyChartUrl, setMonthlyChartUrl] = useState<string>('');
-  const [dailyChartUrl, setDailyChartUrl] = useState<string>('');
+  const [dailyTop1ChartUrl, setDailyTop1ChartUrl] = useState<string>('');
 
   useEffect(() => {
     async function loadReport() {
@@ -28,33 +28,12 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
           if (data.monthlyTrend?.data) {
             const monthlyConfig = generateMonthlyTrendConfig(data.monthlyTrend.data);
             setMonthlyChartUrl(generateChartImageUrl(monthlyConfig, 800, 400));
+          }
 
-            // 每日爆点图（使用月度数据生成趋势图）
-            const dailyConfig = {
-              type: 'line' as const,
-              data: {
-                labels: data.monthlyTrend.data.map((d: any) => d.month),
-                datasets: [{
-                  label: '月度平均互动',
-                  data: data.monthlyTrend.data.map((d: any) => Math.round(d.avgEngagement)),
-                  borderColor: 'rgb(239, 68, 68)',
-                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                  borderWidth: 2,
-                }],
-              },
-              options: {
-                responsive: true,
-                plugins: {
-                  title: { display: true, text: '全周期互动趋势' },
-                  legend: { display: false },
-                },
-                scales: {
-                  x: { display: true, title: { display: true, text: '月份' } },
-                  y: { display: true, beginAtZero: true, title: { display: true, text: '互动量' } },
-                },
-              },
-            };
-            setDailyChartUrl(generateChartImageUrl(dailyConfig, 800, 400));
+          // 生成每日Top1爆点图
+          if (data.dailyTop1 && data.dailyTop1.length > 0) {
+            const dailyTop1Config = generateDailyTop1Config(data.dailyTop1);
+            setDailyTop1ChartUrl(generateChartImageUrl(dailyTop1Config, 1000, 400));
           }
         }
       } catch (error) {
@@ -73,6 +52,20 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
     const a = document.createElement('a');
     a.href = url;
     a.download = `分析报告-${reportId}.${format === 'word' ? 'docx' : 'xlsx'}`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
+
+  // 下载图表
+  const handleDownloadChart = async (chartUrl: string, filename: string) => {
+    const response = await fetch(chartUrl);
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -133,21 +126,18 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
         <h3 className="text-lg font-semibold mb-4">二、月度趋势分析</h3>
         <p className="text-sm text-gray-300 mb-6">{report.monthlyTrend.summary}</p>
 
-        {/* 图表展示 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          {monthlyChartUrl && (
-            <div>
-              <h4 className="text-sm font-medium mb-3 text-gray-200">月度平均互动趋势</h4>
-              <img src={monthlyChartUrl} alt="月度趋势图" className="w-full rounded border border-white/10" />
+        {/* 月度趋势图表 */}
+        {monthlyChartUrl && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-gray-200">月度平均互动趋势</h4>
+              <Button onClick={() => handleDownloadChart(monthlyChartUrl, '月度趋势图.png')} variant="ghost" size="sm">
+                <Download className="w-3 h-3 mr-1" />下载图表
+              </Button>
             </div>
-          )}
-          {dailyChartUrl && (
-            <div>
-              <h4 className="text-sm font-medium mb-3 text-gray-200">全周期互动趋势</h4>
-              <img src={dailyChartUrl} alt="全周期趋势图" className="w-full rounded border border-white/10" />
-            </div>
-          )}
-        </div>
+            <img src={monthlyChartUrl} alt="月度趋势图" className="w-full rounded border border-white/10" />
+          </div>
+        )}
 
         {/* 月度数据表格 */}
         <div>
@@ -195,6 +185,19 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
             <span className="font-medium text-white">{Math.round(report.virals.threshold).toLocaleString()}</span>
           </div>
         </div>
+
+        {/* 每日Top1爆点图表 */}
+        {dailyTop1ChartUrl && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-gray-200">全周期每日Top1爆点趋势（标注版）</h4>
+              <Button onClick={() => handleDownloadChart(dailyTop1ChartUrl, '每日Top1爆点图.png')} variant="ghost" size="sm">
+                <Download className="w-3 h-3 mr-1" />下载图表
+              </Button>
+            </div>
+            <img src={dailyTop1ChartUrl} alt="每日Top1爆点图" className="w-full rounded border border-white/10" />
+          </div>
+        )}
 
         {/* 爆款规律 */}
         {report.virals.patterns && (

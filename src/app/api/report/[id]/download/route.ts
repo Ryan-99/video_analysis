@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { taskQueue } from '@/lib/queue/database';
 import { generateWordReport, generateExcelReport } from '@/lib/report';
-import { generateMonthlyTrendConfig, generateDailyViralsConfig, downloadChartImage, generateChartImageUrl } from '@/lib/charts/service';
+import { generateMonthlyTrendConfig, generateDailyTop1Config, downloadChartImage, generateChartImageUrl } from '@/lib/charts/service';
 import { ChartBuffers } from '@/lib/report/word';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -59,43 +59,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       }
 
       try {
-        // 每日爆点图表 - 需要从原始视频数据生成
-        if (resultData.virals && resultData.monthlyTrend?.data) {
-          console.log('[Download API] 生成每日爆点图表...');
-          // 从月度数据中重构每日爆点数据（简化版本）
-          // 实际上应该从任务结果中获取完整的视频列表
-          // 这里我们使用现有的 monthlyTrend 数据生成趋势图
-          const dailyConfig = {
-            type: 'line' as const,
-            data: {
-              labels: resultData.monthlyTrend.data.map((d: any) => d.month),
-              datasets: [{
-                label: '月度平均互动',
-                data: resultData.monthlyTrend.data.map((d: any) => Math.round(d.avgEngagement)),
-                borderColor: 'rgb(239, 68, 68)',
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                borderWidth: 2,
-              }],
-            },
-            options: {
-              responsive: true,
-              plugins: {
-                title: { display: true, text: '全周期每日爆点趋势' },
-                legend: { display: false },
-              },
-              scales: {
-                x: { display: true, title: { display: true, text: '月份' } },
-                y: { display: true, beginAtZero: true, title: { display: true, text: '互动量' } },
-              },
-            },
-          };
-          const dailyChartUrl = generateChartImageUrl(dailyConfig, 800, 400);
-          console.log('[Download API] 每日爆点图表URL:', dailyChartUrl);
-          chartBuffers.dailyVirals = await downloadChartImage(dailyChartUrl);
-          console.log('[Download API] 每日爆点图表下载成功，大小:', chartBuffers.dailyVirals.length);
+        // 每日Top1爆点图表
+        if (resultData.dailyTop1 && resultData.dailyTop1.length > 0) {
+          console.log('[Download API] 生成每日Top1爆点图表...');
+          const dailyTop1Config = generateDailyTop1Config(resultData.dailyTop1);
+          const dailyTop1ChartUrl = generateChartImageUrl(dailyTop1Config, 1000, 400);
+          console.log('[Download API] 每日Top1图表URL:', dailyTop1ChartUrl);
+          chartBuffers.dailyVirals = await downloadChartImage(dailyTop1ChartUrl);
+          console.log('[Download API] 每日Top1图表下载成功，大小:', chartBuffers.dailyVirals.length);
         }
       } catch (error) {
-        console.warn('[Download API] 每日爆点图表生成失败:', error);
+        console.warn('[Download API] 每日Top1图表生成失败:', error);
       }
 
       console.log('[Download API] 图表生成完成，开始生成 Word 文档...');

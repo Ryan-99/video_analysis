@@ -172,8 +172,8 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): P
     new Paragraph({ children: [new TextRun({ text: '判定阈值：', bold: true }), new TextRun({ text: Math.round(virals.threshold).toLocaleString(), bold: true })] }),
     new Paragraph({ text: '' }),
 
-    // 每日爆点图表
-    new Paragraph({ children: [new TextRun({ text: '【每日爆点趋势图表】', bold: true, size: 28 })] }),
+    // 每日Top1爆点图表
+    new Paragraph({ children: [new TextRun({ text: '【全周期每日Top1爆点趋势（标注版）】', bold: true, size: 28 })] }),
   ];
 
   // 添加图表图片（如果有）

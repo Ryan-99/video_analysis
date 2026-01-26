@@ -201,6 +201,98 @@ export function generateDailyViralsConfig(viralVideos: Array<{
 }
 
 /**
+ * 生成全周期每日Top1爆点折线图配置（标注版）
+ * @param videos 所有视频数据（需要包含 publishTime 和 totalEngagement）
+ */
+export function generateDailyTop1Config(videos: Array<{
+  publishTime: Date | string;
+  totalEngagement: number;
+  title: string;
+}>): ChartConfig {
+  // 按日期分组，找出每天的Top1视频
+  const dailyTop1 = new Map<string, { engagement: number; title: string; date: string }>();
+
+  for (const video of videos) {
+    const date = typeof video.publishTime === 'string'
+      ? video.publishTime.split('T')[0]
+      : video.publishTime.toISOString().split('T')[0];
+
+    const existing = dailyTop1.get(date);
+    if (!existing || video.totalEngagement > existing.engagement) {
+      dailyTop1.set(date, {
+        engagement: video.totalEngagement,
+        title: video.title,
+        date: date,
+      });
+    }
+  }
+
+  // 按日期排序
+  const sortedEntries = Array.from(dailyTop1.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  const dates = sortedEntries.map(e => e[0]);
+  const engagements = sortedEntries.map(e => Math.round(e[1].engagement));
+
+  // 找出每个月的Top1爆点（用于标注）
+  const monthlyTop1 = new Map<string, { engagement: number; title: string; date: string }>();
+  for (const [date, data] of sortedEntries) {
+    const month = date.substring(0, 7); // YYYY-MM
+    const existing = monthlyTop1.get(month);
+    if (!existing || data.engagement > existing.engagement) {
+      monthlyTop1.set(month, { ...data, date });
+    }
+  }
+
+  return {
+    type: 'line',
+    data: {
+      labels: dates,
+      datasets: [{
+        label: '每日Top1互动量',
+        data: engagements,
+        borderColor: 'rgb(239, 68, 68)',
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        borderWidth: 2,
+        pointRadius: 2,
+        pointHoverRadius: 5,
+      }],
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        title: {
+          display: true,
+          text: '全周期每日Top1爆点趋势（标注版）',
+        },
+        legend: {
+          display: false,
+        },
+      },
+      scales: {
+        x: {
+          display: true,
+          title: {
+            display: true,
+            text: '日期',
+          },
+          ticks: {
+            maxRotation: 45,
+            minRotation: 45,
+          },
+        },
+        y: {
+          display: true,
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: '互动量',
+          },
+        },
+      },
+    },
+  };
+}
+
+/**
  * 使用 QuickChart API 生成图表图片 URL
  */
 export function generateChartImageUrl(config: ChartConfig, width = 800, height = 400): string {

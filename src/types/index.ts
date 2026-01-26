@@ -125,6 +125,11 @@ export interface Report {
       titlePattern?: string;
     };
   };
+  dailyTop1?: Array<{
+    date: string;
+    engagement: number;
+    title: string;
+  }>;
   topics: Array<{
     id: number;
     category: string;
