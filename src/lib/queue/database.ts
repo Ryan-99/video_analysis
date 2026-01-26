@@ -53,22 +53,22 @@ class DatabaseTaskQueue {
       updateData.status = updates.status;
     }
 
-    console.log('[DatabaseTaskQueue] 更新任务前:', id, 'updates:', JSON.stringify({
-      status: updates.status,
-      progress: updates.progress,
-      currentStep: updates.currentStep,
-    }));
+    // console.log('[DatabaseTaskQueue] 更新任务前:', id, 'updates:', JSON.stringify({
+    //   status: updates.status,
+    //   progress: updates.progress,
+    //   currentStep: updates.currentStep,
+    // }));
 
     const task = await prisma.analysisTask.update({
       where: { id },
       data: updateData,
     });
 
-    console.log('[DatabaseTaskQueue] 更新任务后:', id, '数据库值:', {
-      status: task.status,
-      progress: task.progress,
-      currentStep: task.currentStep,
-    });
+    // console.log('[DatabaseTaskQueue] 更新任务后:', id, '数据库值:', {
+    //   status: task.status,
+    //   progress: task.progress,
+    //   currentStep: task.currentStep,
+    // });
 
     return this.mapToTask(task);
   }
@@ -159,13 +159,13 @@ class DatabaseTaskQueue {
       completedAt: dbTask.completedAt,
     };
 
-    // 调试：记录映射结果
-    console.log('[DatabaseTaskQueue] mapToTask:', {
-      id: mapped.id,
-      status: mapped.status,
-      progress: mapped.progress,
-      currentStep: mapped.currentStep,
-    });
+    // 调试：记录映射结果（已禁用以减少日志量）
+    // console.log('[DatabaseTaskQueue] mapToTask:', {
+    //   id: mapped.id,
+    //   status: mapped.status,
+    //   progress: mapped.progress,
+    //   currentStep: mapped.currentStep,
+    // });
 
     return mapped;
   }

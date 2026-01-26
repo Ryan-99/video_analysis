@@ -55,7 +55,7 @@
     },
     "monthly_trend": {
       "name": "月度趋势分析",
-      "template": "你是专业的抖音数据分析师。请分析以下月度趋势数据，生成完整的分析报告。\n\n【数据来源】\n文件名：{{file_name}}\n总视频数：{{total_videos}}条\n\n【月度数据摘要】\n{{monthly_data_summary}}\n\n【月度详细数据】\n{{monthly_data_table}}\n\n【爆款视频列表】（含完整互动数据）\n{{viral_videos_detail}}\n\n【分析要求】\n\n请严格按照以下JSON格式输出：\n\n{\n  \"summary\": \"通过分析[账号名]的月度平均综合表现趋势表，抽象出账号从[阶段A]→[阶段B]→[阶段C]各个环节的关键动作，找到一些规律\",\n  \"dataScopeNote\": \"数据来源：《{{file_name}}》（共{{total_videos}}条）\\\\n- 互动总量 = 点赞量 + 评论量 + 收藏量 + 转发量\\\\n- 收藏率（%）= 收藏量 / 互动总量 × 100\\\\n- 月度趋势图：按月统计当月视频的平均互动总量\",\n  \"stages\": [\n    {\"type\": \"阶段类型\", \"period\": \"时间段\", \"description\": \"阶段描述\"}\n  ],\n  \"peakMonths\": [\n    {\n      \"month\": \"2021-11\",\n      \"description\": \"第一个爆发期波峰（奠定账号层级）\",\n      \"topVideos\": [\n        {\n          \"publishTime\": \"2021/11/6 16:00\",\n          \"title\": \"视频标题\",\n          \"likes\": 463881,\n          \"comments\": 15345,\n          \"saves\": 60711,\n          \"shares\": 91209,\n          \"totalEngagement\": 631146,\n          \"saveRate\": 9.62\n        }\n      ]\n    }\n  ],\n  \"viralThemes\": {\n    \"hasThemes\": true,\n    \"themes\": [\n      {\"themeType\": \"内卷反转\", \"representativeTitle\": \"你是被卷...\", \"description\": \"...\"}\n    ]\n  },\n  \"explosivePeriods\": [\n    {\n      \"periodName\": \"起号爆发期\",\n      \"period\": \"2021年8月\",\n      \"explanation\": \"账号第一次出现连续多条高于基线的内容链路\",\n      \"topVideos\": [...]\n    }\n  ]\n}\n\n【输出规则】\n1. summary：1句话概括，包含账号发展阶段转换\n2. dataScopeNote：不超过4行，说明数据来源和计算口径\n3. stages：数据支持才分阶段，不支持则设置为空数组，在summary中说明原因\n4. peakMonths：挑选3-5个关键波峰月份，每个月份列出Top3爆款视频\n5. viralThemes：分析长期爆款母体/共性机制，有则给themes，无则设置hasThemes=false并填写reason\n6. explosivePeriods：将全周期按明显抬升/尖峰/持续高位切分成多个爆发期，每个爆发期列出Top10视频\n7. 只返回JSON，不要任何解释或说明文字",
+      "template": "你是专业的抖音数据分析师。请分析以下月度趋势数据，生成完整的分析报告。\n\n【数据来源】\n文件名：{{file_name}}\n总视频数：{{total_videos}}条\n\n【月度数据摘要】\n{{monthly_data_summary}}\n\n【月度详细数据】\n{{monthly_data_table}}\n\n【爆款视频列表】（含完整互动数据）\n{{viral_videos_detail}}\n\n【分析要求】\n\n请严格按照以下JSON格式输出：\n\n{\n  \"summary\": \"通过分析[账号名]的月度平均综合表现趋势表，抽象出账号从[阶段A]→[阶段B]→[阶段C]各个环节的关键动作，找到一些规律\",\n  \"dataScopeNote\": \"数据来源：《{{file_name}}》（共{{total_videos}}条）\\\\n- 互动总量 = 点赞量 + 评论量 + 收藏量 + 转发量\\\\n- 收藏率（%）= 收藏量 / 互动总量 × 100\\\\n- 月度趋势图：按月统计当月视频的平均互动总量\",\n  \"stages\": [\n    {\"type\": \"阶段类型\", \"period\": \"时间段\", \"description\": \"阶段描述\"}\n  ],\n  \"peakMonths\": [\n    {\n      \"month\": \"2021-11\",\n      \"description\": \"第一个爆发期波峰（奠定账号层级）\",\n      \"topVideos\": [\n        {\n          \"publishTime\": \"2021/11/6 16:00\",\n          \"title\": \"视频标题\",\n          \"likes\": 463881,\n          \"comments\": 15345,\n          \"saves\": 60711,\n          \"shares\": 91209,\n          \"totalEngagement\": 631146,\n          \"saveRate\": 9.62\n        }\n      ]\n    }\n  ],\n  \"viralThemes\": {\n    \"hasThemes\": true,\n    \"themes\": [\n      {\"themeType\": \"内卷反转\", \"representativeTitle\": \"你是被卷...\", \"description\": \"...\"}\n    ]\n  },\n  \"explosivePeriods\": [\n    {\n      \"periodName\": \"起号爆发期\",\n      \"period\": \"2021年8月\",\n      \"explanation\": \"账号第一次出现连续多条高于基线的内容链路\"\n    }\n  ]\n}\n\n【输出规则】\n1. summary：1句话概括，包含账号发展阶段转换\n2. dataScopeNote：不超过4行，说明数据来源和计算口径\n3. stages：数据支持才分阶段，不支持则设置为空数组，在summary中说明原因\n4. peakMonths：挑选3-5个关键波峰月份，每个月份列出Top3爆款视频\n5. viralThemes：分析长期爆款母体/共性机制，有则给themes，无则设置hasThemes=false并填写reason\n6. explosivePeriods：将全周期按明显抬升/尖峰/持续高位切分成多个爆发期，只包含时期名、时间和解释（不包含视频列表，由用户手动查看数据）\n7. 只返回JSON，不要任何解释或说明文字",
       "variables": {
         "file_name": {
           "description": "文件名",
@@ -136,6 +136,25 @@
         },
         "topic_outlines": {
           "description": "选题大纲列表",
+          "required": true
+        }
+      },
+      "outputFormat": "json"
+    },
+    "explosive_periods_detail": {
+      "name": "爆发期视频详情生成",
+      "template": "你是专业的抖音数据分析师。请为以下爆发期生成详细的Top10视频列表。\n\n【爆发期列表】\n{{explosive_periods}}\n\n【全部爆款视频数据】（用于筛选）\n{{all_viral_videos}}\n\n【时间范围映射】\n{{time_range_mapping}}\n\n【任务要求】\n对于每个爆发期，从【全部爆款视频数据】中筛选出该时间段内的Top10视频（按互动总量排序）。\n\n【输出格式】\n请严格按照以下JSON格式输出：\n{\n  \"periodsWithVideos\": [\n    {\n      \"periodName\": \"起号爆发期\",\n      \"period\": \"2021年8月\",\n      \"topVideos\": [\n        {\n          \"publishTime\": \"2021/8/6 16:00\",\n          \"title\": \"视频标题\",\n          \"likes\": 463881,\n          \"comments\": 15345,\n          \"saves\": 60711,\n          \"shares\": 91209,\n          \"totalEngagement\": 631146,\n          \"saveRate\": 9.62\n        }\n      ]\n    }\n  ]\n}\n\n【关键要点】\n1. 根据爆发期的时间段，从全部爆款视频中筛选出该时期的视频\n2. 每个爆发期列出Top10视频（按互动总量降序）\n3. 如果某个时期没有足够视频，列出所有可用的\n4. 收藏率计算：收藏率 = 收藏量 / 互动总量 × 100\n5. 只返回JSON，不要任何解释或说明文字",
+      "variables": {
+        "explosive_periods": {
+          "description": "爆发期列表（不含视频详情）",
+          "required": true
+        },
+        "all_viral_videos": {
+          "description": "全部爆款视频详细数据",
+          "required": true
+        },
+        "time_range_mapping": {
+          "description": "时间范围映射表（帮助匹配视频到时期）",
           "required": true
         }
       },

@@ -26,12 +26,12 @@ export async function GET(
       );
     }
 
-    console.log('[Tasks API] 返回任务数据:', {
-      id: task.id,
-      status: task.status,
-      progress: task.progress,
-      currentStep: task.currentStep,
-    });
+    // console.log('[Tasks API] 返回任务数据:', {
+    //   id: task.id,
+    //   status: task.status,
+    //   progress: task.progress,
+    //   currentStep: task.currentStep,
+    // });
 
     return NextResponse.json({
       success: true,

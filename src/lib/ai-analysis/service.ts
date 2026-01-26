@@ -325,6 +325,9 @@ export class AIAnalysisService {
 
   /**
    * 步骤2：分析月度趋势和阶段划分
+   * 采用分开生成策略：
+   * - 第一次调用：生成基础分析（summary, stages, peakMonths, viralThemes, explosivePeriods基础信息）
+   * - 第二次调用：为每个 explosivePeriod 生成 topVideos
    */
   async analyzeMonthlyTrend(
     monthlyData: MonthlyData[],
@@ -392,12 +395,13 @@ export class AIAnalysisService {
     const viralDetail = virals.map(v => {
       const saveRate = v.totalEngagement > 0 ? (v.saves / v.totalEngagement * 100) : 0;
       const date = new Date(v.publishTime);
-      const publishTime = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+      const publishTime = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
       return `${publishTime} | ${v.title} | 👍${v.likes.toLocaleString()} | 💬${v.comments.toLocaleString()} | ⭐${v.saves.toLocaleString()} | 🔁${v.shares.toLocaleString()} | 👉${v.totalEngagement.toLocaleString()} | 收藏率${saveRate.toFixed(2)}%`;
     }).join('\n');
 
-    // 4. 调用 AI
-    const prompt = promptEngine.render('monthly_trend', {
+    // 4. 第一次 AI 调用：生成基础分析（不含 explosivePeriods 的 topVideos）
+    console.log('[analyzeMonthlyTrend] 第一次 AI 调用：生成基础分析...');
+    const prompt1 = promptEngine.render('monthly_trend', {
       file_name: fileName || '未知文件',
       total_videos: totalVideos || virals.length,
       monthly_data_summary: monthlySummary,
@@ -405,8 +409,107 @@ export class AIAnalysisService {
       viral_videos_detail: viralDetail,
     });
 
-    const result = await this.callAI(prompt, aiConfig, 300000, 16000); // 5分钟，16000 tokens
-    return safeParseJSON(cleanAIResponse(result));
+    const result1 = await this.callAI(prompt1, aiConfig, 300000, 12000); // 5分钟，12000 tokens
+    const baseAnalysis = safeParseJSON(cleanAIResponse(result1));
+    console.log('[analyzeMonthlyTrend] 基础分析完成，explosivePeriods数量:', baseAnalysis.explosivePeriods?.length || 0);
+
+    // 5. 第二次 AI 调用：为 explosivePeriods 生成 topVideos（如果有）
+    let explosivePeriodsWithVideos: Array<{
+      periodName: string;
+      period: string;
+      explanation: string;
+      topVideos: Array<{
+        publishTime: string;
+        title: string;
+        likes: number;
+        comments: number;
+        saves: number;
+        shares: number;
+        totalEngagement: number;
+        saveRate: number;
+      }>;
+    }> = [];
+
+    if (baseAnalysis.explosivePeriods && baseAnalysis.explosivePeriods.length > 0) {
+      console.log('[analyzeMonthlyTrend] 第二次 AI 调用：生成爆发期视频详情...');
+
+      // 格式化爆发期列表
+      const explosivePeriodsText = baseAnalysis.explosivePeriods.map(p =>
+        `- ${p.periodName}（${p.period}）：${p.explanation}`
+      ).join('\n');
+
+      // 构建时间范围映射表（帮助 AI 匹配视频到时期）
+      const timeRangeMapping = this.buildTimeRangeMapping(baseAnalysis.explosivePeriods, virals);
+
+      // 调用第二次 AI
+      const prompt2 = promptEngine.render('explosive_periods_detail', {
+        explosive_periods: explosivePeriodsText,
+        all_viral_videos: viralDetail,
+        time_range_mapping: timeRangeMapping,
+      });
+
+      const result2 = await this.callAI(prompt2, aiConfig, 300000, 12000); // 5分钟，12000 tokens
+      const detailAnalysis = safeParseJSON(cleanAIResponse(result2));
+
+      // 合并结果：将 topVideos 合并到对应的 explosivePeriod
+      if (detailAnalysis.periodsWithVideos && detailAnalysis.periodsWithVideos.length > 0) {
+        explosivePeriodsWithVideos = baseAnalysis.explosivePeriods.map(ep => {
+          const matchedDetail = detailAnalysis.periodsWithVideos.find(pv => pv.periodName === ep.periodName);
+          return {
+            ...ep,
+            topVideos: matchedDetail?.topVideos || [],
+          };
+        });
+        console.log('[analyzeMonthlyTrend] 爆发期视频详情生成完成');
+      } else {
+        // 如果第二次调用失败，返回空的 topVideos
+        explosivePeriodsWithVideos = baseAnalysis.explosivePeriods.map(ep => ({
+          ...ep,
+          topVideos: [],
+        }));
+        console.warn('[analyzeMonthlyTrend] 爆发期视频详情生成失败，返回空列表');
+      }
+    }
+
+    // 6. 返回完整结果
+    return {
+      ...baseAnalysis,
+      explosivePeriods: explosivePeriodsWithVideos,
+    };
+  }
+
+  /**
+   * 构建时间范围映射表
+   * 帮助 AI 将视频匹配到对应的爆发期
+   */
+  private buildTimeRangeMapping(
+    explosivePeriods: Array<{ periodName: string; period: string; explanation: string }>,
+    virals: ViralVideo[]
+  ): string {
+    // 为每个爆发期提取对应的视频时间范围
+    const mapping: string[] = [];
+
+    for (const ep of explosivePeriods) {
+      // 尝试从 period 字段解析时间范围
+      // 例如："2021年8月" -> 需要匹配 2021-08 的视频
+      const periodMatch = ep.period.match(/(\d{4})年(\d{1,2})月/);
+      if (periodMatch) {
+        const year = periodMatch[1];
+        const month = periodMatch[2].padStart(2, '0');
+        const monthPrefix = `${year}-${month}`;
+
+        // 找出该时期的视频数量
+        const videosInPeriod = virals.filter(v => {
+          const date = new Date(v.publishTime);
+          const videoMonth = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+          return videoMonth === monthPrefix;
+        });
+
+        mapping.push(`${ep.periodName}（${ep.period}）：该时期有 ${videosInPeriod.length} 条爆款视频`);
+      }
+    }
+
+    return mapping.join('\n') || '无法自动映射时间范围';
   }
 
   /**
