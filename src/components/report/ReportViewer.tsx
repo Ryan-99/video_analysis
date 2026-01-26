@@ -119,7 +119,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
   if (!report) return <Card className="p-8">报告不存在</Card>;
 
   // 优先使用真实账号名称（从文件名提取），否则使用 AI 生成的名称
-  const displayName = report.realAccountName || report.account.name;
+  const displayName = report.realAccountName || report.account.nickname;
 
   return (
     <div className="space-y-6">
