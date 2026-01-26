@@ -137,28 +137,112 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
       <Card className="p-6">
         <h3 className="text-lg font-semibold mb-4 text-white">一、账号概况</h3>
         <div className="grid grid-cols-2 gap-4">
+          {/* 基本信息 */}
           <div>
-            <span className="text-sm text-gray-400">账号名称</span>
-            <p className="font-medium text-white">{displayName}</p>
+            <span className="text-sm text-gray-400">账号昵称</span>
+            <p className="font-medium text-white">{report.account.nickname}</p>
           </div>
+          {report.account.followerCount && (
+            <div>
+              <span className="text-sm text-gray-400">粉丝数</span>
+              <p className="font-medium text-white">
+                {report.account.followerCount.value}
+                <span className="text-xs text-gray-500 ml-1">
+                  ({report.account.followerCount.source === 'verified' ? '可验证' :
+                    report.account.followerCount.source === 'inferred' ? '推断' : '待补充'})
+                </span>
+              </p>
+              {report.account.followerCount.basis && (
+                <p className="text-xs text-gray-500 mt-1">{report.account.followerCount.basis}</p>
+              )}
+            </div>
+          )}
           <div>
             <span className="text-sm text-gray-400">账号类型</span>
-            <p className="font-medium text-white">{report.account.type}</p>
+            <p className="font-medium text-white">{report.account.accountType}</p>
           </div>
           <div>
-            <span className="text-sm text-gray-400">核心主题</span>
-            <p className="font-medium text-white">{report.account.coreTopic}</p>
+            <span className="text-sm text-gray-400">内容形态</span>
+            <p className="font-medium text-white">{report.account.contentFormat}</p>
+          </div>
+
+          {/* 数据概览 */}
+          <div>
+            <span className="text-sm text-gray-400">数据时间范围</span>
+            <p className="font-medium text-white">
+              {report.account.dateRange.start} – {report.account.dateRange.end}
+              {report.account.dateRange.stages && (
+                <span className="text-xs text-gray-400 ml-1">（{report.account.dateRange.stages}）</span>
+              )}
+            </p>
           </div>
           <div>
-            <span className="text-sm text-gray-400">目标受众</span>
-            <p className="font-medium text-white">{report.account.audience}</p>
+            <span className="text-sm text-gray-400">总视频数量</span>
+            <p className="font-medium text-white">
+              ≈ {report.account.totalVideos.count} 条
+              {report.account.totalVideos.note && (
+                <span className="text-xs text-gray-400 ml-1">（{report.account.totalVideos.note}）</span>
+              )}
+            </p>
           </div>
+          <div>
+            <span className="text-sm text-gray-400">发布频率</span>
+            <p className="font-medium text-white">
+              ≈ {report.account.publishFrequency.perWeek} 条/周
+              {!report.account.publishFrequency.hasGap && (
+                <span className="text-xs text-green-400 ml-1">（不存在明显断更期）</span>
+              )}
+            </p>
+            {report.account.publishFrequency.hasGap && report.account.publishFrequency.gapPeriods && (
+              <p className="text-xs text-orange-400 mt-1">断更期：{report.account.publishFrequency.gapPeriods}</p>
+            )}
+          </div>
+          <div>
+            <span className="text-sm text-gray-400">最佳发布时间</span>
+            <div className="mt-1">
+              {report.account.bestPublishTime.windows.map((window, idx) => (
+                <p key={idx} className="text-sm text-gray-200">
+                  {window.timeRange}（{window.percentage.toFixed(1)}%）
+                </p>
+              ))}
+            </div>
+            {report.account.bestPublishTime.analysis && (
+              <p className="text-xs text-gray-500 mt-1">{report.account.bestPublishTime.analysis}</p>
+            )}
+          </div>
+
+          {/* 受众与内容 */}
+          <div className="col-span-2">
+            <span className="text-sm text-gray-400">核心受众人群</span>
+            <p className="font-medium text-white mt-1">{report.account.audience.description}</p>
+            <p className="text-xs text-gray-500 mt-1">依据：{report.account.audience.basis}</p>
+          </div>
+          <div className="col-span-2">
+            <span className="text-sm text-gray-400">核心母题</span>
+            <p className="font-medium text-white mt-1">
+              {report.account.coreTopics.length > 0
+                ? report.account.coreTopics.join('、')
+                : '未形成稳定母题'}
+            </p>
+            {report.account.unstableReason && (
+              <p className="text-xs text-gray-500 mt-1">{report.account.unstableReason}</p>
+            )}
+          </div>
+
+          {/* 变现方式 */}
           <div className="col-span-2">
             <span className="text-sm text-gray-400">变现方式</span>
             <div className="mt-1 space-y-1">
-              <p className="text-sm text-gray-200">初级：{report.account.monetization.level1}</p>
-              <p className="text-sm text-gray-200">中级：{report.account.monetization.level2}</p>
-              <p className="text-sm text-gray-200">高级：{report.account.monetization.level3}</p>
+              {report.account.monetization.methods.map((method, idx) => (
+                <p key={idx} className="text-sm text-gray-200">• {method}</p>
+              ))}
+              <div className="mt-2 pt-2 border-t border-gray-700">
+                <p className="text-xs text-gray-400">成交链路：{report.account.monetization.salesFunnel}</p>
+                <p className="text-xs text-gray-400 mt-1">主产品价格带：{report.account.monetization.priceRange}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  内容与变现一致性：{report.account.monetization.consistency}
+                </p>
+              </div>
             </div>
           </div>
         </div>

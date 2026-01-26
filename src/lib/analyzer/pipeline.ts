@@ -19,9 +19,10 @@ import * as XLSX from 'xlsx';
  */
 async function callAIWithConfig(
   videos: VideoData[],
+  monthlyData: MonthlyData[],
   aiConfigStr?: string
 ): Promise<AccountAnalysis> {
-  return await aiAnalysisService.analyzeAccountOverview(videos, aiConfigStr);
+  return await aiAnalysisService.analyzeAccountOverview(videos, monthlyData, aiConfigStr);
 }
 
 /**
@@ -120,14 +121,14 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     });
 
     const accountStartTime = Date.now();
-    const accountAnalysis = await aiAnalysisService.analyzeAccountOverview(videos, task.aiConfig, task.accountName);
+    const accountAnalysis = await aiAnalysisService.analyzeAccountOverview(videos, monthlyData, task.aiConfig, task.accountName);
     await logStep('ai', '账号概况分析完成', 'success', {
       output: {
-        账号名称: accountAnalysis.name,
-        账号类型: accountAnalysis.type,
-        核心主题: accountAnalysis.coreTopic,
-        目标受众: accountAnalysis.audience,
-        初级变现: accountAnalysis.monetization.level1,
+        账号名称: accountAnalysis.nickname,
+        账号类型: accountAnalysis.accountType,
+        核心母题: accountAnalysis.coreTopics.join('、'),
+        目标受众: accountAnalysis.audience.description,
+        变现方式: accountAnalysis.monetization.methods.join('、'),
       },
     });
 

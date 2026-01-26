@@ -1,6 +1,7 @@
 // src/lib/ai-analysis/service.ts
 import { promptEngine } from '@/lib/prompts';
 import { VideoData, MonthlyData, ViralVideo, AccountAnalysis } from '@/types';
+import { calculateMetrics } from '@/lib/analyzer/calculations';
 
 /**
  * 清理 AI 返回的 JSON 字符串
@@ -199,18 +200,111 @@ export class AIAnalysisService {
    */
   async analyzeAccountOverview(
     videos: VideoData[],
+    monthlyData: MonthlyData[],
     aiConfig?: string,
     accountName?: string | null
   ): Promise<AccountAnalysis> {
-    const titles = videos.map(v => v.title).slice(0, 30).join('\n');
+    // 1. 计算统计指标
+    const metrics = calculateMetrics(videos);
+
+    // 2. 格式化发布时间分布（取前3个时间段）
+    const topTimeWindows = metrics.bestPublishTime
+      .slice(0, 3)
+      .map(t => `${t.hour}:00-${t.hour + 1}:00 (${t.percentage.toFixed(1)}%)`)
+      .join('；');
+
+    // 3. 从 monthlyData 提取阶段信息
+    const stages = this.extractStages(monthlyData);
+
+    // 4. 格式化断更期描述
+    const gapPeriods = metrics.publishFrequency.gapPeriods?.map(p =>
+      `${formatDateCN(p.start)} 至 ${formatDateCN(p.end)}（${p.days}天）`
+    ).join('；') || '';
+
+    // 5. 调用 AI（使用50条标题）
+    const titles = videos.map(v => v.title).slice(0, 50).join('\n');
 
     const prompt = promptEngine.render('account_overview', {
       account_name: accountName || '未知账号',
       video_titles: titles,
+      date_range_start: metrics.dateRange.start,
+      date_range_end: metrics.dateRange.end,
+      total_months: metrics.dateRange.totalMonths,
+      total_videos: metrics.totalVideos,
+      publish_per_week: metrics.publishFrequency.perWeek,
+      has_gap: metrics.publishFrequency.hasGap,
+      gap_periods: gapPeriods,
+      publish_time_distribution: topTimeWindows,
     });
 
     const result = await this.callAI(prompt, aiConfig, 180000, 8000); // 3分钟，8000 tokens
-    return safeParseJSON(cleanAIResponse(result)) as AccountAnalysis;
+    const aiAnalysis = safeParseJSON(cleanAIResponse(result));
+
+    // 6. 合并程序计算的数据和 AI 分析结果
+    return {
+      nickname: accountName || '未知账号',
+      ...aiAnalysis,
+      dateRange: {
+        start: metrics.dateRange.start,
+        end: metrics.dateRange.end,
+        stages: stages,
+      },
+      totalVideos: {
+        count: metrics.totalVideos,
+      },
+      publishFrequency: {
+        perWeek: metrics.publishFrequency.perWeek,
+        hasGap: metrics.publishFrequency.hasGap,
+        gapPeriods: gapPeriods || undefined,
+      },
+      bestPublishTime: {
+        windows: metrics.bestPublishTime.slice(0, 3).map(t => ({
+          timeRange: `${t.hour}:00-${t.hour + 1}:00`,
+          percentage: t.percentage,
+        })),
+      },
+    } as AccountAnalysis;
+  }
+
+  /**
+   * 从月度数据提取账号发展阶段
+   */
+  private extractStages(monthlyData: MonthlyData[]): string {
+    if (monthlyData.length === 0) return '';
+
+    const stages: string[] = [];
+
+    // 简单的阶段划分逻辑
+    // 探索期：前3个月或视频数较少的时期
+    // 起号期：互动量开始明显增长的时期
+    // 爆发期：出现高互动爆款的时期
+    // 成熟期：输出稳定的时期
+
+    // 根据月度数据找出各个阶段的分界点
+    let maxEngagement = 0;
+    monthlyData.forEach(m => {
+      if (m.p90 > maxEngagement) maxEngagement = m.p90;
+    });
+
+    // 计算平均互动量
+    const avgAvgEngagement = monthlyData.reduce((sum, m) => sum + m.avgEngagement, 0) / monthlyData.length;
+
+    // 简化的阶段描述
+    const stageDescriptions: string[] = [];
+
+    // 根据数据特征添加阶段描述
+    if (monthlyData.length >= 6) {
+      stageDescriptions.push('探索期');
+    }
+    if (avgAvgEngagement > maxEngagement * 0.3) {
+      stageDescriptions.push('起号期');
+    }
+    if (maxEngagement > avgAvgEngagement * 3) {
+      stageDescriptions.push('爆发期');
+    }
+    stageDescriptions.push('成熟期');
+
+    return stageDescriptions.join(' → ');
   }
 
   /**
@@ -618,6 +712,13 @@ ${existingCategories}
       return result;
     }
   }
+}
+
+/**
+ * 格式化日期为 "YYYY年M月" 格式（用于断更期描述）
+ */
+function formatDateCN(date: Date): string {
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
 }
 
 // 使用 globalThis 确保单例

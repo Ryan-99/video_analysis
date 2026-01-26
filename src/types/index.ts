@@ -84,14 +84,55 @@ export interface ViralVideo extends VideoData {
 }
 
 export interface AccountAnalysis {
-  name: string;
-  type: string;
-  audience: string;
-  coreTopic: string;
+  // 基本信息
+  nickname: string;              // 账号昵称
+  followerCount?: {              // 粉丝数
+    value: string;               // 如 "637.5万"
+    source: 'verified' | 'inferred' | 'missing';  // 可验证/推断/待补充
+    basis?: string;              // 推断依据（仅当 source=inferred 时）
+  };
+
+  // 内容定位
+  accountType: string;           // 账号类型
+  contentFormat: string;         // 内容形态
+
+  // 数据概览（由程序计算，非 AI 推断）
+  dateRange: {                   // 数据时间范围
+    start: string;               // YYYY年M月
+    end: string;                 // YYYY年M月
+    stages?: string;             // 括号内的阶段说明
+  };
+  totalVideos: {                 // 总视频数量
+    count: number;               // 数量
+    note?: string;               // 备注（如"含少量共创"）
+  };
+  publishFrequency: {            // 发布频率
+    perWeek: number;             // ≈X条/周
+    hasGap: boolean;             // 是否有断更期
+    gapPeriods?: string;         // 断更区间描述
+  };
+  bestPublishTime: {             // 最佳发布时间
+    windows: Array<{             // 时间窗数组
+      timeRange: string;         // 如 "15:00-17:00"
+      percentage: number;        // 占比%
+    }>;
+    analysis?: string;           // 与受众作息匹配说明
+  };
+
+  // 受众与内容
+  audience: {                    // 核心受众人群
+    description: string;         // 如 "25-40岁..."
+    basis: string;               // 推断依据（必须提供）
+  };
+  coreTopics: string[];          // 核心母题（3-7个短词）
+  unstableReason?: string;       // 若母题不稳定的原因
+
+  // 变现方式
   monetization: {
-    level1: string;
-    level2: string;
-    level3: string;
+    methods: string[];           // 变现方式列表
+    salesFunnel: string;         // 成交链路
+    priceRange: string;          // 主产品价格带
+    consistency: string;         // 内容与变现一致性
   };
 }
 

@@ -51,7 +51,7 @@ export async function generateWordReport(report: Report, chartBuffers?: ChartBuf
   });
 
   // 使用真实账号名称（从文件名提取），否则使用 AI 生成的名称
-  const displayName = report.realAccountName || report.account.name;
+  const displayName = report.realAccountName || report.account.nickname;
 
   // 注意：标注现在直接渲染在图表图片上，无需额外的文字说明
 
@@ -98,22 +98,85 @@ export async function generateWordReport(report: Report, chartBuffers?: ChartBuf
 }
 
 function generateAccountSection(account: Report['account']): Paragraph[] {
-  const paragraphs: Paragraph[] = [
-    // 基本信息
-    new Paragraph({ children: [new TextRun({ text: '【基本信息】', bold: true, size: 28 })] }),
-    new Paragraph({ children: [new TextRun({ text: '账号名称：', bold: true }), new TextRun(account.name)] }),
-    new Paragraph({ children: [new TextRun({ text: '账号类型：', bold: true }), new TextRun(account.type)] }),
-    new Paragraph({ children: [new TextRun({ text: '核心主题：', bold: true }), new TextRun(account.coreTopic)] }),
-    new Paragraph({ children: [new TextRun({ text: '目标受众：', bold: true }), new TextRun(account.audience)] }),
-    new Paragraph({ text: '' }),
+  const paragraphs: Paragraph[] = [];
 
-    // 变现方式
-    new Paragraph({ children: [new TextRun({ text: '【变现方式】', bold: true, size: 28 })] }),
-    new Paragraph({ children: [new TextRun({ text: '初级变现：', bold: true }), new TextRun(account.monetization.level1)] }),
-    new Paragraph({ children: [new TextRun({ text: '中级变现：', bold: true }), new TextRun(account.monetization.level2)] }),
-    new Paragraph({ children: [new TextRun({ text: '高级变现：', bold: true }), new TextRun(account.monetization.level3)] }),
-    new Paragraph({ text: '' }),
-  ];
+  // 基本信息
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【基本信息】', bold: true, size: 28 })] }));
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '账号昵称：', bold: true }), new TextRun(account.nickname)] }));
+
+  // 粉丝数
+  if (account.followerCount) {
+    const sourceText = account.followerCount.source === 'verified' ? '可验证' :
+                       account.followerCount.source === 'inferred' ? '推断' : '待补充';
+    paragraphs.push(new Paragraph({ children: [
+      new TextRun({ text: '粉丝数：', bold: true }),
+      new TextRun(account.followerCount.value),
+      new TextRun({ text: `（${sourceText}）`, size: 20, color: '666666' }),
+    ]}));
+    if (account.followerCount.basis) {
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: '  推断依据：', size: 20, bold: true }), new TextRun({ text: account.followerCount.basis, size: 20 })] }));
+    }
+  }
+
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '账号类型：', bold: true }), new TextRun(account.accountType)] }));
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '内容形态：', bold: true }), new TextRun(account.contentFormat)] }));
+
+  // 数据概览
+  paragraphs.push(new Paragraph({ text: '' }));
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【数据概览】', bold: true, size: 28 })] }));
+
+  const dateRangeText = `${account.dateRange.start} – ${account.dateRange.end}`;
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '数据时间范围：', bold: true }), new TextRun(dateRangeText)] }));
+  if (account.dateRange.stages) {
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: `  阶段：${account.dateRange.stages}`, size: 20 })] }));
+  }
+
+  const videoCountText = `≈ ${account.totalVideos.count} 条${account.totalVideos.note ? `（${account.totalVideos.note}）` : ''}`;
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '总视频数量：', bold: true }), new TextRun(videoCountText)] }));
+
+  const freqText = `≈ ${account.publishFrequency.perWeek} 条/周${!account.publishFrequency.hasGap ? '（不存在明显断更期）' : ''}`;
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '发布频率：', bold: true }), new TextRun(freqText)] }));
+  if (account.publishFrequency.hasGap && account.publishFrequency.gapPeriods) {
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: `  断更期：${account.publishFrequency.gapPeriods}`, size: 20, color: 'CC6600' })] }));
+  }
+
+  // 最佳发布时间
+  const bestTimeText = account.bestPublishTime.windows
+    .map(w => `${w.timeRange}（${w.percentage.toFixed(1)}%）`)
+    .join('；');
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '最佳发布时间：', bold: true }), new TextRun(bestTimeText)] }));
+  if (account.bestPublishTime.analysis) {
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: `  ${account.bestPublishTime.analysis}`, size: 20 })] }));
+  }
+
+  // 受众与内容
+  paragraphs.push(new Paragraph({ text: '' }));
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【受众与内容】', bold: true, size: 28 })] }));
+
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '核心受众人群：', bold: true }), new TextRun(account.audience.description)] }));
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '  推断依据：', size: 20, bold: true }), new TextRun({ text: account.audience.basis, size: 20 })] }));
+
+  const coreTopicsText = account.coreTopics.length > 0 ? account.coreTopics.join('、') : '未形成稳定母题';
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '核心母题：', bold: true }), new TextRun(coreTopicsText)] }));
+  if (account.unstableReason) {
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: `  原因：${account.unstableReason}`, size: 20 })] }));
+  }
+
+  // 变现方式
+  paragraphs.push(new Paragraph({ text: '' }));
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【变现方式】', bold: true, size: 28 })] }));
+
+  account.monetization.methods.forEach((method) => {
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '• ' }), new TextRun(method)] }));
+  });
+
+  paragraphs.push(new Paragraph({ text: '' }));
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '成交链路：', bold: true, size: 22 }), new TextRun({ text: account.monetization.salesFunnel, size: 22 })] }));
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '主产品价格带：', bold: true, size: 22 }), new TextRun({ text: account.monetization.priceRange, size: 22 })] }));
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '内容与变现一致性：', bold: true, size: 22 }), new TextRun({ text: account.monetization.consistency, size: 22 })] }));
+
+  paragraphs.push(new Paragraph({ text: '' }));
+
   return paragraphs;
 }
 
