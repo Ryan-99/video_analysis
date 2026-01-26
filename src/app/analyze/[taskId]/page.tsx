@@ -88,8 +88,8 @@ export default function AnalyzePage({ params }: { params: Promise<{ taskId: stri
         const newTaskStatus = taskResult.data;
         setTaskStatus(newTaskStatus);
 
-        // 检测到选题生成状态，自动触发处理
-        if (newTaskStatus?.status === 'topic_generating') {
+        // 检测到待处理或选题生成状态，自动触发处理
+        if (newTaskStatus?.status === 'queued' || newTaskStatus?.status === 'topic_generating') {
           triggerJobProcessing();
         }
       }
