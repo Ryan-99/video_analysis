@@ -379,6 +379,6 @@ export async function downloadChartImagePost(config: ChartConfig, width = 800, h
   }
 
   const arrayBuffer = await response.arrayBuffer();
-  console.log('[Chart Service] POST 下载成功，大小:', arrayBuffer.length, '字节');
+  console.log('[Chart Service] POST 下载成功，大小:', arrayBuffer.byteLength, '字节');
   return Buffer.from(arrayBuffer);
 }
