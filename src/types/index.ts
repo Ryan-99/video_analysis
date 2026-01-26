@@ -159,6 +159,43 @@ export interface Report {
       period: string;
       description: string;
     }>;
+    // 新增：详细分析内容
+    dataExplanation: string; // 数据分析口径说明（不超过4行）
+    keyPeakMonths: Array<{
+      month: string;
+      topVideos: Array<{
+        publishTime: string;
+        title: string;
+        likes: number;
+        comments: number;
+        saves: number;
+        shares: number;
+        totalEngagement: number;
+        saveRate: number; // 收藏率%
+      }>;
+    }>;
+    viralMechanisms?: {
+      description: string; // 长期爆款母体/共性机制
+      reasons: string; // 有/无的原因说明
+    };
+    burstPeriods?: Array<{
+      name: string;
+      period: string;
+      explanation: string;
+      topVideos: Array<{
+        publishTime: string;
+        title: string;
+        likes: number;
+        comments: number;
+        saves: number;
+        shares: number;
+        totalEngagement: number;
+        saveRate: number;
+      }>;
+    }>;
+    // 爆发期是否存在
+    hasBurstPeriods: boolean;
+    noBurstReason?: string;
   };
   virals: {
     summary: string;
