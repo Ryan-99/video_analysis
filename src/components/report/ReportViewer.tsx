@@ -112,7 +112,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
 
       {/* 一、账号概况 */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">一、账号概况</h3>
+        <h3 className="text-lg font-semibold mb-4 text-white">一、账号概况</h3>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <span className="text-sm text-gray-400">账号名称</span>
@@ -143,7 +143,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
 
       {/* 二、月度趋势分析 */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">二、月度趋势分析</h3>
+        <h3 className="text-lg font-semibold mb-4 text-white">二、月度趋势分析</h3>
         <p className="text-sm text-gray-300 mb-6">{report.monthlyTrend.summary}</p>
 
         {/* 月度趋势图表（可交互） */}
@@ -193,7 +193,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
 
       {/* 三、爆款视频分析 */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">三、爆款视频分析</h3>
+        <h3 className="text-lg font-semibold mb-4 text-white">三、爆款视频分析</h3>
         <p className="text-sm text-gray-300 mb-4">{report.virals.summary}</p>
         <div className="flex gap-6 text-sm mb-6">
           <div>
@@ -276,7 +276,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
       {/* 四、选题库（如果有数据） */}
       {report.topics && report.topics.length > 0 && (
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">四、爆款选题库</h3>
+          <h3 className="text-lg font-semibold mb-4 text-white">四、爆款选题库</h3>
           <div className="space-y-4">
             {report.topics.map((topic) => (
               <div key={topic.id} className="border-b border-white/10 pb-4">
