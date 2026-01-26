@@ -732,7 +732,14 @@ export class AIAnalysisService {
   /**
    * 格式化分类摘要
    */
-  private formatCategorySummary(byCategory?: Array<{...}>): string {
+  private formatCategorySummary(byCategory?: Array<{
+    category: string;
+    count: number;
+    medianEngagement: number;
+    medianSaveRate: number;
+    p90SaveRate: number;
+    description: string;
+  }>): string {
     if (!byCategory || byCategory.length === 0) {
       return '无分类数据';
     }
