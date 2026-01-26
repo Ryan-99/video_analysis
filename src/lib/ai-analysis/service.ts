@@ -324,19 +324,21 @@ export class AIAnalysisService {
   }
 
   /**
-   * 步骤2：分析月度趋势和阶段划分（详细版）
+   * 步骤2：分析月度趋势和阶段划分
    */
   async analyzeMonthlyTrend(
     monthlyData: MonthlyData[],
     virals: ViralVideo[],
     aiConfig?: string,
+    fileName?: string,
     totalVideos?: number
   ): Promise<{
     summary: string;
-    dataExplanation: string;
+    dataScopeNote?: string;
     stages: Array<{ type: string; period: string; description: string }>;
-    keyPeakMonths: Array<{
+    peakMonths?: Array<{
       month: string;
+      description: string;
       topVideos: Array<{
         publishTime: string;
         title: string;
@@ -348,14 +350,17 @@ export class AIAnalysisService {
         saveRate: number;
       }>;
     }>;
-    viralMechanisms?: {
-      description: string;
-      reasons: string;
+    viralThemes?: {
+      hasThemes: boolean;
+      themes?: Array<{
+        themeType: string;
+        representativeTitle: string;
+        description: string;
+      }>;
+      reason?: string;
     };
-    hasBurstPeriods: boolean;
-    noBurstReason?: string;
-    burstPeriods?: Array<{
-      name: string;
+    explosivePeriods?: Array<{
+      periodName: string;
       period: string;
       explanation: string;
       topVideos: Array<{
@@ -370,26 +375,37 @@ export class AIAnalysisService {
       }>;
     }>;
   }> {
-    // 格式化月度数据
-    const monthlyText = monthlyData.map(m =>
-      `${m.month}: 视频${m.videoCount}条, 平均互动${Math.round(m.avgEngagement)}, P90${Math.round(m.p90)}, 中位数${Math.round(m.median)}, 阈值${Math.round(m.threshold)}`
+    // 1. 格式化月度数据摘要
+    const monthlySummary = monthlyData.map(m =>
+      `${m.month}: 视频${m.videoCount}条, 平均互动${Math.round(m.avgEngagement).toLocaleString()}`
     ).join('\n');
 
-    // 格式化爆款数据（详细版，包含发布时间和完整互动数据）
-    // 取 Top 50 高互动视频供 AI 分析
-    const topVirals = virals.slice(0, 50).map(v => {
-      const date = new Date(v.publishTime);
-      const dateStr = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-      const saveRate = v.totalEngagement > 0 ? (v.saves / v.totalEngagement * 100) : 0;
-      return `${dateStr} | ${v.title} | 👍${v.likes} 💬${v.comments} ⭐${v.saves} 🔁${v.shares} | 总互动${Math.round(v.totalEngagement)} | 收藏率${saveRate.toFixed(2)}%`;
+    // 2. 格式化月度详细数据表格
+    const monthlyTable = monthlyData.map(m => {
+      const dateParts = m.month.split('-');
+      const year = dateParts[0];
+      const month = dateParts[1];
+      return `${year}/${month} | ${m.videoCount}条 | ${Math.round(m.avgEngagement).toLocaleString()} | ${Math.round(m.p90).toLocaleString()} | ${Math.round(m.median).toLocaleString()} | ${Math.round(m.threshold).toLocaleString()}`;
     }).join('\n');
 
+    // 3. 格式化爆款视频详细信息
+    const viralDetail = virals.map(v => {
+      const saveRate = v.totalEngagement > 0 ? (v.saves / v.totalEngagement * 100) : 0;
+      const date = new Date(v.publishTime);
+      const publishTime = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+      return `${publishTime} | ${v.title} | 👍${v.likes.toLocaleString()} | 💬${v.comments.toLocaleString()} | ⭐${v.saves.toLocaleString()} | 🔁${v.shares.toLocaleString()} | 👉${v.totalEngagement.toLocaleString()} | 收藏率${saveRate.toFixed(2)}%`;
+    }).join('\n');
+
+    // 4. 调用 AI
     const prompt = promptEngine.render('monthly_trend', {
-      monthly_data: monthlyText,
-      viral_data: topVirals,
+      file_name: fileName || '未知文件',
+      total_videos: totalVideos || virals.length,
+      monthly_data_summary: monthlySummary,
+      monthly_data_table: monthlyTable,
+      viral_videos_detail: viralDetail,
     });
 
-    const result = await this.callAI(prompt, aiConfig, 300000, 12000); // 5分钟，12000 tokens
+    const result = await this.callAI(prompt, aiConfig, 300000, 16000); // 5分钟，16000 tokens
     return safeParseJSON(cleanAIResponse(result));
   }
 

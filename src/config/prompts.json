@@ -54,15 +54,27 @@
       "outputFormat": "json"
     },
     "monthly_trend": {
-      "name": "月度趋势分析（详细版）",
-      "template": "你是专业的抖音数据分析师。请基于以下数据，生成详细的月度趋势分析报告。\n\n【数据说明】\n- 互动总量 = 点赞量 + 评论量 + 收藏量 + 转发量\n- 收藏率（%）= 收藏量 / 互动总量 × 100\n- 月度均值：按月统计「当月所有视频的平均互动总量」\n\n【月度数据】\n{{monthly_data}}\n\n【爆款视频列表】（Top高互动视频，供分析关键波峰）\n{{viral_data}}\n\n请严格按照以下JSON格式输出：\n\n{\n  \"summary\": \"通过分析[账号名]的月度平均综合表现趋势表，抽象出账号从[阶段A] → [阶段B] → [阶段C]各个环节的关键动作，找到一些规律\",\n  \"dataExplanation\": \"数据来源：[数据来源]（共 XX 条）\\\\n- 互动总量 = 点赞量 + 评论量 + 收藏量 + 转发量\\\\n- 收藏率（%）= 收藏量 / 互动总量 × 100\\\\n- 月度趋势图：按月统计当月视频的平均互动总量（真实可比，且不依赖播放量）\",\n  \"stages\": [\n    {\"type\": \"起号期\", \"period\": \"2021-09 至 2021-11\", \"description\": \"在此之前账号互动长期低位，内容方向存在一定试探性...\"},\n    {\"type\": \"第一爆发期\", \"period\": \"2022-04\", \"description\": \"当月出现60w+点赞级内容，整体互动均值显著抬升\"}\n  ],\n  \"keyPeakMonths\": [\n    {\n      \"month\": \"2021-11\",\n      \"topVideos\": [\n        {\"publishTime\": \"2021-11-06 16:00\", \"title\": \"你是被卷，还是卷别人的那个？\", \"likes\": 463881, \"comments\": 15345, \"saves\": 60711, \"shares\": 91209, \"totalEngagement\": 631146, \"saveRate\": 9.62},\n        {\"publishTime\": \"2021-11-05 14:00\", \"title\": \"标题2\", \"likes\": 300000, \"comments\": 10000, \"saves\": 50000, \"shares\": 70000, \"totalEngagement\": 430000, \"saveRate\": 11.63}\n      ]\n    }\n  ],\n  \"viralMechanisms\": {\n    \"description\": \"爆款母题 = 职场隐秘规则（你没明说但你隐约知道） + 反常识结论（一针见血讲穿）\\\\n不是技巧型账号，没有一上来就教方法，先做内卷/不公平/看不懂的职场现象...\",\n    \"reasons\": \"该账号具备明确的爆款母体，通过解析现实中的结构性矛盾，持续输出反常识观点...\"\n  },\n  \"hasBurstPeriods\": true,\n  \"burstPeriods\": [\n    {\n      \"name\": \"起号爆发期\",\n      \"period\": \"2021年8月\",\n      \"explanation\": \"账号第一次出现连续多条高于基线的内容链路\",\n      \"topVideos\": [\n        {\"publishTime\": \"2021/8/19 8:00\", \"title\": \"阶层平等比阶层跃迁更值得追寻...\", \"likes\": 220660, \"comments\": 7176, \"saves\": 11137, \"shares\": 59389, \"totalEngagement\": 298362, \"saveRate\": 3.73},\n        {\"publishTime\": \"2021/8/18 16:56\", \"title\": \"辞掉高薪工作回家带孩子，值不值？\", \"likes\": 184810, \"comments\": 29729, \"saves\": 12746, \"shares\": 100491, \"totalEngagement\": 327776, \"saveRate\": 3.89}\n      ]\n    }\n  ]\n}\n\n【输出规则】\n1. summary：一句话总结账号从起步到成熟的整体趋势\n2. dataExplanation：数据分析口径说明（3-4行）\n3. stages：阶段划分，只有数据支持明显区分才划分，否则返回空数组[]\n4. keyPeakMonths：关键波峰月份（互动量明显抬高的月份），每个波峰月给出Top3视频\n5. viralMechanisms：长期爆款母体/共性机制，有则给description和reasons，无则返回null\n6. hasBurstPeriods：是否存在明显的爆发期（连续高互动或明显峰值）\n7. burstPeriods：爆发期细化列表，按明显抬升/尖峰/持续高位切分，每期包含解释和Top10视频",
+      "name": "月度趋势分析",
+      "template": "你是专业的抖音数据分析师。请分析以下月度趋势数据，生成完整的分析报告。\n\n【数据来源】\n文件名：{{file_name}}\n总视频数：{{total_videos}}条\n\n【月度数据摘要】\n{{monthly_data_summary}}\n\n【月度详细数据】\n{{monthly_data_table}}\n\n【爆款视频列表】（含完整互动数据）\n{{viral_videos_detail}}\n\n【分析要求】\n\n请严格按照以下JSON格式输出：\n\n{\n  \"summary\": \"通过分析[账号名]的月度平均综合表现趋势表，抽象出账号从[阶段A]→[阶段B]→[阶段C]各个环节的关键动作，找到一些规律\",\n  \"dataScopeNote\": \"数据来源：《{{file_name}}》（共{{total_videos}}条）\\\\n- 互动总量 = 点赞量 + 评论量 + 收藏量 + 转发量\\\\n- 收藏率（%）= 收藏量 / 互动总量 × 100\\\\n- 月度趋势图：按月统计当月视频的平均互动总量\",\n  \"stages\": [\n    {\"type\": \"阶段类型\", \"period\": \"时间段\", \"description\": \"阶段描述\"}\n  ],\n  \"peakMonths\": [\n    {\n      \"month\": \"2021-11\",\n      \"description\": \"第一个爆发期波峰（奠定账号层级）\",\n      \"topVideos\": [\n        {\n          \"publishTime\": \"2021/11/6 16:00\",\n          \"title\": \"视频标题\",\n          \"likes\": 463881,\n          \"comments\": 15345,\n          \"saves\": 60711,\n          \"shares\": 91209,\n          \"totalEngagement\": 631146,\n          \"saveRate\": 9.62\n        }\n      ]\n    }\n  ],\n  \"viralThemes\": {\n    \"hasThemes\": true,\n    \"themes\": [\n      {\"themeType\": \"内卷反转\", \"representativeTitle\": \"你是被卷...\", \"description\": \"...\"}\n    ]\n  },\n  \"explosivePeriods\": [\n    {\n      \"periodName\": \"起号爆发期\",\n      \"period\": \"2021年8月\",\n      \"explanation\": \"账号第一次出现连续多条高于基线的内容链路\",\n      \"topVideos\": [...]\n    }\n  ]\n}\n\n【输出规则】\n1. summary：1句话概括，包含账号发展阶段转换\n2. dataScopeNote：不超过4行，说明数据来源和计算口径\n3. stages：数据支持才分阶段，不支持则设置为空数组，在summary中说明原因\n4. peakMonths：挑选3-5个关键波峰月份，每个月份列出Top3爆款视频\n5. viralThemes：分析长期爆款母体/共性机制，有则给themes，无则设置hasThemes=false并填写reason\n6. explosivePeriods：将全周期按明显抬升/尖峰/持续高位切分成多个爆发期，每个爆发期列出Top10视频\n7. 只返回JSON，不要任何解释或说明文字",
       "variables": {
-        "monthly_data": {
-          "description": "月度统计数据（含月份、视频数、各项互动指标）",
+        "file_name": {
+          "description": "文件名",
           "required": true
         },
-        "viral_data": {
-          "description": "高互动视频列表（含发布时间、标题、互动数据）",
+        "total_videos": {
+          "description": "总视频数",
+          "required": true
+        },
+        "monthly_data_summary": {
+          "description": "月度数据摘要（简化版）",
+          "required": true
+        },
+        "monthly_data_table": {
+          "description": "月度详细数据表格",
+          "required": true
+        },
+        "viral_videos_detail": {
+          "description": "爆款视频详细信息",
           "required": true
         }
       },

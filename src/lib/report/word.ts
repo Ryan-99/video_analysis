@@ -238,11 +238,24 @@ function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buf
   }
   paragraphs.push(new Paragraph({ text: '' }));
 
-  // 发展阶段
-  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '发展阶段', bold: true, size: 28, underline: {} })] }));
+  // 数据分析口径说明
+  if (trend.dataScopeNote) {
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '数据分析口径说明', bold: true, size: 26 })] }));
+    const scopeLines = trend.dataScopeNote.split('\n');
+    for (const line of scopeLines) {
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: line, size: 22 })] }));
+    }
+    paragraphs.push(new Paragraph({ text: '' }));
+  }
 
-  // 添加阶段信息
+  // 月度数据表格
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '月度分析总览', bold: true, size: 28, underline: {} })] }));
+  paragraphs.push(...generateMonthlyTable(trend.data));
+  paragraphs.push(new Paragraph({ text: '' }));
+
+  // 发展阶段
   if (trend.stages && trend.stages.length > 0) {
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '阶段划分', bold: true, size: 28, underline: {} })] }));
     for (const stage of trend.stages) {
       paragraphs.push(new Paragraph({ children: [new TextRun({ text: `${stage.type}（${stage.period}）：`, bold: true })] }));
       paragraphs.push(new Paragraph({ children: [new TextRun({ text: stage.description })] }));
@@ -250,11 +263,106 @@ function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buf
     paragraphs.push(new Paragraph({ text: '' }));
   }
 
-  // 月度数据表格
-  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '月度数据详情', bold: true, size: 28, underline: {} })] }));
-  paragraphs.push(...generateMonthlyTable(trend.data));
-  paragraphs.push(new Paragraph({ text: '' }));
+  // 关键波峰月份
+  if (trend.peakMonths && trend.peakMonths.length > 0) {
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '关键波峰月份', bold: true, size: 28, underline: {} })] }));
+    for (const peak of trend.peakMonths) {
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: `${peak.month} - ${peak.description}`, bold: true, size: 24 })] }));
+      paragraphs.push(new Paragraph({ text: '' }));
+      for (const video of peak.topVideos) {
+        paragraphs.push(new Paragraph({ children: [new TextRun({ text: `发布时间：${video.publishTime}`, size: 22 })] }));
+        paragraphs.push(new Paragraph({ children: [new TextRun({ text: `标题：${video.title}`, size: 22 })] }));
+        paragraphs.push(new Paragraph({ children: [
+          new TextRun({ text: '数据：', size: 22, bold: true }),
+          new TextRun({ text: `👍${video.likes.toLocaleString()} | 💬${video.comments.toLocaleString()} | ⭐${video.saves.toLocaleString()} | 🔁${video.shares.toLocaleString()} | 👉${video.totalEngagement.toLocaleString()} | 收藏率${video.saveRate.toFixed(2)}%`, size: 22 }),
+        ] }));
+        paragraphs.push(new Paragraph({ text: '' }));
+      }
+    }
+  }
 
+  // 长期爆款母体
+  if (trend.viralThemes) {
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '长期爆款母体/共性机制', bold: true, size: 28, underline: {} })] }));
+    if (trend.viralThemes.hasThemes && trend.viralThemes.themes) {
+      for (const theme of trend.viralThemes.themes) {
+        paragraphs.push(new Paragraph({ children: [new TextRun({ text: `${theme.themeType}：`, bold: true, size: 24 })] }));
+        paragraphs.push(new Paragraph({ children: [new TextRun({ text: `代表标题：${theme.representativeTitle}`, size: 22 })] }));
+        paragraphs.push(new Paragraph({ children: [new TextRun({ text: theme.description, size: 22 })] }));
+        paragraphs.push(new Paragraph({ text: '' }));
+      }
+    } else if (trend.viralThemes.reason) {
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: trend.viralThemes.reason, size: 22 })] }));
+      paragraphs.push(new Paragraph({ text: '' }));
+    }
+  }
+
+  // 爆发期细化
+  if (trend.explosivePeriods && trend.explosivePeriods.length > 0) {
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '爆发期细化', bold: true, size: 28, underline: {} })] }));
+
+    // 三列表
+    const explosiveTable = new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({ children: [new Paragraph({ text: '爆发期' })], width: { size: 33, type: WidthType.PERCENTAGE } }),
+            new TableCell({ children: [new Paragraph({ text: '时间' })], width: { size: 33, type: WidthType.PERCENTAGE } }),
+            new TableCell({ children: [new Paragraph({ text: '解释（为什么算爆发）' })], width: { size: 34, type: WidthType.PERCENTAGE } }),
+          ],
+        }),
+        ...trend.explosivePeriods.map(period =>
+          new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph({ text: period.periodName })] }),
+              new TableCell({ children: [new Paragraph({ text: period.period })] }),
+              new TableCell({ children: [new Paragraph({ text: period.explanation })] }),
+            ],
+          })
+        ),
+      ],
+    });
+    paragraphs.push(new Paragraph({ children: [explosiveTable] }));
+    paragraphs.push(new Paragraph({ text: '' }));
+
+    // 逐段Top10视频表
+    for (const period of trend.explosivePeriods) {
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: `${period.periodName}（${period.period}）`, bold: true, size: 24 })] }));
+      paragraphs.push(new Paragraph({ text: '' }));
+
+      const videoTable = new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph({ text: '发布时间' })], width: { size: 20, type: WidthType.PERCENTAGE } }),
+              new TableCell({ children: [new Paragraph({ text: '标题' })], width: { size: 40, type: WidthType.PERCENTAGE } }),
+              new TableCell({ children: [new Paragraph({ text: '互动' })], width: { size: 15, type: WidthType.PERCENTAGE } }),
+              new TableCell({ children: [new Paragraph({ text: '收藏率' })], width: { size: 10, type: WidthType.PERCENTAGE } }),
+              new TableCell({ children: [new Paragraph({ text: '收藏/点赞' })], width: { size: 15, type: WidthType.PERCENTAGE } }),
+            ],
+          }),
+          ...period.topVideos.map(video => {
+            const saveToLikeRatio = video.likes > 0 ? (video.saves / video.likes * 100).toFixed(2) + '%' : 'N/A';
+            return new TableRow({
+              children: [
+                new TableCell({ children: [new Paragraph({ text: video.publishTime })] }),
+                new TableCell({ children: [new Paragraph({ text: video.title })] }),
+                new TableCell({ children: [new Paragraph({ text: video.totalEngagement.toLocaleString() })] }),
+                new TableCell({ children: [new Paragraph({ text: `${video.saveRate.toFixed(2)}%` })] }),
+                new TableCell({ children: [new Paragraph({ text: saveToLikeRatio })] }),
+              ],
+            });
+          }),
+        ],
+      });
+      paragraphs.push(new Paragraph({ children: [videoTable] }));
+      paragraphs.push(new Paragraph({ text: '' }));
+    }
+  }
+
+  paragraphs.push(new Paragraph({ text: '' }));
   return paragraphs;
 }
 

@@ -159,29 +159,42 @@ export interface Report {
       period: string;
       description: string;
     }>;
-    // 新增：详细分析内容
-    dataExplanation: string; // 数据分析口径说明（不超过4行）
-    keyPeakMonths: Array<{
+
+    // 新增字段
+    dataScopeNote?: string;  // 数据分析口径说明
+
+    // 关键波峰月份
+    peakMonths?: Array<{
       month: string;
+      description: string;
       topVideos: Array<{
-        publishTime: string;
+        publishTime: string;   // 发布时间 "2021/11/6 16:00"
         title: string;
         likes: number;
         comments: number;
         saves: number;
         shares: number;
         totalEngagement: number;
-        saveRate: number; // 收藏率%
+        saveRate: number;      // 收藏率 %
       }>;
     }>;
-    viralMechanisms?: {
-      description: string; // 长期爆款母体/共性机制
-      reasons: string; // 有/无的原因说明
+
+    // 长期爆款母体
+    viralThemes?: {
+      hasThemes: boolean;
+      themes?: Array<{
+        themeType: string;     // 如 "内卷反转"
+        representativeTitle: string;
+        description: string;
+      }>;
+      reason?: string;         // 如果无爆款母体，说明原因
     };
-    burstPeriods?: Array<{
-      name: string;
-      period: string;
-      explanation: string;
+
+    // 爆发期细化
+    explosivePeriods?: Array<{
+      periodName: string;      // 如 "起号爆发期"
+      period: string;          // 如 "2021年8月"
+      explanation: string;     // 为什么算爆发
       topVideos: Array<{
         publishTime: string;
         title: string;
@@ -193,9 +206,6 @@ export interface Report {
         saveRate: number;
       }>;
     }>;
-    // 爆发期是否存在
-    hasBurstPeriods: boolean;
-    noBurstReason?: string;
   };
   virals: {
     summary: string;

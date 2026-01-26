@@ -145,7 +145,8 @@ export async function executeAnalysis(taskId: string): Promise<void> {
       monthlyData,
       viralVideos,
       task.aiConfig,
-      videos.length
+      task.fileName,
+      metrics.length
     );
     const stagesInfo = monthlyTrendAnalysis.stages?.map(s => s.type).join('、') || '无';
     await logStep('ai', '月度趋势分析完成', 'success', {
@@ -153,8 +154,8 @@ export async function executeAnalysis(taskId: string): Promise<void> {
         趋势总结: monthlyTrendAnalysis.summary,
         发展阶段: monthlyTrendAnalysis.stages?.length || 0,
         阶段列表: stagesInfo,
-        关键波峰月份数: monthlyTrendAnalysis.keyPeakMonths?.length || 0,
-        有爆发期: monthlyTrendAnalysis.hasBurstPeriods,
+        关键波峰: monthlyTrendAnalysis.peakMonths?.length || 0,
+        爆发期: monthlyTrendAnalysis.explosivePeriods?.length || 0,
       },
     });
 
@@ -223,14 +224,12 @@ export async function executeAnalysis(taskId: string): Promise<void> {
       account: accountAnalysis,
       monthlyTrend: {
         summary: monthlyTrendAnalysis.summary || `共分析了 ${videos.length} 条视频，覆盖 ${monthlyData.length} 个月份`,
-        dataExplanation: monthlyTrendAnalysis.dataExplanation || '',
         data: monthlyData,
         stages: monthlyTrendAnalysis.stages || [],
-        keyPeakMonths: monthlyTrendAnalysis.keyPeakMonths || [],
-        viralMechanisms: monthlyTrendAnalysis.viralMechanisms,
-        hasBurstPeriods: monthlyTrendAnalysis.hasBurstPeriods ?? false,
-        noBurstReason: monthlyTrendAnalysis.noBurstReason,
-        burstPeriods: monthlyTrendAnalysis.burstPeriods,
+        dataScopeNote: monthlyTrendAnalysis.dataScopeNote,
+        peakMonths: monthlyTrendAnalysis.peakMonths,
+        viralThemes: monthlyTrendAnalysis.viralThemes,
+        explosivePeriods: monthlyTrendAnalysis.explosivePeriods,
       },
       virals: {
         summary: viralAnalysis.summary || `发现 ${virals.length} 条爆款视频`,

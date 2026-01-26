@@ -319,6 +319,98 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
             </table>
           </div>
         </div>
+
+        {/* 数据分析口径说明 */}
+        {report.monthlyTrend.dataScopeNote && (
+          <div className="mt-6 p-4 bg-gray-800/50 rounded-lg">
+            <h4 className="text-sm font-medium mb-2 text-gray-200">数据分析口径说明</h4>
+            <p className="text-xs text-gray-400 whitespace-pre-line">{report.monthlyTrend.dataScopeNote}</p>
+          </div>
+        )}
+
+        {/* 关键波峰月份 */}
+        {report.monthlyTrend.peakMonths && report.monthlyTrend.peakMonths.length > 0 && (
+          <div className="mt-6">
+            <h4 className="text-sm font-medium mb-3 text-gray-200">关键波峰月份</h4>
+            {report.monthlyTrend.peakMonths.map((peak, idx) => (
+              <div key={idx} className="mb-4 p-4 bg-gray-800/30 rounded-lg">
+                <p className="text-sm font-medium text-white mb-2">{peak.month}: {peak.description}</p>
+                <div className="space-y-2">
+                  {peak.topVideos.map((video, vIdx) => (
+                    <div key={vIdx} className="text-xs p-2 bg-gray-900/50 rounded">
+                      <p className="text-gray-300">{video.title}</p>
+                      <div className="flex gap-3 mt-1 text-gray-400">
+                        <span>👍 {video.likes.toLocaleString()}</span>
+                        <span>💬 {video.comments.toLocaleString()}</span>
+                        <span>⭐ {video.saves.toLocaleString()}</span>
+                        <span>🔁 {video.shares.toLocaleString()}</span>
+                        <span>收藏率 {video.saveRate.toFixed(2)}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 长期爆款母体 */}
+        {report.monthlyTrend.viralThemes && (
+          <div className="mt-6">
+            <h4 className="text-sm font-medium mb-3 text-gray-200">长期爆款母体</h4>
+            {report.monthlyTrend.viralThemes.hasThemes ? (
+              <div className="space-y-2">
+                {report.monthlyTrend.viralThemes.themes?.map((theme, idx) => (
+                  <div key={idx} className="p-3 bg-gray-800/30 rounded">
+                    <p className="text-sm font-medium text-white">{theme.themeType}</p>
+                    <p className="text-xs text-gray-400 mt-1">{theme.representativeTitle}</p>
+                    <p className="text-xs text-gray-500 mt-1">{theme.description}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">{report.monthlyTrend.viralThemes.reason}</p>
+            )}
+          </div>
+        )}
+
+        {/* 爆发期细化 */}
+        {report.monthlyTrend.explosivePeriods && report.monthlyTrend.explosivePeriods.length > 0 && (
+          <div className="mt-6">
+            <h4 className="text-sm font-medium mb-3 text-gray-200">爆发期细化</h4>
+            {report.monthlyTrend.explosivePeriods.map((period, idx) => (
+              <div key={idx} className="mb-4">
+                <div className="flex gap-4 text-sm mb-2 text-gray-300">
+                  <span className="font-medium text-white">{period.periodName}</span>
+                  <span>{period.period}</span>
+                  <span className="text-gray-400">{period.explanation}</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th className="text-left py-1 px-2 text-gray-400">发布时间</th>
+                        <th className="text-left py-1 px-2 text-gray-400">标题</th>
+                        <th className="text-right py-1 px-2 text-gray-400">互动</th>
+                        <th className="text-right py-1 px-2 text-gray-400">收藏率</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {period.topVideos.map((video, vIdx) => (
+                        <tr key={vIdx} className="border-b border-white/5">
+                          <td className="py-1 px-2 text-gray-300">{video.publishTime}</td>
+                          <td className="py-1 px-2 text-gray-300 max-w-md truncate">{video.title}</td>
+                          <td className="text-right py-1 px-2 text-gray-300">{video.totalEngagement.toLocaleString()}</td>
+                          <td className="text-right py-1 px-2 text-green-400">{video.saveRate.toFixed(2)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* 三、爆款视频分析 */}
