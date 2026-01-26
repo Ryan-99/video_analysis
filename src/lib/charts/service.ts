@@ -365,13 +365,26 @@ export async function downloadChartImagePost(config: ChartConfig, width = 800, h
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      config,
+      chart: config,  // QuickChart 期望 "chart" 而不是 "config"
       width,
       height,
       format: 'png',
+      backgroundColor: 'transparent',
     }),
   });
 
+  // QuickChart 有时即使返回图片也会设置非 200 状态码
+  // 我们直接检查响应类型是否为图片
+  const contentType = response.headers.get('content-type');
+  console.log('[Chart Service] 响应 Content-Type:', contentType);
+
+  if (contentType && contentType.includes('image')) {
+    const arrayBuffer = await response.arrayBuffer();
+    console.log('[Chart Service] POST 下载成功，大小:', arrayBuffer.byteLength, '字节');
+    return Buffer.from(arrayBuffer);
+  }
+
+  // 如果不是图片类型，则检查状态码
   if (!response.ok) {
     const errorText = await response.text();
     console.error('[Chart Service] POST 请求失败，响应:', errorText);
