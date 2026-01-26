@@ -13,9 +13,10 @@ import {
   Filler
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
+import annotationPlugin from 'chartjs-plugin-annotation';
 import { Card } from '@/components/ui/card';
 
-// 注册 Chart.js 组件
+// 注册 Chart.js 组件和标注插件
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -24,7 +25,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  annotationPlugin
 );
 
 interface InteractiveChartProps {
@@ -54,6 +56,7 @@ interface InteractiveChartProps {
 /**
  * 可交互折线图组件
  * 支持点击数据点查看详细信息
+ * 支持在图表上显示标注
  */
 export function InteractiveChart({
   title,
@@ -80,6 +83,45 @@ export function InteractiveChart({
       setSelectedPoint(null);
     }
   };
+
+  // 生成标注配置
+  const chartAnnotations: any = {};
+  annotations.forEach((anno, idx) => {
+    const label = anno.label;
+    const xValue = data.labels[anno.index];
+    const yValue = data.datasets[0].data[anno.index];
+
+    chartAnnotations[`point${idx}`] = {
+      type: 'point',
+      xValue: xValue,
+      yValue: yValue,
+      backgroundColor: 'rgba(239, 68, 68, 0.8)',
+      borderColor: 'rgba(239, 68, 68, 1)',
+      borderWidth: 2,
+      radius: 6,
+      hoverRadius: 8,
+    };
+
+    chartAnnotations[`label${idx}`] = {
+      type: 'label',
+      xValue: xValue,
+      yValue: yValue,
+      content: [label],
+      font: {
+        size: 11,
+      },
+      color: '#fff',
+      backgroundColor: 'rgba(239, 68, 68, 0.9)',
+      borderRadius: 4,
+      padding: {
+        top: 4,
+        bottom: 4,
+        left: 6,
+        right: 6,
+      },
+      yAdjust: -15,
+    };
+  });
 
   // Chart.js 配置
   const chartData = {
@@ -121,6 +163,9 @@ export function InteractiveChart({
             return `${value.toLocaleString()} 互动量`;
           },
         },
+      },
+      annotation: {
+        annotations: chartAnnotations,
       },
     },
     scales: {
@@ -189,16 +234,14 @@ export function InteractiveChart({
         </div>
       )}
 
-      {/* 标注信息 */}
+      {/* 标注信息列表（辅助显示） */}
       {annotations && annotations.length > 0 && (
         <div className="mt-4 p-3 bg-white/5 rounded-lg border border-white/10">
           <div className="text-sm font-medium text-gray-200 mb-2">月度 Top1 爆点标注</div>
           <div className="space-y-1">
             {annotations.map((anno, idx) => (
               <div key={idx} className="text-xs text-gray-400">
-                <span className="text-blue-400">{anno.label}</span>:{" "}
-                {data.labels[anno.index]} - 互动量{" "}
-                {data.datasets[0].data[anno.index]?.toLocaleString()}
+                <span className="text-red-400">{anno.label}</span>
               </div>
             ))}
           </div>

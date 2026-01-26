@@ -208,8 +208,9 @@ export class AIAnalysisService {
     console.log('[AIAnalysisService] Prompt 渲染完成，长度:', prompt.length);
 
     try {
-      console.log('[AIAnalysisService] 调用 AI，超时: 300秒（5分钟），最大 Tokens: 6000');
-      const result = await this.callAI(prompt, aiConfig, 300000, 6000); // 5分钟，6000 tokens
+      // 增加最大 token 数到 16000 以确保能够生成完整的 30 条选题
+      console.log('[AIAnalysisService] 调用 AI，超时: 300秒（5分钟），最大 Tokens: 16000');
+      const result = await this.callAI(prompt, aiConfig, 300000, 16000); // 5分钟，16000 tokens
 
       console.log('[AIAnalysisService] AI 返回完成，响应长度:', result.length);
       console.log('[AIAnalysisService] AI 响应预览:', result.substring(0, 200));
@@ -218,15 +219,37 @@ export class AIAnalysisService {
       console.log('[AIAnalysisService] 清理后长度:', cleaned.length);
 
       const parsed = JSON.parse(cleaned);
-      const outlines = parsed.topics || [];
+      let outlines = parsed.topics || [];
 
       console.log(`[AIAnalysisService] 选题大纲生成完成，共 ${outlines.length} 条`);
+
+      // 如果选题数量不足30条，尝试补充生成
+      if (outlines.length < 30) {
+        console.warn(`[AIAnalysisService] ⚠️ 选题数量不足：期望30条，实际${outlines.length}条，尝试补充生成...`);
+
+        // 计算需要补充的数量
+        const needMore = 30 - outlines.length;
+        const supplementPrompt = this.generateSupplementPrompt(account, viralAnalysis, outlines, needMore);
+        const supplementResult = await this.callAI(supplementPrompt, aiConfig, 180000, 8000);
+        const supplementCleaned = cleanAIResponse(supplementResult);
+        const supplementParsed = JSON.parse(supplementCleaned);
+        const supplementTopics = supplementParsed.topics || [];
+
+        // 调整补充选题的 ID
+        supplementTopics.forEach((t: TopicOutline, idx: number) => {
+          t.id = outlines.length + idx + 1;
+        });
+
+        outlines = [...outlines, ...supplementTopics];
+        console.log(`[AIAnalysisService] 补充后选题数量: ${outlines.length} 条`);
+      }
+
       if (outlines.length > 0) {
         console.log('[AIAnalysisService] 第一条选题:', JSON.stringify(outlines[0]));
       }
 
       if (outlines.length < 30) {
-        console.warn(`[AIAnalysisService] ⚠️ 选题数量不足：期望30条，实际${outlines.length}条`);
+        console.warn(`[AIAnalysisService] ⚠️ 最终选题数量仍不足：期望30条，实际${outlines.length}条`);
       }
 
       return outlines;
@@ -237,6 +260,56 @@ export class AIAnalysisService {
       }
       return [];
     }
+  }
+
+  /**
+   * 生成补充选题的 prompt
+   */
+  private generateSupplementPrompt(
+    account: AccountAnalysis,
+    viralAnalysis: { byCategory: Array<{ category: string; count: number; avgEngagement: number; description: string }>; patterns: any },
+    existingTopics: TopicOutline[],
+    needCount: number
+  ): string {
+    const existingCategories = existingTopics.map(t => t.category).join('、');
+    const categoriesText = viralAnalysis.byCategory.map(c =>
+      `${c.category}: ${c.count}条, 平均互动${Math.round(c.avgEngagement)}\n描述：${c.description}`
+    ).join('\n\n');
+
+    return `你是专业的抖音内容策划师。请为以下账号补充生成 ${needCount} 条选题大纲。
+
+【账号核心主题】
+${account.coreTopic}
+
+【账号类型】
+${account.type}
+
+【目标受众】
+${account.audience}
+
+【爆款分类】
+${categoriesText}
+
+【已有选题】（请不要重复这些分类）
+${existingCategories}
+
+【任务要求】
+请基于【爆款分类】，补充生成 ${needCount} 条选题大纲。分类必须与已有选题不同。
+
+【输出格式】
+请严格按照以下JSON格式输出：
+{
+  "topics": [
+    {"id": 1, "category": "分类名称", "titles": ["本质句标题", "反常识标题", "清单承诺标题"]},
+    {"id": 2, "category": "分类名称", "titles": ["本质句标题", "反常识标题", "清单承诺标题"]}
+  ]
+}
+
+【关键要点】
+1. 必须生成完整的 ${needCount} 条选题大纲
+2. 每条大纲包含：id、category、titles(3个)
+3. 分类必须与已有选题不同，基于账号实际爆款分类
+4. 只返回JSON，不要任何解释或说明文字`;
   }
 
   /**
