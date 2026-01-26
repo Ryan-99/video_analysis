@@ -25,6 +25,9 @@ export interface ChartConfig {
       legend?: {
         display: boolean;
       };
+      annotation?: {
+        annotations: Record<string, any>;
+      };
     };
     scales?: {
       x?: {
@@ -221,14 +224,45 @@ export function generateDailyTop1Config(dailyTop1Data: Array<{
   const engagements = sortedEntries.map(e => Math.round(e.engagement));
 
   // 找出每个月的Top1爆点（用于标注）
-  const monthlyTop1 = new Map<string, { engagement: number; title: string; date: string }>();
-  for (const data of sortedEntries) {
+  const monthlyTop1 = new Map<string, { engagement: number; title: string; date: string; index: number }>();
+  for (let i = 0; i < sortedEntries.length; i++) {
+    const data = sortedEntries[i];
     const month = data.date.substring(0, 7); // YYYY-MM
     const existing = monthlyTop1.get(month);
     if (!existing || data.engagement > existing.engagement) {
-      monthlyTop1.set(month, data);
+      monthlyTop1.set(month, { ...data, index: i });
     }
   }
+
+  // 生成 annotations 配置（用于 QuickChart）
+  const chartAnnotations: Record<string, any> = {};
+  Array.from(monthlyTop1.values()).forEach((item, idx) => {
+    const pointKey = `point${idx}`;
+    const labelKey = `label${idx}`;
+
+    chartAnnotations[pointKey] = {
+      type: 'point',
+      xValue: item.date,
+      yValue: Math.round(item.engagement),
+      backgroundColor: 'rgba(239, 68, 68, 0.8)',
+      borderColor: 'rgba(239, 68, 68, 1)',
+      borderWidth: 2,
+      radius: 6,
+    };
+
+    chartAnnotations[labelKey] = {
+      type: 'label',
+      xValue: item.date,
+      yValue: Math.round(item.engagement),
+      content: [item.title.length > 20 ? item.title.substring(0, 20) + '...' : item.title],
+      font: { size: 11 },
+      color: '#fff',
+      backgroundColor: 'rgba(239, 68, 68, 0.9)',
+      borderRadius: 4,
+      padding: { top: 4, bottom: 4, left: 6, right: 6 },
+      yAdjust: -15,
+    };
+  });
 
   return {
     type: 'line',
@@ -253,6 +287,9 @@ export function generateDailyTop1Config(dailyTop1Data: Array<{
         },
         legend: {
           display: false,
+        },
+        annotation: {
+          annotations: chartAnnotations,
         },
       },
       scales: {

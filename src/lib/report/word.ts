@@ -53,21 +53,7 @@ export async function generateWordReport(report: Report, chartBuffers?: ChartBuf
   // 使用真实账号名称（从文件名提取），否则使用 AI 生成的名称
   const displayName = report.realAccountName || report.account.name;
 
-  // 计算月度 Top1 爆点标注（用于文字说明）
-  let monthlyTop1Annotations: string[] = [];
-  if (report.dailyTop1 && report.dailyTop1.length > 0) {
-    const monthlyTop1 = new Map<string, { engagement: number; title: string; date: string }>();
-    for (const item of report.dailyTop1) {
-      const month = item.date.substring(0, 7);
-      const existing = monthlyTop1.get(month);
-      if (!existing || item.engagement > existing.engagement) {
-        monthlyTop1.set(month, item);
-      }
-    }
-    monthlyTop1Annotations = Array.from(monthlyTop1.values())
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .map(item => `${item.date} - ${item.title.length > 20 ? item.title.substring(0, 20) + '...' : item.title} (互动量: ${Math.round(item.engagement).toLocaleString()})`);
-  }
+  // 注意：标注现在直接渲染在图表图片上，无需额外的文字说明
 
   try {
     const doc = new Document({
@@ -90,7 +76,7 @@ export async function generateWordReport(report: Report, chartBuffers?: ChartBuf
 
           // 三、爆款视频分析
           new Paragraph({ text: '三、爆款视频分析', heading: HeadingLevel.HEADING_2 }),
-          ...generateViralSection(report.virals, chartBuffers?.dailyVirals, monthlyTop1Annotations),
+          ...generateViralSection(report.virals, chartBuffers?.dailyVirals),
           new Paragraph({ text: '' }),
 
           // 四、爆款选题库
@@ -232,7 +218,7 @@ function generateMonthlyTable(data: Report['monthlyTrend']['data']): Paragraph[]
   return [new Paragraph({ children: [table] })];
 }
 
-function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer, annotations: string[] = []): Paragraph[] {
+function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): Paragraph[] {
   console.log('[Word Report] generateViralSection - virals.keys:', Object.keys(virals));
   console.log('[Word Report] generateViralSection - byCategory 存在:', !!virals.byCategory);
   if (virals.byCategory) {
@@ -253,7 +239,7 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer, an
     new Paragraph({ children: [new TextRun({ text: '判定阈值：', bold: true }), new TextRun({ text: Math.round(virals.threshold).toLocaleString(), bold: true })] }),
     new Paragraph({ text: '' }),
 
-    // 每日Top1爆点图表
+    // 每日Top1爆点图表（标注已直接渲染在图表上）
     new Paragraph({ children: [new TextRun({ text: '【全周期每日Top1爆点趋势（标注版）】', bold: true, size: 28 })] }),
   ];
 
@@ -275,15 +261,6 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer, an
     paragraphs.push(new Paragraph({ children: [new TextRun({ text: '（图表暂无）', italics: true })] }));
   }
   paragraphs.push(new Paragraph({ text: '' }));
-
-  // 月度 Top1 爆点标注（文字说明）
-  if (annotations && annotations.length > 0) {
-    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【月度 Top1 爆点标注】', bold: true, size: 24 })] }));
-    annotations.forEach((anno) => {
-      paragraphs.push(new Paragraph({ children: [new TextRun({ text: '• ' + anno, size: 20 })] }));
-    });
-    paragraphs.push(new Paragraph({ text: '' }));
-  }
 
   // 爆款规律
   if (virals.patterns) {
