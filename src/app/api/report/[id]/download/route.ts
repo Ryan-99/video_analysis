@@ -45,10 +45,25 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       dailyTop1Length: resultData.dailyTop1?.length || 0,
     });
 
+    // 构造完整的 Report 对象（与报告路由保持一致）
+    const report = {
+      reportId: id,
+      taskId: id,
+      realAccountName: task.accountName || null,
+      ...resultData,
+    };
+    console.log('[Download API] 构造的 report 对象:', {
+      hasReportId: !!report.reportId,
+      hasTaskId: !!report.taskId,
+      hasRealAccountName: report.realAccountName !== undefined,
+      monthlyTrendDataLength: report.monthlyTrend?.data?.length || 0,
+      byCategoryLength: report.virals?.byCategory?.length || 0,
+    });
+
     let buffer: Buffer, filename: string, contentType: string;
     if (format === 'excel') {
       console.log('[Download API] 生成 Excel 文件');
-      buffer = await generateExcelReport(resultData);
+      buffer = await generateExcelReport(report);
       filename = `分析报告_${accountName}（博主名称）.xlsx`;
       contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     } else {
@@ -59,9 +74,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
       try {
         // 月度趋势图表
-        if (resultData.monthlyTrend?.data) {
+        if (report.monthlyTrend?.data) {
           console.log('[Download API] 生成月度趋势图表...');
-          const monthlyConfig = generateMonthlyTrendConfig(resultData.monthlyTrend.data);
+          const monthlyConfig = generateMonthlyTrendConfig(report.monthlyTrend.data);
           const monthlyChartUrl = generateChartImageUrl(monthlyConfig, 800, 400);
           console.log('[Download API] 月度图表URL:', monthlyChartUrl);
           chartBuffers.monthlyTrend = await downloadChartImage(monthlyChartUrl);
@@ -73,9 +88,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
       try {
         // 每日Top1爆点图表
-        if (resultData.dailyTop1 && resultData.dailyTop1.length > 0) {
+        if (report.dailyTop1 && report.dailyTop1.length > 0) {
           console.log('[Download API] 生成每日Top1爆点图表...');
-          const dailyTop1Config = generateDailyTop1Config(resultData.dailyTop1);
+          const dailyTop1Config = generateDailyTop1Config(report.dailyTop1);
           const dailyTop1ChartUrl = generateChartImageUrl(dailyTop1Config, 1000, 400);
           console.log('[Download API] 每日Top1图表URL:', dailyTop1ChartUrl);
           chartBuffers.dailyVirals = await downloadChartImage(dailyTop1ChartUrl);
@@ -86,7 +101,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       }
 
       console.log('[Download API] 图表生成完成，开始生成 Word 文档...');
-      buffer = await generateWordReport(resultData, chartBuffers);
+      buffer = await generateWordReport(report, chartBuffers);
       filename = `分析报告_${accountName}（博主名称）.docx`;
       contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     }
