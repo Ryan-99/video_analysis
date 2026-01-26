@@ -53,12 +53,22 @@ class DatabaseTaskQueue {
       updateData.status = updates.status;
     }
 
+    console.log('[DatabaseTaskQueue] 更新任务前:', id, 'updates:', JSON.stringify({
+      status: updates.status,
+      progress: updates.progress,
+      currentStep: updates.currentStep,
+    }));
+
     const task = await prisma.analysisTask.update({
       where: { id },
       data: updateData,
     });
 
-    console.log('[DatabaseTaskQueue] 更新任务:', id, '状态:', task.status);
+    console.log('[DatabaseTaskQueue] 更新任务后:', id, '数据库值:', {
+      status: task.status,
+      progress: task.progress,
+      currentStep: task.currentStep,
+    });
 
     return this.mapToTask(task);
   }
@@ -119,7 +129,7 @@ class DatabaseTaskQueue {
    * 将数据库模型映射到 Task 类型
    */
   private mapToTask(dbTask: any): Task {
-    return {
+    const mapped = {
       id: dbTask.id,
       status: dbTask.status as TaskStatus,
       progress: dbTask.progress,
@@ -148,6 +158,16 @@ class DatabaseTaskQueue {
       updatedAt: dbTask.updatedAt,
       completedAt: dbTask.completedAt,
     };
+
+    // 调试：记录映射结果
+    console.log('[DatabaseTaskQueue] mapToTask:', {
+      id: mapped.id,
+      status: mapped.status,
+      progress: mapped.progress,
+      currentStep: mapped.currentStep,
+    });
+
+    return mapped;
   }
 }
 

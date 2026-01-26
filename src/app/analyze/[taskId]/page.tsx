@@ -86,6 +86,12 @@ export default function AnalyzePage({ params }: { params: Promise<{ taskId: stri
       const taskResult = await taskRes.json();
       if (taskResult.success) {
         const newTaskStatus = taskResult.data;
+        console.log('[Frontend] 任务状态更新:', {
+          id: newTaskStatus?.id,
+          status: newTaskStatus?.status,
+          progress: newTaskStatus?.progress,
+          currentStep: newTaskStatus?.currentStep,
+        });
         setTaskStatus(newTaskStatus);
 
         // 检测到待处理或选题生成状态，自动触发处理
@@ -163,6 +169,15 @@ export default function AnalyzePage({ params }: { params: Promise<{ taskId: stri
   // 计算进度百分比
   const progress = taskStatus?.progress ??
     (summary ? Math.round((summary.completedSteps || 0) / Math.max(summary.totalSteps || 1, 1) * 100) : 0);
+
+  // 调试：记录进度计算
+  useEffect(() => {
+    console.log('[Frontend] 进度计算:', {
+      taskStatusProgress: taskStatus?.progress,
+      summaryProgress: summary ? Math.round((summary.completedSteps || 0) / Math.max(summary.totalSteps || 1, 1) * 100) : '无summary',
+      finalProgress: progress,
+    });
+  }, [taskStatus?.progress, summary, progress]);
 
   // 当前步骤状态
   const currentStep = taskStatus?.currentStep || logs[logs.length - 1]?.step || '准备中...';
