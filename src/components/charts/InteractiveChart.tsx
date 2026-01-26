@@ -50,12 +50,13 @@ interface InteractiveChartProps {
     index: number;
     label: string;
   }>;
+  pointTitles?: string[]; // 每个数据点对应的标题数组
   height?: number;
 }
 
 /**
  * 可交互折线图组件
- * 支持点击数据点查看详细信息
+ * 支持点击数据点查看详细信息（包括标题）
  * 支持在图表上显示标注
  */
 export function InteractiveChart({
@@ -64,12 +65,14 @@ export function InteractiveChart({
   yLabel = '互动量',
   xLabel = '日期',
   annotations = [],
+  pointTitles = [],
   height = 400,
 }: InteractiveChartProps) {
   const [selectedPoint, setSelectedPoint] = useState<{
     index: number;
     label: string;
     value: number;
+    title?: string;
   } | null>(null);
 
   // 处理数据点点击事件
@@ -78,7 +81,8 @@ export function InteractiveChart({
       const { index, datasetIndex } = elements[0];
       const label = data.labels[index];
       const value = data.datasets[datasetIndex].data[index];
-      setSelectedPoint({ index, label, value: value as number });
+      const title = pointTitles?.[index]; // 获取对应点的标题
+      setSelectedPoint({ index, label, value: value as number, title });
     } else {
       setSelectedPoint(null);
     }
@@ -158,9 +162,17 @@ export function InteractiveChart({
         borderColor: 'rgba(75, 85, 99, 0.5)',
         borderWidth: 1,
         callbacks: {
+          title: function(context: any) {
+            return context[0].label; // 显示日期
+          },
           label: function(context: any) {
             const value = context.parsed.y;
-            return `${value.toLocaleString()} 互动量`;
+            const title = pointTitles?.[context.dataIndex];
+            const lines = [`${value.toLocaleString()} 互动量`];
+            if (title) {
+              lines.push(`标题: ${title}`);
+            }
+            return lines;
           },
         },
       },
@@ -231,6 +243,14 @@ export function InteractiveChart({
               {selectedPoint.value.toLocaleString()}
             </span>
           </div>
+          {selectedPoint.title && (
+            <div className="text-sm text-gray-400 mt-1">
+              标题：
+              <span className="ml-2 font-medium text-white">
+                {selectedPoint.title}
+              </span>
+            </div>
+          )}
         </div>
       )}
 

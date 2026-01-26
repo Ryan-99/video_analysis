@@ -111,6 +111,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
         pointHoverRadius: 6,
       }],
       annotations: Array.from(monthlyTop1.values()),
+      pointTitles: sortedData.map(d => d.title), // 传递每个点的完整标题
     };
   }, [report]);
 
@@ -240,6 +241,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
               yLabel="互动量"
               xLabel="日期"
               annotations={dailyTop1ChartData.annotations}
+              pointTitles={dailyTop1ChartData.pointTitles}
               height={400}
             />
           </div>
