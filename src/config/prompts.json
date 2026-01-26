@@ -4,8 +4,12 @@
   "prompts": {
     "account_overview": {
       "name": "账号概况分析",
-      "template": "你是专业的抖音账号分析师。请分析以下视频标题，生成账号概况报告。\n\n【视频标题列表】（前30条）\n{{video_titles}}\n\n请严格按照以下JSON格式输出：\n{\n  \"name\": \"账号昵称\",\n  \"type\": \"账号类型\",\n  \"coreTopic\": \"核心主题\",\n  \"audience\": \"目标受众\",\n  \"monetization\": {\n    \"level1\": \"初级变现方式\",\n    \"level2\": \"中级变现方式\",\n    \"level3\": \"高级变现方式\"\n  }\n}",
+      "template": "你是专业的抖音账号分析师。请分析以下账号信息，生成账号概况报告。\n\n【账号名称】\n{{account_name}}\n\n【视频标题列表】（前30条）\n{{video_titles}}\n\n请严格按照以下JSON格式输出：\n{\n  \"name\": \"{{account_name}}\",\n  \"type\": \"账号类型\",\n  \"coreTopic\": \"核心主题\",\n  \"audience\": \"目标受众\",\n  \"monetization\": {\n    \"level1\": \"初级变现方式\",\n    \"level2\": \"中级变现方式\",\n    \"level3\": \"高级变现方式\"\n  }\n}\n\n注意：账号名称必须使用提供的【账号名称】，不要自行编造。",
       "variables": {
+        "account_name": {
+          "description": "账号名称",
+          "required": true
+        },
         "video_titles": {
           "description": "视频标题列表",
           "required": true

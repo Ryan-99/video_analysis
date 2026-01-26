@@ -120,7 +120,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     });
 
     const accountStartTime = Date.now();
-    const accountAnalysis = await aiAnalysisService.analyzeAccountOverview(videos, task.aiConfig);
+    const accountAnalysis = await aiAnalysisService.analyzeAccountOverview(videos, task.aiConfig, task.accountName);
     await logStep('ai', '账号概况分析完成', 'success', {
       output: {
         账号名称: accountAnalysis.name,

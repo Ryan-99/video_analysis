@@ -13,13 +13,16 @@ export async function generateWordReport(report: Report, chartBuffers?: ChartBuf
     dailyVirals: chartBuffers?.dailyVirals?.length || 0,
   });
 
+  // 使用真实账号名称（从文件名提取），否则使用 AI 生成的名称
+  const displayName = report.realAccountName || report.account.name;
+
   try {
     const doc = new Document({
       sections: [{
         properties: {},
         children: [
-          // 标题
-          new Paragraph({ text: '抖音账号分析报告', heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER }),
+          // 标题（包含账号名称）
+          new Paragraph({ text: `${displayName} - 抖音账号分析报告`, heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER }),
           new Paragraph({ text: '' }),
 
           // 一、账号概况

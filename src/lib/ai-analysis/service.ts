@@ -108,11 +108,13 @@ export class AIAnalysisService {
    */
   async analyzeAccountOverview(
     videos: VideoData[],
-    aiConfig?: string
+    aiConfig?: string,
+    accountName?: string | null
   ): Promise<AccountAnalysis> {
     const titles = videos.map(v => v.title).slice(0, 30).join('\n');
 
     const prompt = promptEngine.render('account_overview', {
+      account_name: accountName || '未知账号',
       video_titles: titles,
     });
 

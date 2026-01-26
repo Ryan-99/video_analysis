@@ -1,19 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { Report } from '@/types';
-import { generateMonthlyTrendConfig, generateDailyTop1Config, generateChartImageUrl } from '@/lib/charts/service';
+import { InteractiveChart } from '@/components/charts/InteractiveChart';
 
 interface ReportViewerProps { reportId: string; }
 
 export function ReportViewer({ reportId }: ReportViewerProps) {
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
-  const [monthlyChartUrl, setMonthlyChartUrl] = useState<string>('');
-  const [dailyTop1ChartUrl, setDailyTop1ChartUrl] = useState<string>('');
 
   useEffect(() => {
     async function loadReport() {
@@ -22,19 +20,6 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
         const result = await response.json();
         if (result.success) {
           setReport(result.data);
-
-          // 生成图表 URL
-          const data = result.data;
-          if (data.monthlyTrend?.data) {
-            const monthlyConfig = generateMonthlyTrendConfig(data.monthlyTrend.data);
-            setMonthlyChartUrl(generateChartImageUrl(monthlyConfig, 800, 400));
-          }
-
-          // 生成每日Top1爆点图
-          if (data.dailyTop1 && data.dailyTop1.length > 0) {
-            const dailyTop1Config = generateDailyTop1Config(data.dailyTop1);
-            setDailyTop1ChartUrl(generateChartImageUrl(dailyTop1Config, 1000, 400));
-          }
         }
       } catch (error) {
         console.error('Failed to load report:', error);
@@ -58,19 +43,54 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
     document.body.removeChild(a);
   };
 
-  // 下载图表
-  const handleDownloadChart = async (chartUrl: string, filename: string) => {
-    const response = await fetch(chartUrl);
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-  };
+  // 生成月度趋势图表数据
+  const monthlyChartData = useMemo(() => {
+    if (!report?.monthlyTrend?.data) return null;
+    return {
+      labels: report.monthlyTrend.data.map(m => m.month),
+      datasets: [{
+        label: '平均互动量',
+        data: report.monthlyTrend.data.map(m => Math.round(m.avgEngagement)),
+        borderColor: 'rgb(59, 130, 246)',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderWidth: 2,
+        fill: true,
+      }],
+    };
+  }, [report]);
+
+  // 生成每日Top1图表数据
+  const dailyTop1ChartData = useMemo(() => {
+    if (!report?.dailyTop1 || report.dailyTop1.length === 0) return null;
+
+    const sortedData = [...report.dailyTop1].sort((a, b) => a.date.localeCompare(b.date));
+
+    // 找出每个月的Top1爆点（用于标注）
+    const monthlyTop1 = new Map<string, { index: number; label: string }>();
+    sortedData.forEach((item, idx) => {
+      const month = item.date.substring(0, 7); // YYYY-MM
+      if (!monthlyTop1.has(month)) {
+        monthlyTop1.set(month, {
+          index: idx,
+          label: `${month} ${item.title.length > 15 ? item.title.substring(0, 15) + '...' : item.title}`,
+        });
+      }
+    });
+
+    return {
+      labels: sortedData.map(d => d.date),
+      datasets: [{
+        label: '每日Top1互动量',
+        data: sortedData.map(d => Math.round(d.engagement)),
+        borderColor: 'rgb(239, 68, 68)',
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        borderWidth: 2,
+        pointRadius: 2,
+        pointHoverRadius: 6,
+      }],
+      annotations: Array.from(monthlyTop1.values()),
+    };
+  }, [report]);
 
   if (loading) return <Card className="p-8">加载中...</Card>;
   if (!report) return <Card className="p-8">报告不存在</Card>;
@@ -126,16 +146,16 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
         <h3 className="text-lg font-semibold mb-4">二、月度趋势分析</h3>
         <p className="text-sm text-gray-300 mb-6">{report.monthlyTrend.summary}</p>
 
-        {/* 月度趋势图表 */}
-        {monthlyChartUrl && (
+        {/* 月度趋势图表（可交互） */}
+        {monthlyChartData && (
           <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-medium text-gray-200">月度平均互动趋势</h4>
-              <Button onClick={() => handleDownloadChart(monthlyChartUrl, '月度趋势图.png')} variant="ghost" size="sm">
-                <Download className="w-3 h-3 mr-1" />下载图表
-              </Button>
-            </div>
-            <img src={monthlyChartUrl} alt="月度趋势图" className="w-full rounded border border-white/10" />
+            <InteractiveChart
+              title="月度平均互动趋势"
+              data={monthlyChartData}
+              yLabel="互动量"
+              xLabel="月份"
+              height={350}
+            />
           </div>
         )}
 
@@ -186,16 +206,20 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
           </div>
         </div>
 
-        {/* 每日Top1爆点图表 */}
-        {dailyTop1ChartUrl && (
+        {/* 每日Top1爆点图表（可交互） */}
+        {dailyTop1ChartData && (
           <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-medium text-gray-200">全周期每日Top1爆点趋势（标注版）</h4>
-              <Button onClick={() => handleDownloadChart(dailyTop1ChartUrl, '每日Top1爆点图.png')} variant="ghost" size="sm">
-                <Download className="w-3 h-3 mr-1" />下载图表
-              </Button>
-            </div>
-            <img src={dailyTop1ChartUrl} alt="每日Top1爆点图" className="w-full rounded border border-white/10" />
+            <InteractiveChart
+              title="全周期每日Top1爆点趋势（标注版）"
+              data={{
+                labels: dailyTop1ChartData.labels,
+                datasets: dailyTop1ChartData.datasets,
+              }}
+              yLabel="互动量"
+              xLabel="日期"
+              annotations={dailyTop1ChartData.annotations}
+              height={400}
+            />
           </div>
         )}
 
