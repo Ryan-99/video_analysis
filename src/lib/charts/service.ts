@@ -319,6 +319,7 @@ export function generateDailyTop1Config(dailyTop1Data: Array<{
 
 /**
  * 使用 QuickChart API 生成图表图片 URL
+ * 注意：GET 请求有 URL 长度限制（约 2000 字符），大型配置应使用 POST 方法
  */
 export function generateChartImageUrl(config: ChartConfig, width = 800, height = 400): string {
   const baseUrl = 'https://quickchart.io/chart';
@@ -328,17 +329,56 @@ export function generateChartImageUrl(config: ChartConfig, width = 800, height =
     h: height.toString(),
     format: 'png',
   });
-  return `${baseUrl}?${params.toString()}`;
+  const url = `${baseUrl}?${params.toString()}`;
+  console.log('[Chart Service] 生成的图表 URL 长度:', url.length);
+  if (url.length > 2000) {
+    console.warn('[Chart Service] ⚠️ URL 长度超过 2000 字符，可能导致请求失败，建议使用 POST 方法');
+  }
+  return url;
 }
 
 /**
- * 下载图表图片并转换为 Buffer
+ * 下载图表图片并转换为 Buffer（使用 GET 方法）
+ * 适用于小型配置（URL < 2000 字符）
  */
 export async function downloadChartImage(url: string): Promise<Buffer> {
+  console.log('[Chart Service] 使用 GET 方法下载图表，URL 长度:', url.length);
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`图表下载失败: ${response.statusText}`);
   }
   const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
+/**
+ * 使用 POST 方法下载图表图片
+ * 适用于大型配置（annotations 等复杂配置）
+ */
+export async function downloadChartImagePost(config: ChartConfig, width = 800, height = 400): Promise<Buffer> {
+  console.log('[Chart Service] 使用 POST 方法下载图表');
+  console.log('[Chart Service] 配置大小:', JSON.stringify(config).length, '字符');
+
+  const response = await fetch('https://quickchart.io/chart', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      config,
+      width,
+      height,
+      format: 'png',
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('[Chart Service] POST 请求失败，响应:', errorText);
+    throw new Error(`图表下载失败 (POST): ${response.statusText} - ${errorText}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  console.log('[Chart Service] POST 下载成功，大小:', arrayBuffer.length, '字节');
   return Buffer.from(arrayBuffer);
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { taskQueue } from '@/lib/queue/database';
 import { generateWordReport, generateExcelReport } from '@/lib/report';
-import { generateMonthlyTrendConfig, generateDailyTop1Config, downloadChartImage, generateChartImageUrl } from '@/lib/charts/service';
+import { generateMonthlyTrendConfig, generateDailyTop1Config, downloadChartImage, downloadChartImagePost, generateChartImageUrl } from '@/lib/charts/service';
 import { ChartBuffers } from '@/lib/report/word';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -87,17 +87,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       }
 
       try {
-        // 每日Top1爆点图表
+        // 每日Top1爆点图表（使用 POST 方法，因为包含 annotations 配置可能导致 URL 过长）
         if (report.dailyTop1 && report.dailyTop1.length > 0) {
-          console.log('[Download API] 生成每日Top1爆点图表...');
+          console.log('[Download API] 生成每日Top1爆点图表（带标注）...');
           const dailyTop1Config = generateDailyTop1Config(report.dailyTop1);
-          const dailyTop1ChartUrl = generateChartImageUrl(dailyTop1Config, 1000, 400);
-          console.log('[Download API] 每日Top1图表URL:', dailyTop1ChartUrl);
-          chartBuffers.dailyVirals = await downloadChartImage(dailyTop1ChartUrl);
+          console.log('[Download API] 每日Top1配置预览:', JSON.stringify(dailyTop1Config).substring(0, 300));
+
+          // 使用 POST 方法避免 URL 长度限制
+          chartBuffers.dailyVirals = await downloadChartImagePost(dailyTop1Config, 1000, 400);
           console.log('[Download API] 每日Top1图表下载成功，大小:', chartBuffers.dailyVirals.length);
         }
       } catch (error) {
-        console.warn('[Download API] 每日Top1图表生成失败:', error);
+        console.error('[Download API] 每日Top1图表生成失败:', error);
+        console.error('[Download API] 错误详情:', error instanceof Error ? error.stack : String(error));
+        // 即使失败也不影响其他部分，继续生成报告
       }
 
       console.log('[Download API] 图表生成完成，开始生成 Word 文档...');
