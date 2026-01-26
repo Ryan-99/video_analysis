@@ -383,9 +383,9 @@ export class AIAnalysisService {
     console.log('[AIAnalysisService] Prompt 数据准备完成');
 
     const prompt = promptEngine.render('topic_outline_generation', {
-      core_topic: account.coreTopic,
-      account_type: account.type,
-      audience: account.audience,
+      core_topic: account.coreTopics.join('、'),
+      account_type: account.accountType,
+      audience: account.audience.description,
       viral_categories: categoriesText,
       viral_patterns: patternsText,
     });
