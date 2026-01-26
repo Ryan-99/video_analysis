@@ -14,12 +14,6 @@ import { VideoData, MonthlyData, ViralVideo, AccountAnalysis } from '@/types';
 function cleanAIResponse(response: string): string {
   let cleaned = response.trim();
 
-  // 0. 先替换中文引号为英文引号（在整个文本上替换，避免破坏 JSON 结构）
-  // 中文全角引号 -> 英文半角引号
-  cleaned = cleaned.replace(/"/g, '"').replace(/"/g, '"');
-  // 中文逗号 -> 英文逗号（在 JSON 中使用）
-  cleaned = cleaned.replace(/，/g, ',');
-
   // 1. 尝试提取第一个有效的 JSON 对象/数组
   // 查找 { 或 [ 的位置（可能被 markdown 包围）
   const jsonStartPattern = /[\{\[]/;
@@ -76,6 +70,20 @@ function cleanAIResponse(response: string): string {
 
   // 4. 移除可能残留的 ``` 标记
   cleaned = cleaned.replace(/```/g, '').trim();
+
+  // 5. 替换中文标点符号为英文（在提取JSON内容后进行）
+  // 中文全角引号 -> 英文半角引号
+  cleaned = cleaned.replace(/"/g, '"').replace(/"/g, '"');
+  // 中文逗号 -> 英文逗号（在 JSON 中使用）
+  cleaned = cleaned.replace(/，/g, ',');
+  // 中文冒号 -> 英文冒号
+  cleaned = cleaned.replace(/：/g, ':');
+  // 中文分号 -> 英文分号
+  cleaned = cleaned.replace(/；/g, ';');
+  // 中文问号 -> 英文问号
+  cleaned = cleaned.replace(/？/g, '?');
+  // 中文感叹号 -> 英文感叹号
+  cleaned = cleaned.replace(/！/g, '!');
 
   return cleaned;
 }
