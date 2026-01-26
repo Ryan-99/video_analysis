@@ -369,7 +369,7 @@ export class AIAnalysisService {
     aiConfig?: string
   ): Promise<TopicOutline[]> {
     console.log('[AIAnalysisService] ===== 开始生成选题大纲 =====');
-    console.log('[AIAnalysisService] 账号类型:', account.type);
+    console.log('[AIAnalysisService] 账号类型:', account.accountType);
     console.log('[AIAnalysisService] 爆款分类数:', viralAnalysis.byCategory.length);
 
     // 格式化爆款分类
