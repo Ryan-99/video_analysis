@@ -434,12 +434,20 @@ export class AIAnalysisService {
       console.log('[analyzeMonthlyTrend] 第二次 AI 调用：生成爆发期视频详情...');
 
       // 格式化爆发期列表
-      const explosivePeriodsText = baseAnalysis.explosivePeriods.map(p =>
+      const explosivePeriodsText = (baseAnalysis.explosivePeriods as Array<{
+        periodName: string;
+        period: string;
+        explanation: string;
+      }>).map((p: { periodName: string; period: string; explanation: string }) =>
         `- ${p.periodName}（${p.period}）：${p.explanation}`
       ).join('\n');
 
       // 构建时间范围映射表（帮助 AI 匹配视频到时期）
-      const timeRangeMapping = this.buildTimeRangeMapping(baseAnalysis.explosivePeriods, virals);
+      const timeRangeMapping = this.buildTimeRangeMapping(baseAnalysis.explosivePeriods as Array<{
+        periodName: string;
+        period: string;
+        explanation: string;
+      }>, virals);
 
       // 调用第二次 AI
       const prompt2 = promptEngine.render('explosive_periods_detail', {
@@ -453,8 +461,24 @@ export class AIAnalysisService {
 
       // 合并结果：将 topVideos 合并到对应的 explosivePeriod
       if (detailAnalysis.periodsWithVideos && detailAnalysis.periodsWithVideos.length > 0) {
-        explosivePeriodsWithVideos = baseAnalysis.explosivePeriods.map(ep => {
-          const matchedDetail = detailAnalysis.periodsWithVideos.find(pv => pv.periodName === ep.periodName);
+        explosivePeriodsWithVideos = (baseAnalysis.explosivePeriods as Array<{
+          periodName: string;
+          period: string;
+          explanation: string;
+        }>).map((ep: { periodName: string; period: string; explanation: string }) => {
+          const matchedDetail = (detailAnalysis.periodsWithVideos as Array<{
+            periodName: string;
+            topVideos: Array<{
+              publishTime: string;
+              title: string;
+              likes: number;
+              comments: number;
+              saves: number;
+              shares: number;
+              totalEngagement: number;
+              saveRate: number;
+            }>;
+          }>).find((pv: { periodName: string }) => pv.periodName === ep.periodName);
           return {
             ...ep,
             topVideos: matchedDetail?.topVideos || [],
@@ -463,7 +487,11 @@ export class AIAnalysisService {
         console.log('[analyzeMonthlyTrend] 爆发期视频详情生成完成');
       } else {
         // 如果第二次调用失败，返回空的 topVideos
-        explosivePeriodsWithVideos = baseAnalysis.explosivePeriods.map(ep => ({
+        explosivePeriodsWithVideos = (baseAnalysis.explosivePeriods as Array<{
+          periodName: string;
+          period: string;
+          explanation: string;
+        }>).map((ep: { periodName: string; period: string; explanation: string }) => ({
           ...ep,
           topVideos: [],
         }));
