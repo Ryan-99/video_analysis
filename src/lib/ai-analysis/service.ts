@@ -216,12 +216,24 @@ export class AIAnalysisService {
     // 3. 从 monthlyData 提取阶段信息
     const stages = this.extractStages(monthlyData);
 
-    // 4. 格式化断更期描述
+    // 4. 格式化断更期描述（旧格式，兼容）
     const gapPeriods = metrics.publishFrequency.gapPeriods?.map(p =>
       `${formatDateCN(p.start)} 至 ${formatDateCN(p.end)}（${p.days}天）`
     ).join('；') || '';
 
-    // 5. 调用 AI（使用50条标题）
+    // 4.5 格式化断更期列表（新格式）
+    const gapPeriodsList = metrics.publishFrequency.gapPeriods?.map(p => ({
+      start: formatDateCN(p.start),
+      end: formatDateCN(p.end),
+      days: p.days,
+    }));
+
+    // 5. 准备月度数据摘要，供 AI 分析阶段
+    const monthlyDataSummary = monthlyData
+      .map(m => `${m.month}: ${m.videoCount}条视频, 平均${Math.round(m.avgEngagement).toLocaleString()}互动`)
+      .join('\n');
+
+    // 6. 调用 AI（使用50条标题）
     const titles = videos.map(v => v.title).slice(0, 50).join('\n');
 
     const prompt = promptEngine.render('account_overview', {
@@ -235,12 +247,13 @@ export class AIAnalysisService {
       has_gap: metrics.publishFrequency.hasGap,
       gap_periods: gapPeriods,
       publish_time_distribution: topTimeWindows,
+      monthly_data_summary: monthlyDataSummary, // 新增：月度数据摘要
     });
 
     const result = await this.callAI(prompt, aiConfig, 180000, 8000); // 3分钟，8000 tokens
     const aiAnalysis = safeParseJSON(cleanAIResponse(result));
 
-    // 6. 合并程序计算的数据和 AI 分析结果
+    // 7. 合并程序计算的数据和 AI 分析结果
     return {
       nickname: accountName || '未知账号',
       ...aiAnalysis,
@@ -248,6 +261,8 @@ export class AIAnalysisService {
         start: metrics.dateRange.start,
         end: metrics.dateRange.end,
         stages: stages,
+        // stageDetails 由 AI 分析提供（如果 AI 返回了）
+        stageDetails: (aiAnalysis as any).stageDetails,
       },
       totalVideos: {
         count: metrics.totalVideos,
@@ -256,6 +271,7 @@ export class AIAnalysisService {
         perWeek: metrics.publishFrequency.perWeek,
         hasGap: metrics.publishFrequency.hasGap,
         gapPeriods: gapPeriods || undefined,
+        gapPeriodsList: gapPeriodsList,
       },
       bestPublishTime: {
         windows: metrics.bestPublishTime.slice(0, 3).map(t => ({

@@ -101,7 +101,7 @@ function generateAccountSection(account: Report['account']): Paragraph[] {
   const paragraphs: Paragraph[] = [];
 
   // 基本信息
-  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【基本信息】', bold: true, size: 28 })] }));
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '基本信息', bold: true, size: 28, underline: {} })] }));
   paragraphs.push(new Paragraph({ children: [new TextRun({ text: '账号昵称：', bold: true }), new TextRun(account.nickname)] }));
 
   // 粉丝数
@@ -123,11 +123,21 @@ function generateAccountSection(account: Report['account']): Paragraph[] {
 
   // 数据概览
   paragraphs.push(new Paragraph({ text: '' }));
-  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【数据概览】', bold: true, size: 28 })] }));
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '数据概览', bold: true, size: 28, underline: {} })] }));
 
   const dateRangeText = `${account.dateRange.start} – ${account.dateRange.end}`;
   paragraphs.push(new Paragraph({ children: [new TextRun({ text: '数据时间范围：', bold: true }), new TextRun(dateRangeText)] }));
-  if (account.dateRange.stages) {
+
+  // 显示阶段详情（AI 分析的具体阶段）
+  if (account.dateRange.stageDetails && account.dateRange.stageDetails.length > 0) {
+    for (const stage of account.dateRange.stageDetails) {
+      paragraphs.push(new Paragraph({ children: [
+        new TextRun({ text: '  └ ', size: 20 }),
+        new TextRun({ text: `${stage.type}（${stage.period}）：`, size: 20, bold: true }),
+        new TextRun({ text: stage.description, size: 20 }),
+      ] }));
+    }
+  } else if (account.dateRange.stages) {
     paragraphs.push(new Paragraph({ children: [new TextRun({ text: `  阶段：${account.dateRange.stages}`, size: 20 })] }));
   }
 
@@ -136,7 +146,16 @@ function generateAccountSection(account: Report['account']): Paragraph[] {
 
   const freqText = `≈ ${account.publishFrequency.perWeek} 条/周${!account.publishFrequency.hasGap ? '（不存在明显断更期）' : ''}`;
   paragraphs.push(new Paragraph({ children: [new TextRun({ text: '发布频率：', bold: true }), new TextRun(freqText)] }));
-  if (account.publishFrequency.hasGap && account.publishFrequency.gapPeriods) {
+
+  // 显示断更期列表（每条独立一行）
+  if (account.publishFrequency.hasGap && account.publishFrequency.gapPeriodsList && account.publishFrequency.gapPeriodsList.length > 0) {
+    for (const gap of account.publishFrequency.gapPeriodsList) {
+      paragraphs.push(new Paragraph({ children: [
+        new TextRun({ text: '  断更期：', size: 20, bold: true }),
+        new TextRun({ text: `${gap.start} 至 ${gap.end}（${gap.days}天）`, size: 20, color: 'CC6600' }),
+      ] }));
+    }
+  } else if (account.publishFrequency.hasGap && account.publishFrequency.gapPeriods) {
     paragraphs.push(new Paragraph({ children: [new TextRun({ text: `  断更期：${account.publishFrequency.gapPeriods}`, size: 20, color: 'CC6600' })] }));
   }
 
@@ -151,7 +170,7 @@ function generateAccountSection(account: Report['account']): Paragraph[] {
 
   // 受众与内容
   paragraphs.push(new Paragraph({ text: '' }));
-  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【受众与内容】', bold: true, size: 28 })] }));
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '受众与内容', bold: true, size: 28, underline: {} })] }));
 
   paragraphs.push(new Paragraph({ children: [new TextRun({ text: '核心受众人群：', bold: true }), new TextRun(account.audience.description)] }));
   paragraphs.push(new Paragraph({ children: [new TextRun({ text: '  推断依据：', size: 20, bold: true }), new TextRun({ text: account.audience.basis, size: 20 })] }));
@@ -164,7 +183,7 @@ function generateAccountSection(account: Report['account']): Paragraph[] {
 
   // 变现方式
   paragraphs.push(new Paragraph({ text: '' }));
-  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【变现方式】', bold: true, size: 28 })] }));
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '变现方式', bold: true, size: 28, underline: {} })] }));
 
   account.monetization.methods.forEach((method) => {
     paragraphs.push(new Paragraph({ children: [new TextRun({ text: '• ' }), new TextRun(method)] }));
@@ -192,12 +211,12 @@ function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buf
 
   const paragraphs: Paragraph[] = [
     // 总结
-    new Paragraph({ children: [new TextRun({ text: '【趋势总结】', bold: true, size: 28 })] }),
+    new Paragraph({ children: [new TextRun({ text: '趋势总结', bold: true, size: 28, underline: {} })] }),
     ...generateFormattedParagraphs(trend.summary, { size: 24 }),
     new Paragraph({ text: '' }),
 
     // 月度趋势图表
-    new Paragraph({ children: [new TextRun({ text: '【月度趋势图表】', bold: true, size: 28 })] }),
+    new Paragraph({ children: [new TextRun({ text: '月度趋势图表', bold: true, size: 28, underline: {} })] }),
   ];
 
   // 添加图表图片（如果有）
@@ -220,7 +239,7 @@ function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buf
   paragraphs.push(new Paragraph({ text: '' }));
 
   // 发展阶段
-  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【发展阶段】', bold: true, size: 28 })] }));
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '发展阶段', bold: true, size: 28, underline: {} })] }));
 
   // 添加阶段信息
   if (trend.stages && trend.stages.length > 0) {
@@ -232,7 +251,7 @@ function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buf
   }
 
   // 月度数据表格
-  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【月度数据详情】', bold: true, size: 28 })] }));
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '月度数据详情', bold: true, size: 28, underline: {} })] }));
   paragraphs.push(...generateMonthlyTable(trend.data));
   paragraphs.push(new Paragraph({ text: '' }));
 
@@ -293,17 +312,17 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): P
 
   const paragraphs: Paragraph[] = [
     // 总结和统计
-    new Paragraph({ children: [new TextRun({ text: '【爆款总结】', bold: true, size: 28 })] }),
+    new Paragraph({ children: [new TextRun({ text: '爆款总结', bold: true, size: 28, underline: {} })] }),
     ...generateFormattedParagraphs(virals.summary, { size: 24 }),
     new Paragraph({ text: '' }),
 
-    new Paragraph({ children: [new TextRun({ text: '【爆款统计】', bold: true, size: 28 })] }),
+    new Paragraph({ children: [new TextRun({ text: '爆款统计', bold: true, size: 28, underline: {} })] }),
     new Paragraph({ children: [new TextRun({ text: '爆款总数：', bold: true }), new TextRun({ text: virals.total.toString(), bold: true })] }),
     new Paragraph({ children: [new TextRun({ text: '判定阈值：', bold: true }), new TextRun({ text: Math.round(virals.threshold).toLocaleString(), bold: true })] }),
     new Paragraph({ text: '' }),
 
     // 每日Top1爆点图表（标注已直接渲染在图表上）
-    new Paragraph({ children: [new TextRun({ text: '【全周期每日Top1爆点趋势（标注版）】', bold: true, size: 28 })] }),
+    new Paragraph({ children: [new TextRun({ text: '全周期每日Top1爆点趋势（标注版）', bold: true, size: 28, underline: {} })] }),
   ];
 
   // 添加图表图片（如果有）
@@ -327,7 +346,7 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): P
 
   // 爆款规律
   if (virals.patterns) {
-    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【爆款规律】', bold: true, size: 28 })] }));
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '爆款规律', bold: true, size: 28, underline: {} })] }));
     // 共同元素
     if (virals.patterns.commonElements) {
       paragraphs.push(...generateFormattedParagraphs(virals.patterns.commonElements, { boldPrefix: '共同元素：', size: 24 }));
@@ -345,7 +364,7 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): P
 
   // 爆款分类
   if (virals.byCategory && virals.byCategory.length > 0) {
-    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【爆款分类详情】', bold: true, size: 28 })] }));
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '爆款分类详情', bold: true, size: 28, underline: {} })] }));
     paragraphs.push(...generateViralCategoriesTable(virals.byCategory));
     paragraphs.push(new Paragraph({ text: '' }));
   }
@@ -402,19 +421,19 @@ function generateTopicsSection(topics: Report['topics']): Paragraph[] {
   for (const topic of topics) {
     // 分类标题
     paragraphs.push(new Paragraph({
-      children: [new TextRun({ text: `${topic.id}. ${topic.category}`, bold: true, size: 26 })],
+      children: [new TextRun({ text: `${topic.id}. ${topic.category}`, bold: true, size: 26, underline: {} })],
       spacing: { before: 200, after: 100 }
     }));
 
     // 标题备选
-    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【标题备选】', bold: true })] }));
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '标题备选', bold: true })] }));
     for (const title of topic.titles) {
       paragraphs.push(new Paragraph({ children: [new TextRun({ text: `• ${title}` })], indent: { left: 300 } }));
     }
 
     // 口播稿
     if (topic.script) {
-      paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【60秒口播稿】', bold: true })] }));
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: '60秒口播稿', bold: true })] }));
       const scriptLines = formatListText(topic.script);
       for (const line of scriptLines) {
         paragraphs.push(new Paragraph({
@@ -426,7 +445,7 @@ function generateTopicsSection(topics: Report['topics']): Paragraph[] {
 
     // 案例点位
     if (topic.casePoint) {
-      paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【案例点位】', bold: true })] }));
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: '案例点位', bold: true })] }));
       const casePointLines = formatListText(topic.casePoint);
       for (const line of casePointLines) {
         paragraphs.push(new Paragraph({
@@ -438,7 +457,7 @@ function generateTopicsSection(topics: Report['topics']): Paragraph[] {
 
     // 分镜说明
     if (topic.storyboard && topic.storyboard.length > 0) {
-      paragraphs.push(new Paragraph({ children: [new TextRun({ text: '【分镜说明】', bold: true })] }));
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: '分镜说明', bold: true })] }));
       for (let i = 0; i < topic.storyboard.length; i++) {
         paragraphs.push(new Paragraph({ children: [new TextRun({ text: `镜头${i + 1}: ${topic.storyboard[i]}` })], indent: { left: 300 } }));
       }

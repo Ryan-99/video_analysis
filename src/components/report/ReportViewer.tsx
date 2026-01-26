@@ -193,7 +193,30 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                 <span className="text-xs text-green-400 ml-1">（不存在明显断更期）</span>
               )}
             </p>
-            {report.account.publishFrequency.hasGap && report.account.publishFrequency.gapPeriods && (
+            {report.account.publishFrequency.hasGap && report.account.publishFrequency.gapPeriodsList && (
+              <div className="mt-1">
+                {report.account.publishFrequency.gapPeriodsList.slice(0, 3).map((gap, idx) => (
+                  <p key={idx} className="text-xs text-orange-400">
+                    {gap.start} 至 {gap.end}（{gap.days}天）
+                  </p>
+                ))}
+                {report.account.publishFrequency.gapPeriodsList.length > 3 && (
+                  <div className="group relative inline-block">
+                    <p className="text-xs text-gray-400 cursor-help">
+                      还有 {report.account.publishFrequency.gapPeriodsList.length - 3} 条断更期...
+                    </p>
+                    <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded p-2 shadow-lg z-10 w-64">
+                      {report.account.publishFrequency.gapPeriodsList.slice(3).map((gap, idx) => (
+                        <p key={idx} className="text-orange-400">
+                          {gap.start} 至 {gap.end}（{gap.days}天）
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            {report.account.publishFrequency.hasGap && !report.account.publishFrequency.gapPeriodsList && report.account.publishFrequency.gapPeriods && (
               <p className="text-xs text-orange-400 mt-1">断更期：{report.account.publishFrequency.gapPeriods}</p>
             )}
           </div>

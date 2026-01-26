@@ -4,7 +4,7 @@
   "prompts": {
     "account_overview": {
       "name": "账号概况分析",
-      "template": "你是专业的抖音账号分析师。请基于以下信息，生成账号概况报告。\n\n【账号名称】\n{{account_name}}\n\n【视频标题列表】（前50条，用于推断内容特征）\n{{video_titles}}\n\n【数据统计】（已计算，直接使用）\n- 数据时间范围：{{date_range_start}} 至 {{date_range_end}}（共{{total_months}}个月）\n- 总视频数量：{{total_videos}} 条\n- 发布频率：约 {{publish_per_week}} 条/周\n{{#if has_gap}}- 存在断更期：{{gap_periods}}{{/if}}\n{{#unless has_gap}}- 不存在明显断更期（长期稳定输出）{{/unless}}\n- 发布时间分布（按小时）：\n{{publish_time_distribution}}\n\n【分析要求】\n\n请严格按照以下JSON格式输出，只分析和推断需要AI判断的内容：\n\n{\n  \"followerCount\": {\n    \"value\": \"推断的粉丝数（如：637.5万）\",\n    \"source\": \"inferred\",\n    \"basis\": \"从视频互动量、点赞中位数为XXXX推断，该账号具备XXX量级粉丝基础\"\n  },\n  \"accountType\": \"账号类型（如：职场 / 教育 / 社会结构认知型 IP）\",\n  \"contentFormat\": \"内容形态（如：真人出镜 + 观点输出；或：动画 + 技巧教程；或：口播 + 知识分享）\",\n  \"audience\": {\n    \"description\": \"核心受众人群（如：25-40岁，渴望在职场中晋升、解决管理难题、提升个人竞争力的白领和中层管理者）\",\n    \"basis\": \"从标题关键词'XXXX'、'XXXX'高频出现推断，目标为XXXX人群\"\n  },\n  \"coreTopics\": [\"主题1\", \"主题2\", \"主题3\", \"主题4\", \"主题5\"],\n  \"monetization\": {\n    \"methods\": [\"方式1\", \"方式2\", \"方式3\"],\n    \"salesFunnel\": \"成交链路描述：前端（短视频/直播/引流品） -> 中端（私域/企微/社群） -> 后端（高价课程/咨询/服务）\",\n    \"priceRange\": \"主产品价格带描述：从XXX元到XXX元\",\n    \"consistency\": \"内容与变现一致性评价（高/中/低）及理由\"\n  }\n}\n\n【关键规则】\n1. 粉丝数：必须标注 source（verified/inferred/missing），推断必须提供依据basis\n2. 账号类型：可以是复合类型，用\" / \"分隔\n3. 内容形态：判断是真人出镜、动画、口播、教程等\n4. 核心母题：3-7个短词（2-4字），如果内容不稳定则设置为空数组[]\n5. 受众推断：必须提供basis（依据），说明从哪些标题关键词推断\n6. 变现方式：从内容性质推断，明确写出成交链路\n7. 只返回JSON，不要任何解释或说明文字",
+      "template": "你是专业的抖音账号分析师。请基于以下信息，生成账号概况报告。\n\n【账号名称】\n{{account_name}}\n\n【视频标题列表】（前50条，用于推断内容特征）\n{{video_titles}}\n\n【数据统计】（已计算，直接使用）\n- 数据时间范围：{{date_range_start}} 至 {{date_range_end}}（共{{total_months}}个月）\n- 总视频数量：{{total_videos}} 条\n- 发布频率：约 {{publish_per_week}} 条/周\n{{#if has_gap}}- 存在断更期：{{gap_periods}}{{/if}}\n{{#unless has_gap}}- 不存在明显断更期（长期稳定输出）{{/unless}}\n- 发布时间分布（按小时）：\n{{publish_time_distribution}}\n\n【月度数据摘要】（用于分析发展阶段）\n{{monthly_data_summary}}\n\n【分析要求】\n\n请严格按照以下JSON格式输出，只分析和推断需要AI判断的内容：\n\n{\n  \"followerCount\": {\n    \"value\": \"推断的粉丝数（如：637.5万）\",\n    \"source\": \"inferred\",\n    \"basis\": \"从视频互动量、点赞中位数为XXXX推断，该账号具备XXX量级粉丝基础\"\n  },\n  \"accountType\": \"账号类型（如：职场 / 教育 / 社会结构认知型 IP）\",\n  \"contentFormat\": \"内容形态（如：真人出镜 + 观点输出；或：动画 + 技巧教程；或：口播 + 知识分享）\",\n  \"audience\": {\n    \"description\": \"核心受众人群（如：25-40岁，渴望在职场中晋升、解决管理难题、提升个人竞争力的白领和中层管理者）\",\n    \"basis\": \"从标题关键词'XXXX'、'XXXX'高频出现推断，目标为XXXX人群\"\n  },\n  \"coreTopics\": [\"主题1\", \"主题2\", \"主题3\", \"主题4\", \"主题5\"],\n  \"monetization\": {\n    \"methods\": [\"方式1\", \"方式2\", \"方式3\"],\n    \"salesFunnel\": \"成交链路描述：前端（短视频/直播/引流品） -> 中端（私域/企微/社群） -> 后端（高价课程/咨询/服务）\",\n    \"priceRange\": \"主产品价格带描述：从XXX元到XXX元\",\n    \"consistency\": \"内容与变现一致性评价（高/中/低）及理由\"\n  },\n  \"stageDetails\": [\n    {\"type\": \"探索期\", \"period\": \"2022年5月 至 2022年12月\", \"description\": \"内容尝试期，互动量较低，探索内容方向\"},\n    {\"type\": \"起号期\", \"period\": \"2023年1月 至 2023年6月\", \"description\": \"开始找到方向，互动量稳步提升\"}\n  ]\n}\n\n【关键规则】\n1. 粉丝数：必须标注 source（verified/inferred/missing），推断必须提供依据basis\n2. 账号类型：可以是复合类型，用\" / \"分隔\n3. 内容形态：判断是真人出镜、动画、口播、教程等\n4. 核心母题：3-7个短词（2-4字），如果内容不稳定则设置为空数组[]\n5. 受众推断：必须提供basis（依据），说明从哪些标题关键词推断\n6. 变现方式：从内容性质推断，明确写出成交链路\n7. stageDetails：根据月度数据摘要分析账号的发展阶段（探索期/起号期/爆发期/成熟期/调整期），每个阶段需包含具体的起止时间和描述\n8. 只返回JSON，不要任何解释或说明文字",
       "variables": {
         "account_name": {
           "description": "账号名称",
@@ -44,6 +44,10 @@
         },
         "publish_time_distribution": {
           "description": "发布时间分布（程序计算）",
+          "required": true
+        },
+        "monthly_data_summary": {
+          "description": "月度数据摘要（程序计算）",
           "required": true
         }
       },

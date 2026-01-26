@@ -100,7 +100,12 @@ export interface AccountAnalysis {
   dateRange: {                   // 数据时间范围
     start: string;               // YYYY年M月
     end: string;                 // YYYY年M月
-    stages?: string;             // 括号内的阶段说明
+    stages?: string;             // 阶段说明（AI 分析）
+    stageDetails?: Array<{       // 具体阶段详情（AI 分析）
+      type: string;              // 如 "探索期"
+      period: string;            // 如 "2022年5月 至 2022年12月"
+      description: string;       // 阶段描述
+    }>;
   };
   totalVideos: {                 // 总视频数量
     count: number;               // 数量
@@ -109,7 +114,12 @@ export interface AccountAnalysis {
   publishFrequency: {            // 发布频率
     perWeek: number;             // ≈X条/周
     hasGap: boolean;             // 是否有断更期
-    gapPeriods?: string;         // 断更区间描述
+    gapPeriods?: string;         // 断更区间描述（旧格式，兼容）
+    gapPeriodsList?: Array<{     // 断更区间列表（新格式）
+      start: string;             // YYYY年M月
+      end: string;               // YYYY年M月
+      days: number;              // 天数
+    }>;
   };
   bestPublishTime: {             // 最佳发布时间
     windows: Array<{             // 时间窗数组
