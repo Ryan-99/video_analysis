@@ -762,7 +762,7 @@ function generateViralCategoriesTable(categories: Report['virals']['byCategory']
       children: [
         new TableCell({ children: [new Paragraph({ text: cat.category })] }),
         new TableCell({ children: [new Paragraph({ text: cat.count.toString() })] }),
-        new TableCell({ children: [new Paragraph({ text: Math.round(cat.medianEngagement ?? cat.avgEngagement ?? 0).toLocaleString() })] }),
+        new TableCell({ children: [new Paragraph({ text: Math.round(cat.medianEngagement ?? 0).toLocaleString() })] }),
         new TableCell({ children: [new Paragraph({ text: cat.description })] }),
       ],
     })
