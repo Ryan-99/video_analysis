@@ -614,10 +614,12 @@ export async function executeAnalysisStep(taskId: string, step: number): Promise
 
     // 保存中间数据并推进到下一步
     const nextStep = step + 1;
+    const isComplete = nextStep >= 6; // 步骤 6 是完成步骤
+
     await taskQueue.update(taskId, {
       analysisStep: nextStep,
       analysisData: JSON.stringify(stepData),
-      status: nextStep < 6 ? 'queued' : undefined, // 步骤未完成时设为 queued，等待下一次触发
+      status: isComplete ? undefined : 'queued', // 完成时保持 step6 中设置的状态
     });
 
     console.log(`[Analysis Step] 步骤 ${step} 完成，下一步: ${nextStep}`);
