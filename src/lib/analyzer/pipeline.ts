@@ -809,8 +809,11 @@ async function step4_ViralMain(
 
   const viralAnalysis = await aiAnalysisService.analyzeViralVideos(
     stepData.viralVideos,
-    task.aiConfig,
-    stepData.threshold
+    stepData.threshold || 0,
+    stepData.monthlyData || [],
+    task.aiConfig || undefined,
+    task.fileName || undefined,
+    stepData.videos?.length
   );
 
   stepData.viralAnalysis = viralAnalysis;
