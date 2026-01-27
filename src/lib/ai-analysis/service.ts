@@ -611,7 +611,7 @@ export class AIAnalysisService {
       viral_videos_detail: viralDetail,
     });
 
-    const result1 = await this.callAI(prompt1, aiConfig, 240000, 16000); // 4分钟，16000 tokens（为 Vercel 留出 60s 缓冲）
+    const result1 = await this.callAI(prompt1, aiConfig, 240000, 12000); // 4分钟，12000 tokens（为 Vercel 留出 60s 缓冲）
     const mainAnalysis = safeParseJSON(cleanAIResponse(result1));
     console.log('[analyzeViralVideosMain] 主分析完成');
 
@@ -694,7 +694,7 @@ export class AIAnalysisService {
       viral_samples: viralSamples,
     });
 
-    const result2 = await this.callAI(prompt2, aiConfig, 240000, 16000); // 4分钟，16000 tokens（为 Vercel 留出 60s 缓冲）
+    const result2 = await this.callAI(prompt2, aiConfig, 240000, 12000); // 4分钟，12000 tokens（为 Vercel 留出 60s 缓冲）
     const methodology = safeParseJSON(cleanAIResponse(result2));
     console.log('[analyzeViralVideosMethodology] 方法论抽象完成');
 
@@ -818,7 +818,7 @@ export class AIAnalysisService {
       viral_videos_detail: viralDetail,
     });
 
-    const result1 = await this.callAI(prompt1, aiConfig, 240000, 16000); // 4分钟，16000 tokens（为 Vercel 留出 60s 缓冲）
+    const result1 = await this.callAI(prompt1, aiConfig, 240000, 12000); // 4分钟，12000 tokens（为 Vercel 留出 60s 缓冲）
     const mainAnalysis = safeParseJSON(cleanAIResponse(result1));
     console.log('[analyzeViralVideos] 主分析完成');
 
@@ -835,7 +835,7 @@ export class AIAnalysisService {
       viral_samples: viralSamples,
     });
 
-    const result2 = await this.callAI(prompt2, aiConfig, 240000, 16000); // 4分钟，16000 tokens（为 Vercel 留出 60s 缓冲）
+    const result2 = await this.callAI(prompt2, aiConfig, 240000, 12000); // 4分钟，12000 tokens（为 Vercel 留出 60s 缓冲）
     const methodology = safeParseJSON(cleanAIResponse(result2));
     console.log('[analyzeViralVideos] 方法论抽象完成');
 

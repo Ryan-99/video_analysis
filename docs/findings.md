@@ -202,6 +202,39 @@ body: JSON.stringify({
 ## 待确认事项
 
 - [x] 当前使用的 AI 配置是从哪里获取的
-- [x] OpenAI 格式缺少 max_tokens 参数（新发现）
-- [ ] 是否需要实施修复：添加 max_tokens 参数到 OpenAI 格式
+- [x] OpenAI 格式缺少 max_tokens 参数（已修复）
+- [x] 是否需要实施修复：添加 max_tokens 参数到 OpenAI 格式（已完成）
 - [x] 是否需要实施步骤 4 的拆分（已完成）
+
+---
+
+## 新发现：maxTokens=16000 超出模型限制
+
+**问题位置**: [service.ts:614, 697](../src/lib/ai-analysis/service.ts#L614)
+
+**各步骤 maxTokens 对比**：
+
+| 步骤 | 函数 | maxTokens | 状态 |
+|------|------|-----------|------|
+| 步骤1 | analyzeAccountOverview | 8000 | ✅ 成功 |
+| 步骤2 | analyzeMonthlyTrend | 12000 | ✅ 成功 |
+| 步骤3 | analyzeMonthlyTrend | 12000 | ✅ 成功 |
+| 步骤4 | analyzeViralVideosMain | 16000 | ❌ 失败 |
+| 步骤5 | analyzeViralVideosMethodology | 16000 | ❌ 失败 |
+
+**真正根因**：
+- 步骤4、5 使用了 `maxTokens: 16000`
+- DeepSeek-V3.2 模型的 max_tokens 上限可能是 8192 或 12288
+- 超出限制时，API 返回 `"Model not support"` 错误
+- 步骤1、2、3 使用 8000/12000 都在限制内，所以成功
+
+**修复方案**：
+将步骤4、5 的 maxTokens 从 16000 降低到 12000
+
+```typescript
+// 修改前
+const result1 = await this.callAI(prompt1, aiConfig, 240000, 16000);
+
+// 修改后
+const result1 = await this.callAI(prompt1, aiConfig, 240000, 12000);
+```
