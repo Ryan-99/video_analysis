@@ -46,6 +46,7 @@ export interface Task {
   fileName: string;
   fileSize: number;
   fileUrl?: string | null; // Vercel Blob URL 或本地文件路径
+  fileContent?: string | null; // Base64 编码的文件内容（解决 Blob URL 过期问题）
   columnMapping: string;
   aiProvider: string;
   aiConfig?: string; // JSON string of AIProviderConfig

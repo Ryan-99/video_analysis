@@ -29,6 +29,7 @@ model AnalysisTask {
   fileName       String
   fileSize       Int
   fileUrl        String?    // Vercel Blob URL 或本地文件路径
+  fileContent    String?    // Base64 编码的文件内容（解决 Blob URL 过期问题）
   columnMapping  String
 
   aiProvider     String   @default("claude")

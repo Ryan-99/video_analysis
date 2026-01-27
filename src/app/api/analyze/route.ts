@@ -13,7 +13,7 @@ export const maxDuration = 300;
  */
 export async function POST(request: NextRequest) {
   try {
-    const { fileId, fileUrl, columnMapping, aiConfig, accountName } = await request.json();
+    const { fileId, fileUrl, columnMapping, aiConfig, accountName, fileContent } = await request.json();
 
     // 获取AI配置（从前端传递或使用环境变量）
     let finalAiConfig = aiConfig;
@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
 
     // 如果没有提供列映射，则自动检测
     let finalMapping = columnMapping;
+    let finalFileContent = fileContent; // 保存 Base64 文件内容
     if (!finalMapping) {
       // 如果没有提供 fileUrl，返回错误
       if (!fileUrl) {
@@ -120,6 +121,9 @@ export async function POST(request: NextRequest) {
 
       if (parseResult.success) {
         finalMapping = parseResult.data.columnMapping;
+        // 获取 Base64 编码的文件内容
+        finalFileContent = parseResult.data.fileContent;
+        console.log('[Analyze API] 获取到文件内容, Base64 大小:', finalFileContent?.length || 0);
       } else {
         return NextResponse.json(
           {
@@ -176,7 +180,8 @@ export async function POST(request: NextRequest) {
       JSON.stringify(finalMapping),
       finalAiConfig,
       accountName || null, // 传递账号名称
-      fileUrl || null // 传递文件URL
+      fileUrl || null, // 传递文件URL
+      finalFileContent || null // 传递 Base64 文件内容
     );
     console.log('[Analyze API] 任务已创建:', task.id);
     console.log('[Analyze API] 文件名:', task.fileName);

@@ -77,6 +77,15 @@ export async function POST(request: NextRequest) {
 
     console.log('[Parse API] 文件大小:', arrayBuffer.byteLength, '文件类型:', isExcel ? 'Excel' : 'CSV');
 
+    // 将 ArrayBuffer 转换为 Base64（用于解决 Blob URL 过期问题）
+    const uint8Array = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < uint8Array.length; i++) {
+      binary += String.fromCharCode(uint8Array[i]);
+    }
+    const fileContent = btoa(binary);
+    console.log('[Parse API] Base64 编码大小:', fileContent.length);
+
     let parsedData;
     if (isExcel) {
       // 解析 Excel 文件
@@ -120,6 +129,7 @@ export async function POST(request: NextRequest) {
         previewData: parsedData.previewData,
         detectedColumns: detectedColumns,
         columnMapping: columnMapping,
+        fileContent: fileContent, // 返回 Base64 编码的文件内容
       },
     });
   } catch (error) {

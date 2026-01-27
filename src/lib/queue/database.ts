@@ -18,7 +18,8 @@ class DatabaseTaskQueue {
     columnMapping: string,
     aiConfig?: string,
     accountName?: string | null,
-    fileUrl?: string | null
+    fileUrl?: string | null,
+    fileContent?: string | null
   ): Promise<Task> {
     const task = await prisma.analysisTask.create({
       data: {
@@ -26,6 +27,7 @@ class DatabaseTaskQueue {
         fileName,
         fileSize,
         fileUrl,
+        fileContent,
         columnMapping,
         aiConfig,
         accountName,
@@ -139,6 +141,7 @@ class DatabaseTaskQueue {
       fileName: dbTask.fileName,
       fileSize: dbTask.fileSize,
       fileUrl: dbTask.fileUrl,
+      fileContent: dbTask.fileContent,
       columnMapping: dbTask.columnMapping,
       aiProvider: dbTask.aiProvider,
       aiConfig: dbTask.aiConfig,

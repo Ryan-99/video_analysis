@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { taskQueue } from '@/lib/queue/database';
-import { executeAnalysis, completeAnalysis } from '@/lib/analyzer/pipeline';
+import { executeAnalysis, executeAnalysisStep, completeAnalysis } from '@/lib/analyzer/pipeline';
 import { generateTopicOutline, generateTopicDetails } from '@/lib/topics/service';
 
 // 配置为 Node.js 运行时，最大 300 秒（Hobby 计划限制）
@@ -47,8 +47,10 @@ export async function POST(request: NextRequest) {
     // 优先处理正在生成选题的任务
     const topicTasks = allTasks.filter(t => t.status === 'topic_generating');
     const queuedTasks = allTasks.filter(t => t.status === 'queued');
+    // 同时检查正在分析的任务（分步执行中）
+    const analyzingTasks = allTasks.filter(t => t.status === 'parsing' || t.status === 'calculating' || t.status === 'analyzing');
 
-    console.log(`[Jobs] 选题生成中: ${topicTasks.length}, 队列中: ${queuedTasks.length}`);
+    console.log(`[Jobs] 选题生成中: ${topicTasks.length}, 队列中: ${queuedTasks.length}, 分析中: ${analyzingTasks.length}`);
 
     let task: typeof allTasks[0] | null = null;
 
@@ -57,11 +59,30 @@ export async function POST(request: NextRequest) {
       task = topicTasks[0];
       console.log(`[Jobs] ========== 继续选题生成任务: ${task.id} ==========`);
       console.log(`[Jobs] topicStep: ${task.topicStep}, topicDetailIndex: ${task.topicDetailIndex}`);
+    } else if (analyzingTasks.length > 0) {
+      // 继续分步分析任务
+      task = analyzingTasks[0];
+      console.log(`[Jobs] ========== 继续分步分析任务: ${task.id} ==========`);
+      console.log(`[Jobs] analysisStep: ${task.analysisStep}, status: ${task.status}`);
     } else if (queuedTasks.length > 0) {
-      // 新任务
-      task = queuedTasks[0];
-      console.log(`[Jobs] ========== 开始新任务: ${task.id} ==========`);
-      console.log(`[Jobs] 文件: ${task.fileName}`);
+      // 新任务 - 检查是否需要分步分析
+      const queuedTask = queuedTasks[0];
+      // 检查是否有 analysisStep 且小于 6（未完成分析）
+      if (queuedTask.analysisStep !== null && queuedTask.analysisStep !== undefined && queuedTask.analysisStep < 6) {
+        task = queuedTask;
+        console.log(`[Jobs] ========== 继续分步分析任务（状态为queued）: ${task.id} ==========`);
+        console.log(`[Jobs] analysisStep: ${task.analysisStep}`);
+      } else if (queuedTask.analysisStep === undefined || queuedTask.analysisStep === null) {
+        // 兼容旧任务 - 使用 executeAnalysis
+        task = queuedTask;
+        console.log(`[Jobs] ========== 开始新任务（旧模式）: ${task.id} ==========`);
+        console.log(`[Jobs] 文件: ${task.fileName}`);
+      } else {
+        // analysisStep >= 6，应该进入选题生成，但状态仍为 queued
+        task = queuedTask;
+        console.log(`[Jobs] ========== 开始新任务: ${task.id} ==========`);
+        console.log(`[Jobs] 文件: ${task.fileName}`);
+      }
     } else {
       isProcessing = false;
       console.log('[Jobs] 没有待处理的任务');
@@ -83,16 +104,25 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      if (task.status === 'queued') {
+      // 检查任务是否在进行分步分析
+      if (task.analysisStep !== null && task.analysisStep !== undefined && task.analysisStep < 6) {
+        // 分步分析模式
+        console.log(`[Jobs] 执行分步分析，步骤: ${task.analysisStep}`);
+        await executeAnalysisStep(task.id, task.analysisStep);
+        console.log(`[Jobs] ========== 分步分析步骤完成: ${task.id}, 步骤: ${task.analysisStep} ==========`);
+      } else if (task.status === 'queued') {
         // 新任务：执行完整分析流程（到选题生成阶段）
-        console.log('[Jobs] 执行完整分析流程');
+        console.log('[Jobs] 执行完整分析流程（旧模式兼容）');
         await executeAnalysis(task.id);
+        console.log(`[Jobs] ========== 任务步骤完成: ${task.id} ==========`);
       } else if (task.status === 'topic_generating') {
         // 选题生成任务：继续处理
         console.log('[Jobs] 继续选题生成流程');
         await handleTopicGeneration(task.id);
+        console.log(`[Jobs] ========== 选题生成步骤完成: ${task.id} ==========`);
+      } else {
+        console.log(`[Jobs] ========== 任务步骤完成: ${task.id} ==========`);
       }
-      console.log(`[Jobs] ========== 任务步骤完成: ${task.id} ==========`);
     } catch (error) {
       console.error(`[Jobs] ========== 任务失败: ${task.id} ==========`);
       console.error('[Jobs] 错误类型:', error instanceof Error ? error.constructor.name : typeof error);

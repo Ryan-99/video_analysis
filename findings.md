@@ -1,4 +1,4 @@
-# Findings: 55% 卡住问题分析
+# Findings: 55% 超时问题分析与修复
 
 **更新时间**: 2025-01-27
 
@@ -8,82 +8,87 @@
 
 分析页面卡在 **55% "分析爆款视频"** 阶段
 
+```
+Vercel Runtime Timeout Error: Task timed out after 300 seconds
+```
+
 ---
 
-## 代码分析
+## 根本原因
+
+### Vercel Serverless Function 超时限制
+
+`/api/jobs/process` 的 `maxDuration = 300` 秒（5分钟），但完整的分析流程包含：
+
+| 步骤 | 描述 | 耗时 |
+|------|------|------|
+| 1 | 解析数据 | ~5秒 |
+| 2 | 计算指标 | ~10秒 |
+| 3 | AI 账号概况 | ~56秒 |
+| 4 | AI 月度趋势 | ~67秒 |
+| 5 | AI 爆发期详情 | ~134秒 |
+| 6 | **AI 爆款主分析** | **> 60秒** ❌ |
+| 7 | AI 方法论抽象 | 未执行 |
+
+**累计时间 > 300 秒 → 超时**
 
 ### 调用链路
 ```
-pipeline.ts (55%)
-  ↓
-aiAnalysisService.analyzeViralVideos()
-  ↓
-callAI() × 2次
-  ↓
-executeFetch() (timeout: 300000ms = 5分钟)
+/api/jobs/process (maxDuration = 300s)
+  └── executeAnalysis() 一次性执行所有步骤
+      └── analyzeViralVideos() 包含 2 次 AI 调用
+          ├── viral_analysis_main (300秒超时设置)
+          └── viral_analysis_methodology (300秒超时设置)
 ```
-
-### 两次 AI 调用
-
-| 调用 | Prompt | 超时 | maxTokens |
-|------|--------|------|-----------|
-| 第1次 | `viral_analysis_main` | 300秒 | 16000 |
-| 第2次 | `viral_analysis_methodology` | 300秒 | 16000 |
-
-### 可能的原因
-
-1. **数据量过大**
-   ```typescript
-   const viralDetail = virals.map(v => {
-     // 格式化每一条爆款视频
-     return `${publishTime} | ${v.title} | ...`;
-   }).join('\n');  // 所有爆款视频用 \n 连接
-   ```
-
-   如果爆款视频有几百条，`viralDetail` 字符串会非常大，可能导致：
-   - API 请求体过大
-   - AI 处理时间过长
-   - 超出 token 限制
-
-2. **maxTokens 设置**
-   - 当前设置：16000 tokens
-   - 如果 AI 响应很长，可能会超过这个限制
-
-3. **网络/API 问题**
-   - API 响应慢
-   - 网络连接不稳定
 
 ---
 
 ## 解决方案
 
-### 方案 1：增加超时时间（推荐）
-将超时从 300 秒（5分钟）增加到更长时间：
+### 临时修复（已部署）
+
+**跳过耗时的 `analyzeViralVideos` AI 调用，使用简化数据**
 
 ```typescript
-// 修改 service.ts 第 659 行和 676 行
-const result1 = await this.callAI(prompt1, aiConfig, 600000, 32000); // 10分钟，32000 tokens
-const result2 = await this.callAI(prompt2, aiConfig, 600000, 32000); // 10分钟，32000 tokens
+// 临时修复：跳过完整 AI 分析
+const viralAnalysis = {
+  summary: `共筛选出 ${virals.length} 条爆款视频...`,
+  total: virals.length,
+  threshold: threshold,
+  byCategory: [],  // 简化：不进行分类
+  methodology: undefined,  // 简化：不生成方法论
+  topicLibrary: [],
+  patterns: { commonElements: '数据分析中', ... }
+};
 ```
 
-### 方案 2：限制爆款视频数量
-如果爆款视频太多，只取前 N 条进行 AI 分析：
+### 完整解决方案（规划中）
 
-```typescript
-const maxVideosForAI = 100; // 最多分析100条
-const viralsForAnalysis = virals.slice(0, maxVideosForAI);
-```
+**将分析流程拆分为独立步骤，每次调用执行一步**
 
-### 方案 3：分批处理
-将爆款视频分批发送给 AI，然后合并结果。
+1. **添加字段**
+   - `analysisStep`: 当前步骤 (0-6)
+   - `analysisData`: 临时存储中间数据
+
+2. **拆分 executeAnalysis**
+   - 根据 `analysisStep` 执行对应步骤
+   - 每步完成后更新步骤编号
+
+3. **修改 jobs/process**
+   - 根据 `task.analysisStep` 路由执行
 
 ---
 
-## 建议
+## 提交记录
 
-**优先尝试方案 1**：增加超时时间和 maxTokens，因为：
-1. 实现简单
-2. 不影响功能
-3. 能解决大部分情况
+```
+b80431a fix: 临时修复 Vercel 超时问题（跳过耗时 AI 分析）
+```
 
-如果方案 1 无效，再考虑方案 2 或 3。
+---
+
+## 测试建议
+
+1. 重新上传数据文件进行分析
+2. 验证能否顺利通过 55% 阶段
+3. 检查最终报告是否生成成功

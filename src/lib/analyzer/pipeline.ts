@@ -76,7 +76,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
       progress: 5,
     });
 
-    const videos = await parseData(task.fileId, task.fileName, task.columnMapping, task.fileUrl);
+    const videos = await parseData(task.fileId, task.fileName, task.columnMapping, task.fileUrl, task.fileContent);
     await logStep('parse', '数据解析完成', 'success', {
       output: { recordCount: videos.length },
     });
@@ -278,22 +278,39 @@ export async function executeAnalysis(taskId: string): Promise<void> {
  * @param fileName 文件名
  * @param columnMappingStr 列映射JSON字符串
  * @param fileUrl Vercel Blob URL（可选，生产环境使用）
+ * @param fileContent Base64 编码的文件内容（可选，解决 Blob URL 过期问题）
  * @returns 解析后的视频数据数组
  */
 async function parseData(
   fileId: string,
   fileName: string,
   columnMappingStr: string,
-  fileUrl?: string | null
+  fileUrl?: string | null,
+  fileContent?: string | null
 ): Promise<VideoData[]> {
   const columnMapping = JSON.parse(columnMappingStr);
 
-  console.log('[Parse] 开始:', fileName, '| Blob URL:', fileUrl ? '是' : '否');
+  console.log('[Parse] 开始:', fileName, '| Blob URL:', fileUrl ? '是' : '否', '| Base64:', fileContent ? '是' : '否');
 
   let arrayBuffer: ArrayBuffer;
 
-  // 优先使用 Vercel Blob URL（生产环境）
-  if (fileUrl && fileUrl.startsWith('http')) {
+  // 优先使用 Base64 文件内容（解决 Blob URL 过期问题）
+  if (fileContent && fileContent.length > 0) {
+    try {
+      console.log('[Parse] 从 Base64 解码文件, 大小:', fileContent.length);
+      const binaryString = atob(fileContent);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      arrayBuffer = bytes.buffer;
+      console.log('[Parse] Base64 解码成功, 文件大小:', arrayBuffer.byteLength);
+    } catch (error) {
+      console.error('[Parse] Base64 解码失败:', error);
+      throw new Error(`Base64 文件内容解码失败: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  } else if (fileUrl && fileUrl.startsWith('http')) {
+    // 备选：使用 Vercel Blob URL（可能已过期）
     try {
       const response = await fetch(fileUrl);
       if (!response.ok) {
@@ -503,3 +520,375 @@ export async function completeAnalysis(taskId: string): Promise<void> {
   }
 }
 
+// ========== 分步执行架构 ==========
+
+/**
+ * 分析步骤中间数据类型
+ */
+interface AnalysisStepData {
+  videos?: VideoData[];
+  metrics?: VideoData[];
+  videosWithMonth?: (VideoData & { month: string })[];
+  monthlyData?: MonthlyData[];
+  threshold?: number;
+  viralVideos?: ViralVideo[];
+  accountAnalysis?: AccountAnalysis;
+  monthlyTrendAnalysis?: any;
+  viralAnalysis?: any;
+  dailyTop1?: Array<{ date: string; engagement: number; title: string }>;
+}
+
+/**
+ * 执行单步分析
+ * @param taskId 任务ID
+ * @param step 步骤编号 (0-6)
+ */
+export async function executeAnalysisStep(taskId: string, step: number): Promise<void> {
+  console.log(`[Analysis Step] 开始步骤 ${step}, taskId:`, taskId);
+
+  const task = await taskQueue.get(taskId);
+  if (!task) {
+    throw new Error('任务不存在');
+  }
+
+  /**
+   * 辅助函数：记录日志
+   */
+  const logStep = async (
+    phase: string,
+    stepName: string,
+    status: 'start' | 'progress' | 'success' | 'error',
+    details?: {
+      input?: any;
+      output?: any;
+      error?: string;
+    }
+  ) => {
+    const log: AnalysisLog = {
+      timestamp: new Date().toISOString(),
+      level: status === 'error' ? 'error' : 'info',
+      phase: phase as any,
+      step: stepName,
+      status,
+      ...details,
+    };
+    await analysisLogger.add(taskId, log);
+  };
+
+  // 获取或初始化中间数据
+  let stepData: AnalysisStepData = {};
+  if (task.analysisData) {
+    try {
+      stepData = JSON.parse(task.analysisData);
+    } catch (e) {
+      console.warn('[Analysis Step] 解析中间数据失败，将重新计算');
+    }
+  }
+
+  try {
+    switch (step) {
+      case 0: // 解析数据
+        await step0_ParseData(task, stepData, logStep);
+        break;
+      case 1: // 账号概况 AI
+        await step1_AccountOverview(task, stepData, logStep);
+        break;
+      case 2: // 月度趋势 AI
+        await step2_MonthlyTrend(task, stepData, logStep);
+        break;
+      case 3: // 爆发期详情 AI
+        await step3_ExplosivePeriods(task, stepData, logStep);
+        break;
+      case 4: // 爆款主分析 AI
+        await step4_ViralMain(task, stepData, logStep);
+        break;
+      case 5: // 方法论 AI
+        await step5_Methodology(task, stepData, logStep);
+        break;
+      case 6: // 完成
+        await step6_Complete(task, stepData, logStep);
+        return; // 完成，不需要继续下一步
+      default:
+        throw new Error(`未知步骤: ${step}`);
+    }
+
+    // 保存中间数据并推进到下一步
+    const nextStep = step + 1;
+    await taskQueue.update(taskId, {
+      analysisStep: nextStep,
+      analysisData: JSON.stringify(stepData),
+    });
+
+    console.log(`[Analysis Step] 步骤 ${step} 完成，下一步: ${nextStep}`);
+
+  } catch (error) {
+    await logStep('system', `步骤 ${step} 失败`, 'error', {
+      error: error instanceof Error ? error.message : '未知错误',
+    });
+
+    await taskQueue.update(taskId, {
+      status: 'failed',
+      error: error instanceof Error ? error.message : '未知错误',
+    });
+
+    throw error;
+  }
+}
+
+/**
+ * 步骤 0: 解析数据
+ */
+async function step0_ParseData(
+  task: Task,
+  stepData: AnalysisStepData,
+  logStep: (phase: string, step: string, status: any, details?: any) => Promise<void>
+): Promise<void> {
+  await logStep('parse', '开始解析数据', 'start');
+  await taskQueue.update(task.id, {
+    status: 'parsing',
+    currentStep: '正在解析数据...',
+    progress: 5,
+  });
+
+  const videos = await parseData(task.fileId, task.fileName, task.columnMapping, task.fileUrl, task.fileContent);
+
+  // 计算基础指标
+  const metrics = calculateAllMetrics(videos);
+  const videosWithMonth = groupByMonth(metrics);
+  const monthlyStatsMap = calculateMonthlyStats(videosWithMonth);
+  const monthlyData = getSortedMonthlyData(monthlyStatsMap);
+  const allEngagements = metrics.map(m => m.totalEngagement);
+  const threshold = calculateThreshold(allEngagements);
+  const virals = filterVirals(metrics, threshold);
+  const viralVideos: ViralVideo[] = virals.map(v => ({ ...v, threshold }));
+
+  // 计算每日 Top1（用于图表）
+  const dailyTop1 = new Map<string, { engagement: number; title: string; date: string }>();
+  for (const video of videos) {
+    const publishTime = video.publishTime as unknown as Date | string;
+    const date = typeof publishTime === 'string'
+      ? publishTime.split('T')[0]
+      : (publishTime as Date).toISOString().split('T')[0];
+    const engagement = video.likes + video.comments + video.saves + video.shares;
+    const existing = dailyTop1.get(date);
+    if (!existing || engagement > existing.engagement) {
+      dailyTop1.set(date, { engagement, title: video.title, date });
+    }
+  }
+
+  // 保存到中间数据
+  stepData.videos = videos;
+  stepData.metrics = metrics;
+  stepData.videosWithMonth = videosWithMonth;
+  stepData.monthlyData = monthlyData;
+  stepData.threshold = threshold;
+  stepData.viralVideos = viralVideos;
+  stepData.dailyTop1 = Array.from(dailyTop1.values()).sort((a, b) => a.date.localeCompare(b.date));
+
+  await logStep('parse', '数据解析完成', 'success', {
+    output: { recordCount: videos.length, viralCount: viralVideos.length, threshold: Math.round(threshold) },
+  });
+}
+
+/**
+ * 步骤 1: 账号概况 AI 分析
+ */
+async function step1_AccountOverview(
+  task: Task,
+  stepData: AnalysisStepData,
+  logStep: (phase: string, step: string, status: any, details?: any) => Promise<void>
+): Promise<void> {
+  if (!stepData.videos || !stepData.monthlyData) {
+    throw new Error('缺少前置数据');
+  }
+
+  await logStep('ai', '开始AI分析 - 账号概况', 'start');
+  await taskQueue.update(task.id, {
+    status: 'analyzing',
+    currentStep: '正在分析账号概况...',
+    progress: 20,
+  });
+
+  const accountAnalysis = await aiAnalysisService.analyzeAccountOverview(
+    stepData.videos,
+    stepData.monthlyData,
+    task.aiConfig,
+    task.accountName
+  );
+
+  stepData.accountAnalysis = accountAnalysis;
+
+  await logStep('ai', '账号概况分析完成', 'success', {
+    output: {
+      账号名称: accountAnalysis.nickname,
+      账号类型: accountAnalysis.accountType,
+      核心母题: accountAnalysis.coreTopics.join('、'),
+    },
+  });
+}
+
+/**
+ * 步骤 2: 月度趋势 AI 分析
+ */
+async function step2_MonthlyTrend(
+  task: Task,
+  stepData: AnalysisStepData,
+  logStep: (phase: string, step: string, status: any, details?: any) => Promise<void>
+): Promise<void> {
+  if (!stepData.monthlyData || !stepData.viralVideos || !stepData.metrics) {
+    throw new Error('缺少前置数据');
+  }
+
+  await logStep('ai', '开始AI分析 - 月度趋势', 'start');
+  await taskQueue.update(task.id, {
+    currentStep: '正在分析月度趋势...',
+    progress: 35,
+  });
+
+  const monthlyTrendAnalysis = await aiAnalysisService.analyzeMonthlyTrend(
+    stepData.monthlyData,
+    stepData.viralVideos,
+    task.aiConfig,
+    task.fileName,
+    stepData.metrics.length
+  );
+
+  stepData.monthlyTrendAnalysis = monthlyTrendAnalysis;
+
+  await logStep('ai', '月度趋势分析完成', 'success', {
+    output: {
+      趋势总结: monthlyTrendAnalysis.summary,
+      发展阶段: monthlyTrendAnalysis.stages?.length || 0,
+      爆发期: monthlyTrendAnalysis.explosivePeriods?.length || 0,
+    },
+  });
+}
+
+/**
+ * 步骤 3: 爆发期详情 AI 分析
+ */
+async function step3_ExplosivePeriods(
+  task: Task,
+  stepData: AnalysisStepData,
+  logStep: (phase: string, step: string, status: any, details?: any) => Promise<void>
+): Promise<void> {
+  if (!stepData.monthlyTrendAnalysis || !stepData.viralVideos) {
+    throw new Error('缺少前置数据');
+  }
+
+  await logStep('ai', '开始AI分析 - 爆发期详情', 'start');
+  await taskQueue.update(task.id, {
+    currentStep: '正在分析爆发期详情...',
+    progress: 50,
+  });
+
+  // 爆发期详情已在月度趋势分析中包含，这里可以进行额外的细化分析
+  // 目前直接标记为完成
+  await logStep('ai', '爆发期详情分析完成', 'success', {
+    output: { explosivePeriods: stepData.monthlyTrendAnalysis.explosivePeriods?.length || 0 },
+  });
+}
+
+/**
+ * 步骤 4: 爆款主分析 AI
+ */
+async function step4_ViralMain(
+  task: Task,
+  stepData: AnalysisStepData,
+  logStep: (phase: string, step: string, status: any, details?: any) => Promise<void>
+): Promise<void> {
+  if (!stepData.viralVideos || !stepData.videos) {
+    throw new Error('缺少前置数据');
+  }
+
+  await logStep('ai', '开始AI分析 - 爆款分类', 'start');
+  await taskQueue.update(task.id, {
+    currentStep: '正在分析爆款视频...',
+    progress: 60,
+  });
+
+  const viralAnalysis = await aiAnalysisService.analyzeViralVideos(
+    stepData.viralVideos,
+    task.aiConfig,
+    stepData.threshold
+  );
+
+  stepData.viralAnalysis = viralAnalysis;
+
+  await logStep('ai', '爆款分类分析完成', 'success', {
+    output: {
+      爆款总数: stepData.viralVideos.length,
+      分类数量: viralAnalysis.byCategory?.length || 0,
+    },
+  });
+}
+
+/**
+ * 步骤 5: 方法论 AI 分析
+ */
+async function step5_Methodology(
+  task: Task,
+  stepData: AnalysisStepData,
+  logStep: (phase: string, step: string, status: any, details?: any) => Promise<void>
+): Promise<void> {
+  if (!stepData.viralAnalysis) {
+    throw new Error('缺少前置数据');
+  }
+
+  await logStep('ai', '开始AI分析 - 方法论抽象', 'start');
+  await taskQueue.update(task.id, {
+    currentStep: '正在抽象方法论...',
+    progress: 70,
+  });
+
+  // 方法论已在爆款分析中包含，这里直接标记为完成
+  await logStep('ai', '方法论抽象完成', 'success', {
+    output: { hasMethodology: !!stepData.viralAnalysis.methodology },
+  });
+}
+
+/**
+ * 步骤 6: 完成 - 保存结果并准备选题生成
+ */
+async function step6_Complete(
+  task: Task,
+  stepData: AnalysisStepData,
+  logStep: (phase: string, step: string, status: any, details?: any) => Promise<void>
+): Promise<void> {
+  await logStep('report', '保存分析结果', 'start');
+
+  // 构建结果数据
+  const intermediateResult = JSON.stringify({
+    account: stepData.accountAnalysis,
+    monthlyTrend: {
+      summary: stepData.monthlyTrendAnalysis?.summary || `共分析了 ${stepData.videos?.length || 0} 条视频`,
+      data: stepData.monthlyData,
+      stages: stepData.monthlyTrendAnalysis?.stages || [],
+      dataScopeNote: stepData.monthlyTrendAnalysis?.dataScopeNote,
+      peakMonths: stepData.monthlyTrendAnalysis?.peakMonths,
+      viralThemes: stepData.monthlyTrendAnalysis?.viralThemes,
+      explosivePeriods: stepData.monthlyTrendAnalysis?.explosivePeriods,
+    },
+    virals: {
+      summary: stepData.viralAnalysis?.summary || `发现 ${stepData.viralVideos?.length || 0} 条爆款视频`,
+      total: stepData.viralVideos?.length || 0,
+      threshold: stepData.threshold,
+      byCategory: stepData.viralAnalysis?.byCategory || [],
+      patterns: stepData.viralAnalysis?.patterns || {},
+      methodology: stepData.viralAnalysis?.methodology,
+    },
+    dailyTop1: stepData.dailyTop1,
+    topics: [],
+  });
+
+  await taskQueue.update(task.id, {
+    resultData: intermediateResult,
+    status: 'topic_generating',
+    currentStep: '正在生成选题库...',
+    progress: 75,
+    topicStep: 'outline',
+  });
+
+  await logStep('report', '分析结果已保存，准备选题生成', 'success');
+  console.log('[Analysis Step] 分析流程完成，进入选题生成阶段');
+}
