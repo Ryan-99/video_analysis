@@ -1,62 +1,59 @@
-# 任务计划：报告显示与图片下载功能
+# Task Plan: 拆分分析流程解决 Vercel 超时问题
 
-**创建时间**: 2025-01-22
-**目标**: 修复报告结果不显示问题，实现图片下载功能
-
----
-
-## 阶段进度
-
-| 阶段 | 状态 | 说明 |
-|------|------|------|
-| 阶段1: 调查现有代码 | completed | 已了解报告显示流程和缺失功能 |
-| 阶段2: 修复报告显示 | completed | ReportViewer已添加图表展示和数据详情 |
-| 阶段3: 实现图表生成 | completed | 创建MonthlyTrendChart和ViralCategoriesChart组件 |
-| 阶段4: 添加图片下载 | completed | 使用html2canvas实现PNG导出功能 |
-| 阶段5: 测试验证 | pending | 需要用户测试完整流程 |
+**创建时间**: 2025-01-27
+**目标**: 将 executeAnalysis 拆分成多个步骤，每次调用执行一步
 
 ---
 
-## 问题根因分析
+## 问题根因
 
-### 问题1：报告结果显示不完整
-**现象**: ReportViewer只显示基础文本，缺少图表和数据可视化
-**根因**:
-- 报告API正常工作
-- 但ReportViewer组件没有展示monthlyTrend.data和virals数据
-- 缺少图表可视化组件
-
-### 问题2：图片下载功能缺失
-**根因**:
-1. pipeline.ts中图表生成是模拟的（TODO）
-2. Report.charts字段始终为空
-3. ReportViewer没有图表展示和图片下载UI
+`executeAnalysis` 函数在一次调用中执行所有 AI 分析步骤，总时间超过 300 秒导致 Vercel 超时。
 
 ---
 
 ## 解决方案
 
-### 采用方案：前端图表库 + PNG导出
-**技术选型**: Recharts（已广泛使用，TypeScript支持好）
-**实施步骤**:
-1. 安装 recharts
-2. 创建图表组件（月度趋势折线图、爆点图、分类统计图）
-3. 在ReportViewer中集成图表显示
-4. 使用 html2canvas 导出图表为PNG
+### 核心思路
+利用现有任务队列，**每次 `/api/jobs/process` 调用只执行一个分析步骤**。
+
+### 实施步骤
+
+#### Step 1: 扩展数据模型
+- 在 Prisma schema 添加 `analysisStep` 字段
+- 在 Task 类型添加对应字段
+
+#### Step 2: 拆分 executeAnalysis
+```typescript
+// 原 executeAnalysis → 拆分为：
+executeAnalysisStep(task) // 根据 task.analysisStep 执行对应步骤
+```
+
+#### Step 3: 修改 jobs/process
+根据 `task.analysisStep` 路由到对应步骤
 
 ---
 
-## 错误记录
+## 进度跟踪
 
-| 尝试 | 错误 | 解决方案 |
-|------|------|----------|
-| - | - | - |
+| 步骤 | 状态 | 文件 |
+|------|------|------|
+| 1. 修改 Prisma schema | in_progress | prisma/schema.prisma |
+| 2. 更新 Task 类型 | pending | types/index.ts |
+| 3. 拆分 pipeline 逻辑 | pending | lib/analyzer/pipeline.ts |
+| 4. 修改 jobs/process | pending | app/api/jobs/process/route.ts |
+| 5. 运行迁移 | pending | prisma db push |
+| 6. 测试验证 | pending | - |
 
-## 关键文件
+---
 
-- `src/app/report/[reportId]/page.tsx` - 报告页面
-- `src/components/report/ReportViewer.tsx` - 报告查看器
-- `src/lib/analyzer/pipeline.ts` - 分析流程
-- `src/app/api/report/[reportId]/route.ts` - 报告API (需要检查是否存在)
-- `docs/PRD.md` - 产品需求文档
-- `CLAUDE.md` - 协作规范（提到图片下载要求）
+## 分析步骤定义
+
+| analysisStep | 名称 | 预计时间 |
+|--------------|------|----------|
+| 0 | 解析数据 | 5秒 |
+| 1 | 账号概况 AI | 60秒 |
+| 2 | 月度趋势 AI | 70秒 |
+| 3 | 爆发期详情 AI | 140秒 |
+| 4 | 爆款主分析 AI | 90秒 |
+| 5 | 方法论 AI | 60秒 |
+| 6 | 完成 | 1秒 |

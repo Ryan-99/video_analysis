@@ -58,6 +58,10 @@ export interface Task {
   viralCount: number | null;
   accountName?: string | null; // 从文件名提取的账号名称
 
+  // 分析步骤分步执行字段
+  analysisStep?: number | null;  // 当前分析步骤 (0=解析, 1=账号, 2=月度, 3=爆发期, 4=爆款主, 5=方法论, 6=完成)
+  analysisData?: string | null;  // 临时存储中间数据（JSON）
+
   // 选题生成分步执行字段
   topicStep?: string | null;  // 'outline' | 'details' | 'complete'
   topicOutlineData?: string | null;  // 临时存储大纲数据（JSON）

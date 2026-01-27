@@ -150,6 +150,8 @@ class DatabaseTaskQueue {
       recordCount: dbTask.recordCount,
       viralCount: dbTask.viralCount,
       accountName: dbTask.accountName,
+      analysisStep: dbTask.analysisStep,
+      analysisData: dbTask.analysisData,
       topicStep: dbTask.topicStep,
       topicOutlineData: dbTask.topicOutlineData,
       topicDetailIndex: dbTask.topicDetailIndex,

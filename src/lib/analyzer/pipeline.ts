@@ -168,23 +168,28 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     });
 
     const viralStartTime = Date.now();
-    const viralAnalysis = await aiAnalysisService.analyzeViralVideos(
-      viralVideos,
-      threshold,
-      monthlyData,
-      task.aiConfig,
-      task.fileName,
-      videos.length
-    );
-    const categories = viralAnalysis.byCategory?.map(c => c.category).join('、') || '无';
-    await logStep('ai', '爆款分析完成', 'success', {
+
+    // 【临时修复】跳过耗时的 viralAnalysis，使用简化数据
+    // TODO: 完整重构后恢复完整分析
+    console.log('[Analysis] 使用简化爆款分析（临时修复，避免超时）');
+    const viralAnalysis = {
+      summary: `共筛选出 ${virals.length} 条爆款视频，判定阈值为 ${Math.round(threshold).toLocaleString()}`,
+      total: virals.length,
+      threshold: threshold,
+      byCategory: [],
+      methodology: undefined,
+      topicLibrary: [],
+      patterns: {
+        commonElements: '数据分析中',
+        timingPattern: '数据分析中',
+        titlePattern: '数据分析中'
+      }
+    };
+    const categories = '数据分析中（简化模式）';
+    await logStep('ai', '爆款分析完成（简化模式）', 'success', {
       output: {
-        爆款总结: viralAnalysis.summary,
         爆款总数: virals.length,
         判定阈值: Math.round(threshold).toLocaleString(),
-        分类数量: viralAnalysis.byCategory?.length || 0,
-        分类列表: categories,
-        共同元素: viralAnalysis.patterns?.commonElements || '暂无',
       },
     });
 

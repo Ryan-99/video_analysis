@@ -46,6 +46,10 @@ model AnalysisTask {
 
   accountName    String?   // 账号名称
 
+  // 分析步骤分步执行字段
+  analysisStep         Int?     @default(0)  // 当前分析步骤 (0=解析, 1=账号, 2=月度, 3=爆发期, 4=爆款主, 5=方法论, 6=完成)
+  analysisData         String?  // 临时存储中间数据（JSON）
+
   // 选题生成分步执行字段
   topicStep           String?  // 'outline' | 'details' | 'complete'
   topicOutlineData    String?  // 临时存储大纲数据（JSON）
