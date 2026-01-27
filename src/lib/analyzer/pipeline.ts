@@ -617,6 +617,7 @@ export async function executeAnalysisStep(taskId: string, step: number): Promise
     await taskQueue.update(taskId, {
       analysisStep: nextStep,
       analysisData: JSON.stringify(stepData),
+      status: nextStep < 6 ? 'queued' : undefined, // 步骤未完成时设为 queued，等待下一次触发
     });
 
     console.log(`[Analysis Step] 步骤 ${step} 完成，下一步: ${nextStep}`);
