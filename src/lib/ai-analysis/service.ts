@@ -409,7 +409,7 @@ export class AIAnalysisService {
       viral_videos_detail: viralDetail,
     });
 
-    const result1 = await this.callAI(prompt1, aiConfig, 300000, 12000); // 5分钟，12000 tokens
+    const result1 = await this.callAI(prompt1, aiConfig, 240000, 12000); // 4分钟，12000 tokens（为 Vercel 留出 60s 缓冲）
     const baseAnalysis = safeParseJSON(cleanAIResponse(result1));
     console.log('[analyzeMonthlyTrend] 基础分析完成，explosivePeriods数量:', baseAnalysis.explosivePeriods?.length || 0);
 
@@ -456,7 +456,7 @@ export class AIAnalysisService {
         time_range_mapping: timeRangeMapping,
       });
 
-      const result2 = await this.callAI(prompt2, aiConfig, 300000, 12000); // 5分钟，12000 tokens
+      const result2 = await this.callAI(prompt2, aiConfig, 240000, 12000); // 4分钟，12000 tokens（为 Vercel 留出 60s 缓冲）
       const detailAnalysis = safeParseJSON(cleanAIResponse(result2));
 
       // 合并结果：将 topVideos 合并到对应的 explosivePeriod
@@ -541,7 +541,169 @@ export class AIAnalysisService {
   }
 
   /**
-   * 步骤3：分析爆款视频分类
+   * 步骤4-1：分析爆款视频 - 主分析
+   * 执行第一次 AI 调用：生成数据口径、逐月清单、分类总览、共性机制
+   */
+  async analyzeViralVideosMain(
+    virals: ViralVideo[],
+    threshold: number,
+    monthlyData: MonthlyData[],
+    aiConfig?: string,
+    fileName?: string,
+    totalVideos?: number
+  ): Promise<{
+    summary: string;
+    total: number;
+    threshold: number;
+    dataScopeNote?: string;
+    monthlyList?: Array<{
+      month: string;
+      threshold: number;
+      videos: Array<{
+        publishTime: string;
+        title: string;
+        likes: number;
+        comments: number;
+        saves: number;
+        shares: number;
+        totalEngagement: number;
+        saveRate: number;
+      }>;
+      top10Titles: string[];
+    }>;
+    byCategory?: Array<{
+      category: string;
+      count: number;
+      medianEngagement: number;
+      medianSaveRate: number;
+      p90SaveRate: number;
+      description: string;
+    }>;
+    commonMechanisms?: {
+      hasCategories: boolean;
+      mechanisms?: Array<{
+        pattern: string;
+        evidence: string[];
+      }>;
+      reason?: string;
+    };
+  }> {
+    console.log('[analyzeViralVideosMain] 第一次 AI 调用：主分析...');
+
+    // 1. 格式化逐月数据摘要
+    const monthlySummary = this.formatViralMonthlySummary(virals, monthlyData);
+
+    // 2. 格式化爆款视频详细信息
+    const viralDetail = virals.map(v => {
+      const saveRate = v.totalEngagement > 0 ? (v.saves / v.totalEngagement * 100) : 0;
+      const date = new Date(v.publishTime);
+      const publishTime = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+      return `${publishTime} | ${v.title} | 👍${v.likes.toLocaleString()} | 💬${v.comments.toLocaleString()} | ⭐${v.saves.toLocaleString()} | 🔁${v.shares.toLocaleString()} | 👉${v.totalEngagement.toLocaleString()} | 收藏率${saveRate.toFixed(2)}%`;
+    }).join('\n');
+
+    // 3. 第一次 AI 调用：主分析
+    const prompt1 = promptEngine.render('viral_analysis_main', {
+      file_name: fileName || '未知文件',
+      total_videos: totalVideos || virals.length,
+      total_virals: virals.length,
+      threshold: Math.round(threshold).toString(),
+      monthly_summary: monthlySummary,
+      viral_videos_detail: viralDetail,
+    });
+
+    const result1 = await this.callAI(prompt1, aiConfig, 240000, 16000); // 4分钟，16000 tokens（为 Vercel 留出 60s 缓冲）
+    const mainAnalysis = safeParseJSON(cleanAIResponse(result1));
+    console.log('[analyzeViralVideosMain] 主分析完成');
+
+    // 4. 返回主分析结果
+    return {
+      summary: mainAnalysis.summary || '',
+      total: virals.length,
+      threshold: threshold,
+      dataScopeNote: mainAnalysis.dataScopeNote,
+      monthlyList: mainAnalysis.monthlyList,
+      byCategory: mainAnalysis.byCategory,
+      commonMechanisms: mainAnalysis.commonMechanisms,
+    };
+  }
+
+  /**
+   * 步骤4-2：分析爆款视频 - 方法论抽象
+   * 执行第二次 AI 调用：生成方法论（母题、公式、选题库）
+   * 需要主分析的结果作为输入
+   */
+  async analyzeViralVideosMethodology(
+    virals: ViralVideo[],
+    mainAnalysis: {
+      byCategory?: Array<{
+        category: string;
+        count: number;
+        medianEngagement: number;
+        medianSaveRate: number;
+        p90SaveRate: number;
+        description: string;
+      }>;
+    },
+    aiConfig?: string
+  ): Promise<{
+    methodology?: {
+      viralTheme: {
+        formula: string;
+        conclusion: string;
+        evidence: string[];
+      };
+      timeDistribution: Array<{
+        timeWindow: string;
+        percentage: number;
+      }>;
+      topicFormulas: Array<{
+        theme: string;
+        scenarios: string;
+        hiddenRules: string;
+        counterIntuitive: string;
+        actions: string[];
+        templates: string[];
+      }>;
+      titleFormulas: Array<{
+        type: string;
+        template: string;
+        example?: string;
+      }>;
+      scriptFormula: {
+        mainFramework: string;
+        explanation: string;
+        alternativeFramework?: string;
+      };
+    };
+  }> {
+    console.log('[analyzeViralVideosMethodology] 第二次 AI 调用：方法论抽象...');
+
+    // 1. 格式化分类摘要
+    const categorySummary = this.formatCategorySummary(mainAnalysis.byCategory);
+
+    // 2. 格式化爆款标题+发布时间
+    const viralTitlesWithTime = this.formatViralTitlesWithTime(virals);
+
+    // 3. 格式化爆款样本（取前20条）
+    const viralSamples = this.formatViralSamples(virals, 20);
+
+    // 4. 第二次 AI 调用：方法论抽象
+    const prompt2 = promptEngine.render('viral_analysis_methodology', {
+      category_summary: categorySummary,
+      viral_titles_with_time: viralTitlesWithTime,
+      viral_samples: viralSamples,
+    });
+
+    const result2 = await this.callAI(prompt2, aiConfig, 240000, 16000); // 4分钟，16000 tokens（为 Vercel 留出 60s 缓冲）
+    const methodology = safeParseJSON(cleanAIResponse(result2));
+    console.log('[analyzeViralVideosMethodology] 方法论抽象完成');
+
+    // 5. 返回方法论结果
+    return { methodology };
+  }
+
+  /**
+   * 步骤3：分析爆款视频分类（完整版本，保留兼容性）
    * 采用分开生成策略：
    * - 第一次调用：主分析（数据口径、逐月清单、分类总览、共性机制）
    * - 第二次调用：方法论抽象（母题、公式、选题库）
@@ -656,7 +818,7 @@ export class AIAnalysisService {
       viral_videos_detail: viralDetail,
     });
 
-    const result1 = await this.callAI(prompt1, aiConfig, 300000, 16000); // 5分钟，16000 tokens
+    const result1 = await this.callAI(prompt1, aiConfig, 240000, 16000); // 4分钟，16000 tokens（为 Vercel 留出 60s 缓冲）
     const mainAnalysis = safeParseJSON(cleanAIResponse(result1));
     console.log('[analyzeViralVideos] 主分析完成');
 
@@ -673,7 +835,7 @@ export class AIAnalysisService {
       viral_samples: viralSamples,
     });
 
-    const result2 = await this.callAI(prompt2, aiConfig, 300000, 16000); // 5分钟，16000 tokens
+    const result2 = await this.callAI(prompt2, aiConfig, 240000, 16000); // 4分钟，16000 tokens（为 Vercel 留出 60s 缓冲）
     const methodology = safeParseJSON(cleanAIResponse(result2));
     console.log('[analyzeViralVideos] 方法论抽象完成');
 
@@ -812,8 +974,8 @@ export class AIAnalysisService {
 
     try {
       // 增加最大 token 数到 16000 以确保能够生成完整的 30 条选题
-      console.log('[AIAnalysisService] 调用 AI，超时: 300秒（5分钟），最大 Tokens: 16000');
-      const result = await this.callAI(prompt, aiConfig, 300000, 16000); // 5分钟，16000 tokens
+      console.log('[AIAnalysisService] 调用 AI，超时: 240秒（4分钟），最大 Tokens: 16000');
+      const result = await this.callAI(prompt, aiConfig, 240000, 16000); // 4分钟，16000 tokens（为 Vercel 留出 60s 缓冲）
 
       console.log('[AIAnalysisService] AI 返回完成，响应长度:', result.length);
       console.log('[AIAnalysisService] AI 响应预览:', result.substring(0, 200));
@@ -960,8 +1122,8 @@ ${existingCategories}
 
       let result = '';
       try {
-        // 每批超时 300 秒（5分钟），确保充分时间生成
-        result = await this.callAI(prompt, aiConfig, 300000, 12000); // 300秒，12000 tokens
+        // 每批超时 240 秒（4分钟），为 Vercel 留出缓冲时间
+        result = await this.callAI(prompt, aiConfig, 240000, 12000); // 240秒，12000 tokens（为 Vercel 留出 60s 缓冲）
 
         const cleaned = cleanAIResponse(result);
         const parsed = safeParseJSON(cleaned);

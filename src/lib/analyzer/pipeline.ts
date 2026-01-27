@@ -793,7 +793,8 @@ async function step3_ExplosivePeriods(
 }
 
 /**
- * 步骤 4: 爆款主分析 AI
+ * 步骤 4: 爆款主分析 AI（拆分版本）
+ * 只执行第一次 AI 调用：主分析
  */
 async function step4_ViralMain(
   task: Task,
@@ -804,13 +805,14 @@ async function step4_ViralMain(
     throw new Error('缺少前置数据');
   }
 
-  await logStep('ai', '开始AI分析 - 爆款分类', 'start');
+  await logStep('ai', '开始AI分析 - 爆款主分析', 'start');
   await taskQueue.update(task.id, {
-    currentStep: '正在分析爆款视频...',
+    currentStep: '正在分析爆款视频（主分析）...',
     progress: 60,
   });
 
-  const viralAnalysis = await aiAnalysisService.analyzeViralVideos(
+  // 调用新函数：只执行主分析（第一次 AI 调用）
+  const viralAnalysisMain = await aiAnalysisService.analyzeViralVideosMain(
     stepData.viralVideos,
     stepData.threshold || 0,
     stepData.monthlyData || [],
@@ -819,26 +821,28 @@ async function step4_ViralMain(
     stepData.videos?.length
   );
 
-  stepData.viralAnalysis = viralAnalysis;
+  // 保存主分析结果（缺少 methodology，将在步骤 5 中补充）
+  stepData.viralAnalysis = viralAnalysisMain;
 
-  await logStep('ai', '爆款分类分析完成', 'success', {
+  await logStep('ai', '爆款主分析完成', 'success', {
     output: {
       爆款总数: stepData.viralVideos.length,
-      分类数量: viralAnalysis.byCategory?.length || 0,
+      分类数量: viralAnalysisMain.byCategory?.length || 0,
     },
   });
 }
 
 /**
- * 步骤 5: 方法论 AI 分析
+ * 步骤 5: 方法论 AI 分析（拆分版本）
+ * 执行第二次 AI 调用：方法论抽象
  */
 async function step5_Methodology(
   task: Task,
   stepData: AnalysisStepData,
   logStep: (phase: string, step: string, status: any, details?: any) => Promise<void>
 ): Promise<void> {
-  if (!stepData.viralAnalysis) {
-    throw new Error('缺少前置数据');
+  if (!stepData.viralAnalysis || !stepData.viralVideos) {
+    throw new Error('缺少前置数据：需要 viralAnalysis 和 viralVideos');
   }
 
   await logStep('ai', '开始AI分析 - 方法论抽象', 'start');
@@ -847,9 +851,22 @@ async function step5_Methodology(
     progress: 70,
   });
 
-  // 方法论已在爆款分析中包含，这里直接标记为完成
+  // 调用新函数：执行方法论抽象（第二次 AI 调用）
+  const methodologyResult = await aiAnalysisService.analyzeViralVideosMethodology(
+    stepData.viralVideos,
+    stepData.viralAnalysis, // 传入主分析结果
+    task.aiConfig || undefined
+  );
+
+  // 将 methodology 合并到 viralAnalysis 中
+  stepData.viralAnalysis.methodology = methodologyResult.methodology;
+
   await logStep('ai', '方法论抽象完成', 'success', {
-    output: { hasMethodology: !!stepData.viralAnalysis.methodology },
+    output: {
+      hasMethodology: !!methodologyResult.methodology,
+      hasViralTheme: !!methodologyResult.methodology?.viralTheme,
+      topicFormulasCount: methodologyResult.methodology?.topicFormulas?.length || 0,
+    },
   });
 }
 
