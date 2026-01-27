@@ -465,13 +465,13 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): P
           ...monthData.videos.map(video =>
             new TableRow({
               children: [
-                new TableCell({ children: [new Paragraph({ text: video.publishTime, size: 18 })] }),
-                new TableCell({ children: [new Paragraph({ text: video.title, size: 18 })] }),
-                new TableCell({ children: [new Paragraph({ text: video.likes.toLocaleString(), size: 18 })] }),
-                new TableCell({ children: [new Paragraph({ text: video.comments.toLocaleString(), size: 18 })] }),
-                new TableCell({ children: [new Paragraph({ text: video.saves.toLocaleString(), size: 18 })] }),
-                new TableCell({ children: [new Paragraph({ text: video.shares.toLocaleString(), size: 18 })] }),
-                new TableCell({ children: [new Paragraph({ text: video.totalEngagement.toLocaleString(), size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: video.publishTime, size: 18 })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: video.title, size: 18 })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: video.likes.toLocaleString(), size: 18 })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: video.comments.toLocaleString(), size: 18 })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: video.saves.toLocaleString(), size: 18 })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: video.shares.toLocaleString(), size: 18 })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: video.totalEngagement.toLocaleString(), size: 18 })] })] }),
               ],
             })
           ),
@@ -719,13 +719,13 @@ function generateTopicLibraryTable(topicLibrary: Report['virals']['topicLibrary'
   const dataRows = topicLibrary.map(item =>
     new TableRow({
       children: [
-        new TableCell({ children: [new Paragraph({ text: item.id.toString(), size: 18 })] }),
-        new TableCell({ children: [new Paragraph({ text: item.publishTime, size: 18 })] }),
-        new TableCell({ children: [new Paragraph({ text: item.title, size: 18 })] }),
-        new TableCell({ children: [new Paragraph({ text: item.category || '-', size: 18 })] }),
-        new TableCell({ children: [new Paragraph({ text: item.totalEngagement.toLocaleString(), size: 18 })] }),
-        new TableCell({ children: [new Paragraph({ text: `${item.saveRate.toFixed(2)}%`, size: 18 })] }),
-        new TableCell({ children: [new Paragraph({ text: item.keyTakeaway || '-', size: 18 })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.id.toString(), size: 18 })] })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.publishTime, size: 18 })] })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.title, size: 18 })] })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.category || '-', size: 18 })] })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.totalEngagement.toLocaleString(), size: 18 })] })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${item.saveRate.toFixed(2)}%`, size: 18 })] })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.keyTakeaway || '-', size: 18 })] })] }),
       ],
     })
   );
