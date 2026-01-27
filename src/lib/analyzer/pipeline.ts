@@ -891,6 +891,7 @@ async function step6_Complete(
     currentStep: '正在生成选题库...',
     progress: 75,
     topicStep: 'outline',
+    analysisStep: 7, // 标记分析步骤已完成
   });
 
   await logStep('report', '分析结果已保存，准备选题生成', 'success');

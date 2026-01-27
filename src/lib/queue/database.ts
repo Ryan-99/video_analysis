@@ -46,13 +46,13 @@ class DatabaseTaskQueue {
    * 更新任务
    */
   async update(id: string, updates: Partial<Task>): Promise<Task | null> {
-    const updateData: any = {
-      ...updates,
-    };
+    // 过滤掉 undefined 值，只更新有值的字段
+    const updateData: any = {};
 
-    // 处理状态枚举
-    if (updates.status) {
-      updateData.status = updates.status;
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined) {
+        updateData[key] = value;
+      }
     }
 
     // console.log('[DatabaseTaskQueue] 更新任务前:', id, 'updates:', JSON.stringify({
