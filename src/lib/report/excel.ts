@@ -39,10 +39,9 @@ export async function generateExcelReport(report: Report): Promise<Buffer> {
   viralsSheet.addRow(['阈值', report.virals.threshold]);
   viralsSheet.addRow([]);
   viralsSheet.addRow(['分类', '数量', '互动中位数']);
-  // 兼容新旧格式：medianEngagement 优先，fallback 到 avgEngagement
   if (report.virals.byCategory) {
     for (const category of report.virals.byCategory) {
-      const engagement = category.medianEngagement ?? category.avgEngagement ?? 0;
+      const engagement = category.medianEngagement ?? 0;
       viralsSheet.addRow([category.category, category.count, engagement]);
     }
   }
