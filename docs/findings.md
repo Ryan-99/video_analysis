@@ -139,9 +139,69 @@ service.ts (解析并调用 API)
 
 ---
 
+## 新发现：OpenAI 格式 API 调用缺少 max_tokens 参数
+
+**问题位置**：[service.ts:1278-1282](../src/lib/ai-analysis/service.ts#L1278-L1282)
+
+**问题描述**：
+```typescript
+// OpenAI 格式 - 缺少 max_tokens 参数
+body: JSON.stringify({
+  model: providerConfig.model,
+  messages: [{ role: 'user', content: prompt }],
+  response_format: { type: 'json_object' },
+  // ❌ 没有传递 max_tokens
+}),
+```
+
+**Claude 格式对比**（正确实现）：
+```typescript
+// Claude 格式 - 正确传递 max_tokens
+body: JSON.stringify({
+  model: providerConfig.model,
+  max_tokens: maxTokens,  // ✅
+  messages: [{ role: 'user', content: prompt }],
+}),
+```
+
+**各步骤 maxTokens 参数对比**：
+
+| 步骤 | 函数 | maxTokens | 状态 | Prompt 复杂度 |
+|------|------|-----------|------|---------------|
+| 步骤1 | analyzeAccountOverview | 8000 | ✅ 成功 | 简单 |
+| 步骤2 | analyzeMonthlyTrend | 12000 | ✅ 成功 | 中等 |
+| 步骤4 | analyzeViralVideosMain | 16000 | ❌ 失败 | 复杂（最长模板） |
+
+**为什么步骤4特别容易失败**：
+1. `viral_analysis_main` 模板是所有模板中最长的（~30行）
+2. 要求生成大量嵌套 JSON 结构（monthlyList、byCategory等）
+3. 步骤4 的 `maxTokens=16000` 是所有步骤中最高的
+4. 当 OpenAI 格式不传递 `max_tokens` 时，某些 API 提供商可能：
+   - 使用不合适的默认值
+   - 对不同模型有不同的默认行为
+   - DeepSeek-V3.2 可能对未指定 `max_tokens` 的请求有特殊处理
+
+**为什么其他步骤成功**：
+- 步骤1 (8000 tokens)：prompt 简单，在默认限制内
+- 步骤2 (12000 tokens)：复杂度中等，勉强在默认限制内
+- 步骤4 (16000 tokens)：最复杂，超过某些 API 的默认限制
+
+**修复方案**：
+在 OpenAI 格式 API 调用中添加 `max_tokens` 参数：
+```typescript
+body: JSON.stringify({
+  model: providerConfig.model,
+  messages: [{ role: 'user', content: prompt }],
+  response_format: { type: 'json_object' },
+  max_tokens: maxTokens,  // 添加此参数
+}),
+```
+
+---
+
 ## 待确认事项
 
 - [x] 当前使用的 AI 配置是从哪里获取的
-- [ ] 用户是否需要重新配置 AI 模型名称
-- [ ] 是否需要添加模型名称验证
+- [x] OpenAI 格式缺少 max_tokens 参数（新发现）
+- [ ] 是否需要实施修复：添加 max_tokens 参数到 OpenAI 格式
 - [x] 是否需要实施步骤 4 的拆分（已完成）

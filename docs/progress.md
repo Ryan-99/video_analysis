@@ -24,3 +24,50 @@
 
 ### 下一步
 用户更新 AI 模型名称配置后测试完整流程
+
+---
+
+## 会话 2：深度分析 - 发现真正根因
+
+### 用户反馈
+用户指出：
+- 其他步骤使用相同模型 (DeepSeek-V3.2) 成功
+- 该模型在重构前工作正常
+- 要求基于其他模块的 AI 调用模式分析问题
+
+### 新发现：OpenAI 格式缺少 max_tokens 参数 ✅
+
+**问题位置**: [service.ts:1278-1282](../src/lib/ai-analysis/service.ts#L1278-L1282)
+
+**关键发现**：
+- OpenAI 格式 API 调用**没有传递** `max_tokens` 参数
+- Claude 格式**正确传递**了 `max_tokens` 参数
+- 步骤4 要求 16000 tokens（所有步骤最高），模板最复杂
+- 某些 API 提供商对未指定 `max_tokens` 的请求有默认行为差异
+
+**各步骤对比**：
+
+| 步骤 | maxTokens | Prompt 复杂度 | 状态 |
+|------|-----------|---------------|------|
+| 步骤1 | 8000 | 简单 | ✅ 成功 |
+| 步骤2 | 12000 | 中等 | ✅ 成功 |
+| 步骤4 | 16000 | 复杂（最长模板） | ❌ 失败 |
+
+### 待修复
+- [ ] 在 OpenAI 格式 API 调用中添加 `max_tokens` 参数
+
+### 修复实施 ✅
+
+**修改文件**: [src/lib/ai-analysis/service.ts:1282](../src/lib/ai-analysis/service.ts#L1282)
+
+**修改内容**: 在 OpenAI 格式 API 调用中添加 `max_tokens: maxTokens` 参数
+
+**修改后**:
+```typescript
+body: JSON.stringify({
+  model: providerConfig.model,
+  messages: [{ role: 'user', content: prompt }],
+  response_format: { type: 'json_object' },
+  max_tokens: maxTokens,  // ✅ 已添加
+}),
+```
