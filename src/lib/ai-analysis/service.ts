@@ -870,14 +870,16 @@ export class AIAnalysisService {
    */
   private generateSupplementPrompt(
     account: AccountAnalysis,
-    viralAnalysis: { byCategory: Array<{ category: string; count: number; avgEngagement: number; description: string }>; patterns: any },
+    viralAnalysis: { byCategory: Array<{ category: string; count: number; avgEngagement?: number; medianEngagement?: number; description: string }>; patterns: any },
     existingTopics: TopicOutline[],
     needCount: number
   ): string {
     const existingCategories = existingTopics.map(t => t.category).join('、');
-    const categoriesText = viralAnalysis.byCategory.map(c =>
-      `${c.category}: ${c.count}条, 平均互动${Math.round(c.avgEngagement)}\n描述：${c.description}`
-    ).join('\n\n');
+    // 兼容新旧格式：medianEngagement 优先，fallback 到 avgEngagement
+    const categoriesText = viralAnalysis.byCategory.map(c => {
+      const engagement = c.medianEngagement ?? c.avgEngagement ?? 0;
+      return `${c.category}: ${c.count}条, 平均互动${Math.round(engagement)}\n描述：${c.description}`;
+    }).join('\n\n');
 
     return `你是专业的抖音内容策划师。请为以下账号补充生成 ${needCount} 条选题大纲。
 
