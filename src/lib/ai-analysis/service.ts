@@ -816,8 +816,15 @@ export class AIAnalysisService {
       return `${m.month}：阈值=${m.threshold.toLocaleString()}，${m.viralCount}条爆款`;
     }).join('\n');
 
-    // 2. 格式化爆款视频详细信息（完整数据）
-    const viralDetail = virals.map(v => {
+    // 2. 格式化爆款视频详细信息（采样限制：最多20条，避免超时）
+    const MAX_VIDEOS_FOR_CLASSIFICATION = 20;
+    const sampledVirals = virals.length > MAX_VIDEOS_FOR_CLASSIFICATION
+      ? virals.slice(0, MAX_VIDEOS_FOR_CLASSIFICATION)
+      : virals;
+
+    console.log(`[analyzeViralClassification] 总爆款数: ${virals.length}，采样数: ${sampledVirals.length}`);
+
+    const viralDetail = sampledVirals.map(v => {
       const saveRate = v.totalEngagement > 0 ? (v.saves / v.totalEngagement * 100) : 0;
       const date = new Date(v.publishTime);
       const publishTime = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
