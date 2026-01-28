@@ -202,12 +202,6 @@ export async function executeAnalysis(taskId: string): Promise<void> {
       topicStep: 'outline',
     });
 
-    // 选题生成由独立API端点处理，这里设置状态后暂停
-    // /api/topics/generate-outline 和 /api/topics/generate-details 将继续处理
-    await taskQueue.update(taskId, {
-      status: 'topic_generating',
-    });
-
     // 保存当前进度到数据库，供后续步骤使用
     // 按日期分组，找出每天的Top1视频（用于图表）
     const dailyTop1 = new Map<string, { engagement: number; title: string; date: string }>();
@@ -250,7 +244,9 @@ export async function executeAnalysis(taskId: string): Promise<void> {
       topics: [], // 待选题生成完成后再填充
     });
 
+    // 修复：原子性更新，将 status、topicStep、resultData 一起设置，避免中间状态
     await taskQueue.update(taskId, {
+      status: 'topic_generating',
       resultData: intermediateResult,
     });
 

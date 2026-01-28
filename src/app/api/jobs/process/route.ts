@@ -169,6 +169,26 @@ async function handleTopicGeneration(taskId: string): Promise<void> {
 
   console.log(`[Jobs] 选题生成状态: topicStep=${task.topicStep}, topicDetailIndex=${task.topicDetailIndex}`);
 
+  // 数据完整性检查：如果 topicStep 为 null，说明任务状态不一致
+  // 检查 resultData 是否包含必要的数据
+  if (task.topicStep === null) {
+    const hasResultData = task.resultData && task.resultData.length > 0;
+    if (!hasResultData) {
+      throw new Error('分析数据不完整：resultData 为空，任务状态异常。可能原因：分析流程未完成就被设置为 topic_generating 状态');
+    }
+    // 尝试解析 resultData 验证完整性
+    try {
+      const resultData = JSON.parse(task.resultData);
+      if (!resultData.account || !resultData.virals) {
+        throw new Error('分析数据不完整：resultData 缺少 account 或 virals 数据');
+      }
+    } catch (e) {
+      throw new Error(`分析数据不完整：resultData 解析失败 - ${e instanceof Error ? e.message : String(e)}`);
+    }
+    // 数据完整，继续执行（兼容旧任务）
+    console.log('[Jobs] 检测到 topicStep=null 但数据完整，继续选题大纲生成');
+  }
+
   // 根据当前步骤决定下一步操作
   if (task.topicStep === 'outline' || task.topicStep === null) {
     // 生成选题大纲 - 直接调用内部函数
