@@ -48,12 +48,15 @@
 |------|----------|----------|----------|
 | 2025-01-27 | byCategory 类型兼容问题：代码中使用了不存在的 avgEngagement 字段 | 将 avgEngagement 改为 medianEngagement，并添加兼容处理 | 类型定义变更时，全局搜索所有引用位置并更新 |
 | 2025-01-27 | docx Paragraph 类型错误：直接在 Paragraph 上设置 size 属性 | 改为使用 TextRun 包裹文本内容：`Paragraph({ children: [TextRun({ text, size })] })` | 仔细阅读第三方库的 TypeScript 类型定义，正确使用 API |
+| 2025-01-28 | TypeScript 类型不匹配：Prisma 返回 `string | null` 但 Task 类型定义为 `string | undefined` | 统一使用 `string | null` 类型匹配 Prisma schema | 定义类型时明确区分 `null` 和 `undefined`，确保与数据库 schema 一致 |
 
 ### 3.2 最佳实践
 
 | 实践 | 描述 | 应用场景 |
 |------|------|----------|
-| - | - | - |
+| **类型系统映射规则** | Prisma 中 `String?` 生成 `string \| null`，TypeScript 可选字段 `fieldName?: string` 表示 `string \| undefined`。与数据库交互时，应使用 `string \| null` 而非 `string \| undefined` | 定义与数据库模型对应的 TypeScript 接口时 |
+| **系统化调试流程** | 遇到类型错误时：1) 仔细阅读错误信息定位字段；2) 对比类型定义和实际值；3) 找出所有相似问题；4) 统一修复；5) 验证构建 | 修复编译错误、类型不匹配问题 |
+| **null vs undefined** | `null` 表示"值为空"，`undefined` 表示"值不存在"。数据库可空字段用 `null`，未定义的属性用 `undefined`。类型定义时要明确区分 | 类型定义、API 设计、数据处理 |
 
 ---
 
@@ -99,4 +102,4 @@
 
 ---
 
-*最后更新：2025-01-27*
+*最后更新：2025-01-28*
