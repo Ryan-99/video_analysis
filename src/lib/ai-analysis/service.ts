@@ -701,6 +701,141 @@ export class AIAnalysisService {
   }
 
   /**
+   * 步骤4-1（新版）：数据分组与口径说明
+   * 生成数据口径说明（P90/MAD解释）和月度分组信息
+   * 这是三阶段拆分方案的第一步
+   */
+  async analyzeViralDataScope(
+    monthlyData: MonthlyData[],
+    threshold: number,
+    aiConfig?: string,
+    fileName?: string,
+    totalVideos?: number
+  ): Promise<{
+    summary: string;
+    dataScopeNote: string;
+    monthlyList: Array<{
+      month: string;
+      threshold: number;
+      viralCount: number;
+    }>;
+  }> {
+    console.log('[analyzeViralDataScope] 步骤4-1：数据分组与口径说明...');
+
+    // 1. 从 monthlyData 中提取必要信息
+    const monthlySummary = monthlyData.map(m => {
+      const date = new Date(m.month);
+      const monthStr = `${date.getFullYear()}年${date.getMonth() + 1}月`;
+      return `${monthStr}：${m.viralCount || 0}条爆款，阈值=${Math.round(m.threshold || 0).toLocaleString()}`;
+    }).join('\n');
+
+    // 2. 计算总爆款数
+    const totalVirals = monthlyData.reduce((sum, m) => sum + (m.viralCount || 0), 0);
+
+    // 3. AI 调用：生成数据口径说明和月度分组
+    const prompt = promptEngine.render('viral_analysis_data_scope', {
+      file_name: fileName || '未知文件',
+      total_videos: totalVideos || totalVirals,
+      total_virals: totalVirals,
+      threshold: Math.round(threshold).toString(),
+      monthly_summary: monthlySummary,
+    });
+
+    const result = await this.callAI(prompt, aiConfig, 240000, 8000); // 4分钟，8000 tokens
+    const dataScope = safeParseJSON(cleanAIResponse(result));
+    console.log('[analyzeViralDataScope] 数据分组与口径说明完成');
+
+    // 4. 返回结果
+    return {
+      summary: dataScope.summary || '',
+      dataScopeNote: dataScope.dataScopeNote || '',
+      monthlyList: dataScope.monthlyList || [],
+    };
+  }
+
+  /**
+   * 步骤4-2（新版）：爆款分类分析
+   * 基于月度分组信息，进行详细的分类统计
+   * 这是三阶段拆分方案的第二步
+   */
+  async analyzeViralClassification(
+    virals: ViralVideo[],
+    monthlyListFromStep1: Array<{
+      month: string;
+      threshold: number;
+      viralCount: number;
+    }>,
+    aiConfig?: string
+  ): Promise<{
+    monthlyList: Array<{
+      month: string;
+      videos: Array<{
+        publishTime: string;
+        title: string;
+        likes: number;
+        comments: number;
+        saves: number;
+        shares: number;
+        totalEngagement: number;
+        saveRate: number;
+      }>;
+      top10Titles: string[];
+    }>;
+    byCategory: Array<{
+      category: string;
+      count: number;
+      medianEngagement: number;
+      medianSaveRate: number;
+      p90SaveRate: number;
+      description: string;
+    }>;
+    commonMechanisms: {
+      hasCategories: boolean;
+      mechanisms: Array<{
+        pattern: string;
+        evidence: string[];
+      }> | null;
+      reason: string | null;
+    };
+  }> {
+    console.log('[analyzeViralClassification] 步骤4-2：爆款分类分析...');
+
+    // 1. 格式化月度列表（来自步骤4-1）
+    const monthlyListStr = monthlyListFromStep1.map(m => {
+      return `${m.month}：阈值=${m.threshold.toLocaleString()}，${m.viralCount}条爆款`;
+    }).join('\n');
+
+    // 2. 格式化爆款视频详细信息（完整数据）
+    const viralDetail = virals.map(v => {
+      const saveRate = v.totalEngagement > 0 ? (v.saves / v.totalEngagement * 100) : 0;
+      const date = new Date(v.publishTime);
+      const publishTime = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+      return `${publishTime} | ${v.title} | 👍${v.likes.toLocaleString()} | 💬${v.comments.toLocaleString()} | ⭐${v.saves.toLocaleString()} | 🔁${v.shares.toLocaleString()} | 👉${v.totalEngagement.toLocaleString()} | 收藏率${saveRate.toFixed(2)}%`;
+    }).join('\n');
+
+    // 3. AI 调用：分类分析
+    const prompt = promptEngine.render('viral_analysis_classification', {
+      monthly_list: monthlyListStr,
+      viral_videos_detail: viralDetail,
+    });
+
+    const result = await this.callAI(prompt, aiConfig, 240000, 12000); // 4分钟，12000 tokens
+    const classification = safeParseJSON(cleanAIResponse(result));
+    console.log('[analyzeViralClassification] 爆款分类分析完成');
+
+    // 4. 返回结果
+    return {
+      monthlyList: classification.monthlyList || [],
+      byCategory: classification.byCategory || [],
+      commonMechanisms: classification.commonMechanisms || {
+        hasCategories: false,
+        mechanisms: null,
+        reason: null,
+      },
+    };
+  }
+
+  /**
    * 步骤3：分析爆款视频分类（完整版本，保留兼容性）
    * 采用分开生成策略：
    * - 第一次调用：主分析（数据口径、逐月清单、分类总览、共性机制）

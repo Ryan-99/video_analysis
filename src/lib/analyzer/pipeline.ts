@@ -793,41 +793,69 @@ async function step3_ExplosivePeriods(
 }
 
 /**
- * 步骤 4: 爆款主分析 AI（拆分版本）
- * 只执行第一次 AI 调用：主分析
+ * 步骤 4: 爆款主分析 AI（三阶段拆分版本）
+ * 执行步骤4-1和4-2：数据分组与口径说明 + 分类分析
  */
 async function step4_ViralMain(
   task: Task,
   stepData: AnalysisStepData,
   logStep: (phase: string, step: string, status: any, details?: any) => Promise<void>
 ): Promise<void> {
-  if (!stepData.viralVideos || !stepData.videos) {
+  if (!stepData.viralVideos || !stepData.videos || !stepData.monthlyData) {
     throw new Error('缺少前置数据');
   }
 
-  await logStep('ai', '开始AI分析 - 爆款主分析', 'start');
+  // ========== 步骤4-1: 数据分组与口径说明 ==========
+  await logStep('ai', '开始AI分析 - 数据分组与口径说明', 'start');
   await taskQueue.update(task.id, {
-    currentStep: '正在分析爆款视频（主分析）...',
-    progress: 60,
+    currentStep: '正在生成数据口径说明...',
+    progress: 58,
   });
 
-  // 调用新函数：只执行主分析（第一次 AI 调用）
-  const viralAnalysisMain = await aiAnalysisService.analyzeViralVideosMain(
-    stepData.viralVideos,
-    stepData.threshold || 0,
+  const dataScopeResult = await aiAnalysisService.analyzeViralDataScope(
     stepData.monthlyData || [],
+    stepData.threshold || 0,
     task.aiConfig || undefined,
     task.fileName || undefined,
     stepData.videos?.length
   );
 
-  // 保存主分析结果（缺少 methodology，将在步骤 5 中补充）
-  stepData.viralAnalysis = viralAnalysisMain;
+  await logStep('ai', '数据分组与口径说明完成', 'success', {
+    output: {
+      summary: dataScopeResult.summary,
+      hasDataScopeNote: !!dataScopeResult.dataScopeNote,
+      monthsCount: dataScopeResult.monthlyList?.length || 0,
+    },
+  });
 
-  await logStep('ai', '爆款主分析完成', 'success', {
+  // ========== 步骤4-2: 爆款分类分析 ==========
+  await logStep('ai', '开始AI分析 - 爆款分类分析', 'start');
+  await taskQueue.update(task.id, {
+    currentStep: '正在进行爆款分类分析...',
+    progress: 62,
+  });
+
+  const classificationResult = await aiAnalysisService.analyzeViralClassification(
+    stepData.viralVideos,
+    dataScopeResult.monthlyList,
+    task.aiConfig || undefined
+  );
+
+  // ========== 合并步骤4-1和4-2的结果 ==========
+  stepData.viralAnalysis = {
+    summary: dataScopeResult.summary,
+    dataScopeNote: dataScopeResult.dataScopeNote,
+    monthlyList: classificationResult.monthlyList,
+    byCategory: classificationResult.byCategory,
+    commonMechanisms: classificationResult.commonMechanisms,
+    // methodology 将在步骤5中添加
+  };
+
+  await logStep('ai', '爆款分类分析完成', 'success', {
     output: {
       爆款总数: stepData.viralVideos.length,
-      分类数量: viralAnalysisMain.byCategory?.length || 0,
+      分类数量: classificationResult.byCategory?.length || 0,
+      hasCommonMechanisms: classificationResult.commonMechanisms?.hasCategories,
     },
   });
 }
@@ -894,10 +922,12 @@ async function step6_Complete(
     },
     virals: {
       summary: stepData.viralAnalysis?.summary || `发现 ${stepData.viralVideos?.length || 0} 条爆款视频`,
+      dataScopeNote: stepData.viralAnalysis?.dataScopeNote, // ⭐ 新增：详细口径说明
       total: stepData.viralVideos?.length || 0,
       threshold: stepData.threshold,
-      byCategory: stepData.viralAnalysis?.byCategory || [],
-      patterns: stepData.viralAnalysis?.patterns || {},
+      monthlyList: stepData.viralAnalysis?.monthlyList || [], // ⭐ 新增：完整月度列表
+      byCategory: stepData.viralAnalysis?.byCategory || [], // ⭐ 完整保留：medianEngagement, medianSaveRate, p90SaveRate
+      commonMechanisms: stepData.viralAnalysis?.commonMechanisms, // ⭐ 新增：共性机制
       methodology: stepData.viralAnalysis?.methodology,
     },
     dailyTop1: stepData.dailyTop1,
