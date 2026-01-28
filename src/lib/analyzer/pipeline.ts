@@ -2,7 +2,7 @@
 // 分析流程 - 带完整日志记录
 import { taskQueue } from '@/lib/queue/database';
 import { analysisLogger } from '@/lib/logger';
-import { VideoData, AccountAnalysis, AnalysisLog, ViralVideo, MonthlyData, Task } from '@/types';
+import { VideoData, AccountAnalysis, AnalysisLog, ViralVideo, MonthlyData, Task, TaskStatus } from '@/types';
 import {
   calculateAllMetrics,
   groupByMonth,
