@@ -247,12 +247,8 @@
     },
     "viral_analysis_classification": {
       "name": "爆款分类分析",
-      "template": "你是专业的抖音内容分析师。请对爆款视频进行分类统计。\n\n【月度数据】\n{{monthly_list}}\n\n【全部爆款视频详细数据】\n{{viral_videos_detail}}\n\n【分析要求】\n请严格按照以下JSON格式输出：\n\n{\n  \"monthlyList\": [\n    {\n      \"month\": \"2021年8月\",\n      \"videos\": [\n        {\n          \"publishTime\": \"2021/8/6 16:00\",\n          \"title\": \"视频标题\",\n          \"likes\": 463881,\n          \"comments\": 15345,\n          \"saves\": 60711,\n          \"shares\": 91209,\n          \"totalEngagement\": 631146,\n          \"saveRate\": 9.62\n        }\n      ],\n      \"top10Titles\": [\"标题1\", \"标题2\", ...]\n    }\n  ],\n  \"byCategory\": [\n    {\n      \"category\": \"识人用人/沟通\",\n      \"count\": 24,\n      \"medianEngagement\": 162758,\n      \"medianSaveRate\": 15.32,\n      \"p90SaveRate\": 34.54,\n      \"description\": \"收藏率P90=34.54%（这类里最强的10%内容，收藏占比能到三分之一以上）\"\n    }\n  ],\n  \"commonMechanisms\": {\n    \"hasCategories\": true,\n    \"mechanisms\": null,\n    \"reason\": null\n  }\n}\n\n【重要提示】\n- totalEngagement 必须是计算后的数值（例如：631146），不要写数学表达式\n- byCategory 必须使用中位数（median），不要使用平均数\n- 只返回JSON，不要任何解释或说明文字",
+      "template": "你是专业的抖音内容分析师。请对以下爆款视频进行分类统计。\n\n【全部爆款视频详细数据】\n{{viral_videos_detail}}\n\n【分析要求】\n请严格按照以下JSON格式输出（只返回分类结果，不要返回视频列表）：\n\n{\n  \"byCategory\": [\n    {\n      \"category\": \"分类名称\",\n      \"count\": 爆款数量,\n      \"medianEngagement\": 互动中位数,\n      \"medianSaveRate\": 收藏率中位数,\n      \"p90SaveRate\": 收藏率P90,\n      \"description\": \"特征描述（包含收藏率P90说明）\"\n    }\n  ],\n  \"commonMechanisms\": {\n    \"hasCategories\": true,\n    \"mechanisms\": null,\n    \"reason\": null\n  }\n}\n\n【重要提示】\n- byCategory 必须使用中位数（median），不要使用平均数\n- p90SaveRate 必须计算（该分类中收藏率的前90百分位数）\n- 只返回JSON，不要任何解释或说明文字",
       "variables": {
-        "monthly_list": {
-          "description": "月度列表（来自步骤4-1）",
-          "required": true
-        },
         "viral_videos_detail": {
           "description": "全部爆款视频详细数据",
           "required": true

@@ -838,15 +838,21 @@ async function step4_ViralMain(
 
   const classificationResult = await aiAnalysisService.analyzeViralClassification(
     stepData.viralVideos,
-    dataScopeResult.monthlyList,
+    stepData.monthlyData,
     task.aiConfig || undefined
+  );
+
+  // 构建完整的monthlyList（从原始数据）
+  const monthlyList = aiAnalysisService['buildMonthlyListFromVirals'](
+    stepData.viralVideos,
+    stepData.monthlyData
   );
 
   // ========== 合并步骤4-1和4-2的结果 ==========
   stepData.viralAnalysis = {
     summary: dataScopeResult.summary,
     dataScopeNote: dataScopeResult.dataScopeNote,
-    monthlyList: classificationResult.monthlyList,
+    monthlyList: monthlyList,
     byCategory: classificationResult.byCategory,
     commonMechanisms: classificationResult.commonMechanisms,
     // methodology 将在步骤5中添加

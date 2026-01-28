@@ -766,32 +766,14 @@ export class AIAnalysisService {
 
   /**
    * 步骤4-2（新版）：爆款分类分析
-   * 基于月度分组信息，进行详细的分类统计
-   * 这是三阶段拆分方案的第二步
+   * 只返回分类结果，不返回视频列表（避免响应过长）
+   * monthlyList在代码中从原始数据构建
    */
   async analyzeViralClassification(
     virals: ViralVideo[],
-    monthlyListFromStep1: Array<{
-      month: string;
-      threshold: number;
-      viralCount: number;
-    }>,
+    monthlyData: MonthlyData[],
     aiConfig?: string
   ): Promise<{
-    monthlyList: Array<{
-      month: string;
-      videos: Array<{
-        publishTime: string;
-        title: string;
-        likes: number;
-        comments: number;
-        saves: number;
-        shares: number;
-        totalEngagement: number;
-        saveRate: number;
-      }>;
-      top10Titles: string[];
-    }>;
     byCategory: Array<{
       category: string;
       count: number;
@@ -811,29 +793,18 @@ export class AIAnalysisService {
   }> {
     console.log('[analyzeViralClassification] 步骤4-2：爆款分类分析...');
 
-    // 1. 格式化月度列表（来自步骤4-1）
-    const monthlyListStr = monthlyListFromStep1.map(m => {
-      return `${m.month}：阈值=${m.threshold.toLocaleString()}，${m.viralCount}条爆款`;
-    }).join('\n');
-
-    // 2. 格式化爆款视频详细信息（采样限制：最多20条，避免超时）
-    const MAX_VIDEOS_FOR_CLASSIFICATION = 20;
-    const sampledVirals = virals.length > MAX_VIDEOS_FOR_CLASSIFICATION
-      ? virals.slice(0, MAX_VIDEOS_FOR_CLASSIFICATION)
-      : virals;
-
-    console.log(`[analyzeViralClassification] 总爆款数: ${virals.length}，采样数: ${sampledVirals.length}`);
-
-    const viralDetail = sampledVirals.map(v => {
+    // 1. 格式化爆款视频详细信息（完整数据，不采样）
+    const viralDetail = virals.map(v => {
       const saveRate = v.totalEngagement > 0 ? (v.saves / v.totalEngagement * 100) : 0;
       const date = new Date(v.publishTime);
       const publishTime = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
       return `${publishTime} | ${v.title} | 👍${v.likes.toLocaleString()} | 💬${v.comments.toLocaleString()} | ⭐${v.saves.toLocaleString()} | 🔁${v.shares.toLocaleString()} | 👉${v.totalEngagement.toLocaleString()} | 收藏率${saveRate.toFixed(2)}%`;
     }).join('\n');
 
-    // 3. AI 调用：分类分析
+    console.log(`[analyzeViralClassification] 处理 ${virals.length} 条爆款视频`);
+
+    // 2. AI 调用：分类分析（只返回分类结果，不返回视频列表）
     const prompt = promptEngine.render('viral_analysis_classification', {
-      monthly_list: monthlyListStr,
       viral_videos_detail: viralDetail,
     });
 
@@ -841,9 +812,8 @@ export class AIAnalysisService {
     const classification = safeParseJSON(cleanAIResponse(result));
     console.log('[analyzeViralClassification] 爆款分类分析完成');
 
-    // 4. 返回结果
+    // 3. 返回结果
     return {
-      monthlyList: classification.monthlyList || [],
       byCategory: classification.byCategory || [],
       commonMechanisms: classification.commonMechanisms || {
         hasCategories: false,
@@ -851,6 +821,104 @@ export class AIAnalysisService {
         reason: null,
       },
     };
+  }
+
+  /**
+   * 辅助函数：从原始爆款数据构建monthlyList
+   * 在步骤4-2调用后在pipeline中使用
+   */
+  private buildMonthlyListFromVirals(
+    virals: ViralVideo[],
+    monthlyData: MonthlyData[]
+  ): Array<{
+    month: string;
+    threshold: number;
+    videos: Array<{
+      publishTime: string;
+      title: string;
+      likes: number;
+      comments: number;
+      saves: number;
+      shares: number;
+      totalEngagement: number;
+      saveRate: number;
+    }>;
+    top10Titles: string[];
+  }> {
+    // 按月分组视频
+    const monthlyVideos = new Map<string, typeof virals>();
+    for (const v of virals) {
+      const date = new Date(v.publishTime);
+      const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+      if (!monthlyVideos.has(monthKey)) {
+        monthlyVideos.set(monthKey, []);
+      }
+      monthlyVideos.get(monthKey)!.push(v);
+    }
+
+    // 构建monthlyList
+    const monthlyList: Array<{
+      month: string;
+      threshold: number;
+      videos: Array<{
+        publishTime: string;
+        title: string;
+        likes: number;
+        comments: number;
+        saves: number;
+        shares: number;
+        totalEngagement: number;
+        saveRate: number;
+      }>;
+      top10Titles: string[];
+    }> = [];
+
+    for (const [monthKey, videos] of monthlyVideos) {
+      const date = new Date(monthKey + '-01');
+      const monthStr = `${date.getFullYear()}年${date.getMonth() + 1}月`;
+      const threshold = monthlyData.find(m => {
+        const mDate = new Date(m.month);
+        const mKey = `${mDate.getFullYear()}-${(mDate.getMonth() + 1).toString().padStart(2, '0')}`;
+        return mKey === monthKey;
+      })?.threshold || 0;
+
+      // 格式化视频数据
+      const formattedVideos = videos.map(v => {
+        const saveRate = v.totalEngagement > 0 ? (v.saves / v.totalEngagement * 100) : 0;
+        const vDate = new Date(v.publishTime);
+        const publishTime = `${vDate.getFullYear()}/${vDate.getMonth() + 1}/${vDate.getDate()} ${vDate.getHours().toString().padStart(2, '0')}:${vDate.getMinutes().toString().padStart(2, '0')}`;
+        return {
+          publishTime,
+          title: v.title,
+          likes: v.likes,
+          comments: v.comments,
+          saves: v.saves,
+          shares: v.shares,
+          totalEngagement: v.totalEngagement,
+          saveRate: Number(saveRate.toFixed(2)),
+        };
+      });
+
+      // Top10标题（按互动量排序）
+      const top10Titles = videos
+        .sort((a, b) => b.totalEngagement - a.totalEngagement)
+        .slice(0, 10)
+        .map(v => v.title);
+
+      monthlyList.push({
+        month: monthStr,
+        threshold,
+        videos: formattedVideos,
+        top10Titles,
+      });
+    }
+
+    // 按月份排序
+    return monthlyList.sort((a, b) => {
+      const dateA = new Date(a.month.replace('年', '-').replace('月', '-01'));
+      const dateB = new Date(b.month.replace('年', '-').replace('月', '-01'));
+      return dateA.getTime() - dateB.getTime();
+    });
   }
 
   /**
