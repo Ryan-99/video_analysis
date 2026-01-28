@@ -81,7 +81,10 @@
       "Bash(npx next lint:*)",
       "Bash(git push:*)",
       "Bash(powershell.exe -Command \"git push\":*)",
-      "Bash(\"C:\\\\Users\\\\Ryan\\\\AppData\\\\Roaming\\\\npm\\\\vercel.cmd\" --prod)"
+      "Bash(\"C:\\\\Users\\\\Ryan\\\\AppData\\\\Roaming\\\\npm\\\\vercel.cmd\" --prod)",
+      "Bash(npx playwright install:*)",
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(npx playwright:*)"
     ]
   }
 }
