@@ -55,7 +55,7 @@ export async function generateTopicOutline(taskId: string): Promise<void> {
   await taskQueue.update(taskId, {
     status: 'topic_generating',
     currentStep: '正在生成选题大纲...',
-    progress: 70,
+    progress: 75, // 修复：从70改为75，避免从步骤6的75回退
     topicStep: 'outline',
   });
 

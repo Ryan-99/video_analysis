@@ -616,10 +616,15 @@ export async function executeAnalysisStep(taskId: string, step: number): Promise
     const nextStep = step + 1;
     const isComplete = nextStep >= 6; // 步骤 6 是完成步骤
 
+    // 改进：使用递进状态而非'queued'，避免重复处理
+    // 步骤0: parsing, 步骤1-5: analyzing, 完成后: topic_generating
+    const nextStatus: TaskStatus | undefined = isComplete ? 'topic_generating' : (nextStep === 0 ? 'parsing' : 'analyzing');
+
     await taskQueue.update(taskId, {
       analysisStep: nextStep,
       analysisData: JSON.stringify(stepData),
-      status: isComplete ? undefined : 'queued', // 完成时保持 step6 中设置的状态
+      status: nextStatus,
+      // 保持当前progress，不重置
     });
 
     console.log(`[Analysis Step] 步骤 ${step} 完成，下一步: ${nextStep}`);
