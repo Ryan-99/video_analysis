@@ -1302,8 +1302,10 @@ ${existingCategories}
     const allTopics: FullTopic[] = [];
     const batches = Math.ceil(outlines.length / batchSize);
 
-    // 格式化爆款规律
-    const patternsText = `共同元素：${viralPatterns.commonElements}\n发布时间规律：${viralPatterns.timingPattern}\n标题规律：${viralPatterns.titlePattern}`;
+    // 格式化爆款规律（处理 viralPatterns 可能为 undefined 的情况）
+    const patternsText = viralPatterns
+      ? `共同元素：${viralPatterns.commonElements || '暂无'}\n发布时间规律：${viralPatterns.timingPattern || '暂无'}\n标题规律：${viralPatterns.titlePattern || '暂无'}`
+      : '爆款规律：暂无数据';
 
     for (let i = 0; i < batches; i++) {
       const startIdx = i * batchSize;
