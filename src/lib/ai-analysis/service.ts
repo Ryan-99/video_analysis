@@ -185,7 +185,7 @@ export class AIAnalysisService {
   async analyzeAccountOverview(
     videos: VideoData[],
     monthlyData: MonthlyData[],
-    aiConfig?: string,
+    aiConfig?: string | null,
     accountName?: string | null
   ): Promise<AccountAnalysis> {
     // 1. 计算统计指标
@@ -316,7 +316,7 @@ export class AIAnalysisService {
   async analyzeMonthlyTrend(
     monthlyData: MonthlyData[],
     virals: ViralVideo[],
-    aiConfig?: string,
+    aiConfig?: string | null,
     fileName?: string,
     totalVideos?: number
   ): Promise<{
@@ -532,7 +532,7 @@ export class AIAnalysisService {
     virals: ViralVideo[],
     threshold: number,
     monthlyData: MonthlyData[],
-    aiConfig?: string,
+    aiConfig?: string | null,
     fileName?: string,
     totalVideos?: number
   ): Promise<{
@@ -693,7 +693,7 @@ export class AIAnalysisService {
     virals: ViralVideo[],
     monthlyData: MonthlyData[],
     threshold: number,
-    aiConfig?: string,
+    aiConfig?: string | null,
     fileName?: string,
     totalVideos?: number
   ): Promise<{
@@ -917,7 +917,7 @@ export class AIAnalysisService {
     virals: ViralVideo[],
     threshold: number,
     monthlyData: MonthlyData[],
-    aiConfig?: string,
+    aiConfig?: string | null,
     fileName?: string,
     totalVideos?: number
   ): Promise<{
@@ -1294,7 +1294,7 @@ ${existingCategories}
     outlines: TopicOutline[],
     account: AccountAnalysis,
     viralPatterns: any,
-    aiConfig?: string,
+    aiConfig?: string | null,
     batchSize: number = 10
   ): Promise<FullTopic[]> {
     console.log('[Topics] 开始分批生成, 总数:', outlines.length, ', 每批:', batchSize);
