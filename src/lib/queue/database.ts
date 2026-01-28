@@ -89,8 +89,8 @@ class DatabaseTaskQueue {
 
       if (!current) throw new Error('任务不存在');
 
-      // 验证状态转换
-      if (updates.status) {
+      // 验证状态转换（当状态真的改变时才验证）
+      if (updates.status && updates.status !== current.status) {
         const valid = TaskStateMachine.validateTransition(
           current.status as TaskStatus,
           updates.status as TaskStatus
