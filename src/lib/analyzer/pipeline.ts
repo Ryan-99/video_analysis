@@ -248,6 +248,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     await taskQueue.update(taskId, {
       status: 'topic_generating',
       resultData: intermediateResult,
+      topicStep: 'outline',
     });
 
     console.log('[Analysis] 选题生成由独立端点处理, 暂停主流程');
