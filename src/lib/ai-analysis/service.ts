@@ -1278,7 +1278,7 @@ ${existingCategories}
         body: JSON.stringify({
           model: providerConfig.model,
           messages: [{ role: 'user', content: prompt }],
-          response_format: { type: 'json_object' }),
+          response_format: { type: 'json_object' },
         }),
         signal: AbortSignal.timeout(timeout),
       });
