@@ -20,6 +20,7 @@ export interface ColumnMapping {
 export type TaskStatus =
   | 'queued'
   | 'parsing'
+  | 'calculating'
   | 'analyzing'
   | 'topic_generating'
   | 'generating_charts'
