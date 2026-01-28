@@ -1,5 +1,6 @@
 // src/lib/ai-service/dynamic-client.ts
 import { AIConfig } from '@/types';
+import { cleanAIResponse, safeParseJSON } from '@/lib/ai-analysis/service';
 
 /**
  * 动态AI客户端
@@ -95,19 +96,17 @@ export class DynamicAIClient {
   }
 
   /**
-   * 解析响应中的JSON
+   * 解析响应中的JSON（使用统一的容错解析函数）
    */
   private parseResponse(text: string): any {
-    // 尝试提取JSON
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        return JSON.parse(jsonMatch[0]);
-      } catch {
-        // 如果解析失败，返回原始文本
-      }
+    try {
+      // 使用统一的容错解析函数
+      const cleaned = cleanAIResponse(text);
+      return safeParseJSON(cleaned);
+    } catch (error) {
+      console.error('[DynamicAIClient] JSON解析失败，返回原始文本:', error);
+      return { text };
     }
-    return { text };
   }
 
   /**

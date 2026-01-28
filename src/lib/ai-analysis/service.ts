@@ -12,7 +12,7 @@ import { calculateMetrics } from '@/lib/analyzer/calculations';
  * - 多个代码块
  * - 中文引号问题
  */
-function cleanAIResponse(response: string): string {
+export function cleanAIResponse(response: string): string {
   let cleaned = response.trim();
 
   // 调试：记录原始响应的前500字符
@@ -115,7 +115,7 @@ function cleanAIResponse(response: string): string {
  * 安全地解析 AI 返回的 JSON
  * 尝试多种策略来解析可能包含问题的 JSON
  */
-function safeParseJSON(jsonString: string, maxAttempts = 3): any {
+export function safeParseJSON(jsonString: string, maxAttempts = 3): any {
   const attempts: Array<{ name: string; transform: (s: string) => string }> = [
     {
       name: '直接解析',
