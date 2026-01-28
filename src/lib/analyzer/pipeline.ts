@@ -613,11 +613,17 @@ export async function executeAnalysisStep(taskId: string, step: number): Promise
     const nextStep = step + 1;
     const isComplete = nextStep >= 6; // 步骤 6 是完成步骤
 
-    await taskQueue.update(taskId, {
-      analysisStep: nextStep,
-      analysisData: JSON.stringify(stepData),
-      status: isComplete ? 'topic_generating' : 'queued', // 使用queued让/jobs/process继续处理
-    });
+    if (isComplete) {
+      // 完成分析流程：保存 resultData 并设置 topicStep
+      await step6_Complete(task, stepData, logStep);
+    } else {
+      // 继续下一步
+      await taskQueue.update(taskId, {
+        analysisStep: nextStep,
+        analysisData: JSON.stringify(stepData),
+        status: 'queued', // 使用queued让/jobs/process继续处理
+      });
+    }
 
     console.log(`[Analysis Step] 步骤 ${step} 完成，下一步: ${nextStep}`);
 
