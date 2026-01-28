@@ -297,6 +297,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
       currentStep: '正在生成选题库...',
       progress: 70,
       analysisStep: null, // 清理中间步骤标记
+      processing: false, // ✅ 释放锁，允许选题生成端点获取锁
     });
 
     console.log('[Analysis] 选题生成由独立端点处理, 暂停主流程');
@@ -657,6 +658,7 @@ export async function executeAnalysisStep(taskId: string, step: number): Promise
         status: nextStatus, // ✅ 使用准确的状态（parsing 或 analyzing）
         currentStep: TaskStateMachine.getStepDescription(nextStep),
         progress: TaskStateMachine.getStepProgress(nextStep),
+        processing: false, // ✅ 释放锁，允许下次触发时继续执行
       });
     }
 
