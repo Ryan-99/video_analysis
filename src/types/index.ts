@@ -69,6 +69,9 @@ export interface Task {
   topicDetailIndex?: number | null;  // 当前详情批次索引 (0-2)
   topicBatchSize?: number;  // 每批次数量
 
+  // 防并发锁字段（Vercel Serverless 环境需要数据库级别的锁）
+  processing?: boolean;  // 标记任务是否正在处理中
+
   createdAt: Date;
   updatedAt: Date;
   completedAt: Date | null;

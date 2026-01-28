@@ -7,9 +7,6 @@ import { generateTopicOutline, generateTopicDetails } from '@/lib/topics/service
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
-// 标记当前正在处理的任务，防止重复处理
-let isProcessing = false;
-
 /**
  * POST /api/jobs/process
  * 处理队列中的待处理任务
@@ -18,23 +15,23 @@ let isProcessing = false;
 export async function POST(request: NextRequest) {
   const timestamp = new Date().toISOString();
   console.log(`[Jobs] ${timestamp} - 触发`);
-  console.log(`[Jobs] 当前处理状态: ${isProcessing}`);
 
   try {
-    // 防止并发处理
-    if (isProcessing) {
-      console.log('[Jobs] 已有任务在处理中，跳过本次执行');
+    // 使用数据库级别的锁，防止 Vercel Serverless 多实例并发处理
+    const allTasks = await taskQueue.getAll();
+
+    // 查找正在处理的任务
+    const processingTask = allTasks.find(t => t.processing === true);
+    if (processingTask) {
+      console.log(`[Jobs] 已有任务在处理中 (ID: ${processingTask.id})，跳过本次执行`);
       return NextResponse.json({
         success: true,
         message: '已有任务在处理中',
         processing: true,
+        taskId: processingTask.id,
       });
     }
 
-    isProcessing = true;
-
-    // 获取所有待处理任务
-    const allTasks = await taskQueue.getAll();
     console.log(`[Jobs] 数据库中共有 ${allTasks.length} 个任务`);
 
     // 统计各状态任务数量
@@ -84,7 +81,6 @@ export async function POST(request: NextRequest) {
         console.log(`[Jobs] 文件: ${task.fileName}`);
       }
     } else {
-      isProcessing = false;
       console.log('[Jobs] 没有待处理的任务');
       return NextResponse.json({
         success: true,
@@ -94,7 +90,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (!task) {
-      isProcessing = false;
       console.log('[Jobs] 没有有效任务');
       return NextResponse.json({
         success: true,
@@ -102,6 +97,10 @@ export async function POST(request: NextRequest) {
         processing: false,
       });
     }
+
+    // 在开始处理前设置数据库级别的锁
+    console.log(`[Jobs] 设置任务 ${task.id} 为处理中状态`);
+    await taskQueue.update(task.id, { processing: true });
 
     try {
       // 检查任务是否在进行分步分析
@@ -135,7 +134,9 @@ export async function POST(request: NextRequest) {
         error: errorMessage,
       });
     } finally {
-      isProcessing = false;
+      // 释放数据库级别的锁
+      console.log(`[Jobs] 释放任务 ${task.id} 的处理中状态`);
+      await taskQueue.update(task.id, { processing: false });
     }
 
     return NextResponse.json({
@@ -147,7 +148,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[Jobs] ========== 未捕获的错误 ==========');
     console.error('[Jobs] 错误:', error);
-    isProcessing = false;
     return NextResponse.json(
       {
         success: false,
@@ -214,8 +214,11 @@ async function handleTopicGeneration(taskId: string): Promise<void> {
  * 查询处理状态
  */
 export async function GET() {
+  const allTasks = await taskQueue.getAll();
+  const processingTask = allTasks.find(t => t.processing === true);
   return NextResponse.json({
     success: true,
-    processing: isProcessing,
+    processing: !!processingTask,
+    taskId: processingTask?.id || null,
   });
 }

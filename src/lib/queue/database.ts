@@ -159,6 +159,7 @@ class DatabaseTaskQueue {
       topicOutlineData: dbTask.topicOutlineData,
       topicDetailIndex: dbTask.topicDetailIndex,
       topicBatchSize: dbTask.topicBatchSize,
+      processing: dbTask.processing,
       createdAt: dbTask.createdAt,
       updatedAt: dbTask.updatedAt,
       completedAt: dbTask.completedAt,
