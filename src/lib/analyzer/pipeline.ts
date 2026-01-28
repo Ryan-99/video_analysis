@@ -813,6 +813,7 @@ async function step4_ViralMain(
   });
 
   const dataScopeResult = await aiAnalysisService.analyzeViralDataScope(
+    stepData.viralVideos || [],
     stepData.monthlyData || [],
     stepData.threshold || 0,
     task.aiConfig || undefined,

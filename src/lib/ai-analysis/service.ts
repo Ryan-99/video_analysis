@@ -706,6 +706,7 @@ export class AIAnalysisService {
    * 这是三阶段拆分方案的第一步
    */
   async analyzeViralDataScope(
+    virals: ViralVideo[],
     monthlyData: MonthlyData[],
     threshold: number,
     aiConfig?: string,
@@ -722,17 +723,27 @@ export class AIAnalysisService {
   }> {
     console.log('[analyzeViralDataScope] 步骤4-1：数据分组与口径说明...');
 
-    // 1. 从 monthlyData 中提取必要信息
+    // 1. 从 virals 中统计每月的爆款数量
+    const monthlyViralCount = new Map<string, number>();
+    for (const v of virals) {
+      const date = new Date(v.publishTime);
+      const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+      monthlyViralCount.set(monthKey, (monthlyViralCount.get(monthKey) || 0) + 1);
+    }
+
+    // 2. 从 monthlyData 中提取必要信息，并合并爆款数量
     const monthlySummary = monthlyData.map(m => {
       const date = new Date(m.month);
+      const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+      const viralCount = monthlyViralCount.get(monthKey) || 0;
       const monthStr = `${date.getFullYear()}年${date.getMonth() + 1}月`;
-      return `${monthStr}：${m.viralCount || 0}条爆款，阈值=${Math.round(m.threshold || 0).toLocaleString()}`;
+      return `${monthStr}：${viralCount}条爆款，阈值=${Math.round(m.threshold || 0).toLocaleString()}`;
     }).join('\n');
 
-    // 2. 计算总爆款数
-    const totalVirals = monthlyData.reduce((sum, m) => sum + (m.viralCount || 0), 0);
+    // 3. 计算总爆款数
+    const totalVirals = virals.length;
 
-    // 3. AI 调用：生成数据口径说明和月度分组
+    // 4. AI 调用：生成数据口径说明和月度分组
     const prompt = promptEngine.render('viral_analysis_data_scope', {
       file_name: fileName || '未知文件',
       total_videos: totalVideos || totalVirals,
@@ -745,7 +756,7 @@ export class AIAnalysisService {
     const dataScope = safeParseJSON(cleanAIResponse(result));
     console.log('[analyzeViralDataScope] 数据分组与口径说明完成');
 
-    // 4. 返回结果
+    // 5. 返回结果
     return {
       summary: dataScope.summary || '',
       dataScopeNote: dataScope.dataScopeNote || '',
