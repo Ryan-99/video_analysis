@@ -58,7 +58,7 @@ export interface Task {
   fileContent?: string | null; // Base64 编码的文件内容（解决 Blob URL 过期问题）
   columnMapping: string;
   aiProvider: string;
-  aiConfig?: string; // JSON string of AIProviderConfig
+  aiConfig?: string | null; // JSON string of AIProviderConfig
   generateTopics: boolean;
   resultData: string | null;
   reportPath: string | null;
@@ -79,7 +79,7 @@ export interface Task {
   topicBatchSize?: number;  // 每批次数量
 
   // 防并发锁字段（Vercel Serverless 环境需要数据库级别的锁）
-  processing?: boolean;  // 标记任务是否正在处理中
+  processing?: boolean | null;  // 标记任务是否正在处理中
   processingLockedAt?: Date | null;  // 锁定时间戳（用于超时检测）
 
   createdAt: Date;
