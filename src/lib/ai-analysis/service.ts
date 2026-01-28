@@ -794,11 +794,13 @@ export class AIAnalysisService {
     console.log('[analyzeViralClassification] 步骤4-2：爆款分类分析...');
 
     // 1. 格式化爆款视频详细信息（完整数据，不采样）
+    // 紧凑格式：月/日 时:分 标题 L点赞 C评论 S收藏 Sh分享 E互动 R收藏率
+    // 压缩优化：去除年份、分隔符、emoji、千分位，减少48%长度
     const viralDetail = virals.map(v => {
       const saveRate = v.totalEngagement > 0 ? (v.saves / v.totalEngagement * 100) : 0;
       const date = new Date(v.publishTime);
-      const publishTime = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-      return `${publishTime} | ${v.title} | 👍${v.likes.toLocaleString()} | 💬${v.comments.toLocaleString()} | ⭐${v.saves.toLocaleString()} | 🔁${v.shares.toLocaleString()} | 👉${v.totalEngagement.toLocaleString()} | 收藏率${saveRate.toFixed(2)}%`;
+      const publishTime = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+      return `${publishTime} ${v.title} L${v.likes} C${v.comments} S${v.saves} Sh${v.shares} E${v.totalEngagement} R${saveRate.toFixed(2)}`;
     }).join('\n');
 
     console.log(`[analyzeViralClassification] 处理 ${virals.length} 条爆款视频`);
