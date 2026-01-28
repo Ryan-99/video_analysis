@@ -8,9 +8,8 @@ import { Task, TaskStatus, TopicStep } from '@/types';
  * 定义每个状态可以转换到的目标状态
  */
 export const STATE_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
-  queued: ['parsing', 'failed'],
-  parsing: ['calculating', 'failed'],
-  calculating: ['analyzing', 'failed'],
+  queued: ['parsing', 'analyzing', 'failed'],
+  parsing: ['analyzing', 'failed'],
   analyzing: ['topic_generating', 'failed'],
   topic_generating: ['generating_charts', 'completed', 'failed'],
   generating_charts: ['completed', 'failed'],
