@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { taskQueue } from '@/lib/queue/database';
+import { prisma } from '@/lib/db';
 import { aiAnalysisService } from '@/lib/ai-analysis/service';
 import { analysisLogger } from '@/lib/logger';
 import type { AnalysisLog } from '@/types';
@@ -100,13 +101,6 @@ export async function POST(request: NextRequest) {
     const accountAnalysis = resultData.account;
     const viralPatterns = resultData.virals?.patterns;
 
-    // 更新任务状态
-    const progress = 75 + Math.floor((batchIndex / totalBatches) * 20);
-    await taskQueue.update(taskId, {
-      currentStep: `正在生成选题详情（第 ${batchIndex + 1}/${totalBatches} 批）...`,
-      progress,
-    });
-
     // 记录开始日志
     await analysisLogger.add(taskId, {
       timestamp: new Date().toISOString(),
@@ -130,22 +124,52 @@ export async function POST(request: NextRequest) {
       batchSize
     );
 
-    // 合并到完整结果中
-    let allTopics: FullTopic[] = [];
-    if (batchIndex > 0 && task.resultData) {
-      const parsed = JSON.parse(task.resultData);
-      allTopics = parsed.topics || [];
-    }
+    // 使用事务安全地更新 resultData（避免并发覆盖）
+    const newIndex = batchIndex + 1;
+    const isCompleted = newIndex >= totalBatches;
 
-    allTopics = [...allTopics, ...batchTopics];
+    await prisma.$transaction(async (tx) => {
+      // 在事务中获取最新的 resultData
+      const currentTask = await tx.analysisTask.findUnique({
+        where: { id: taskId },
+      });
 
-    // 更新结果数据
-    await taskQueue.update(taskId, {
-      resultData: JSON.stringify({
-        ...resultData,
-        topics: allTopics,
-      }),
-      topicDetailIndex: batchIndex + 1,
+      if (!currentTask) {
+        throw new Error('任务不存在');
+      }
+
+      // 解析当前 resultData（在事务中获取的最新值）
+      const currentResultData = JSON.parse(currentTask.resultData || '{}');
+      const allTopics = currentResultData.topics || [];
+
+      // 合并新批次数据
+      const mergedTopics = [...allTopics, ...batchTopics];
+      const progress = 75 + Math.floor((newIndex / totalBatches) * 15);
+
+      // 准备更新数据
+      const updatedResultData = {
+        ...currentResultData,
+        topics: mergedTopics,
+      };
+
+      // 计算状态
+      const newStatus = isCompleted ? 'generating_charts' : 'topic_generating';
+      const newCurrentStep = isCompleted
+        ? '选题详情生成完成，准备生成报告...'
+        : `正在生成选题详情（第 ${newIndex}/${totalBatches} 批）...`;
+
+      // 原子性更新所有字段
+      await tx.analysisTask.update({
+        where: { id: taskId },
+        data: {
+          resultData: JSON.stringify(updatedResultData),
+          topicDetailIndex: newIndex,
+          topicStep: isCompleted ? 'complete' : 'details',
+          status: newStatus,
+          currentStep: newCurrentStep,
+          progress: isCompleted ? 90 : progress,
+        },
+      });
     });
 
     // 记录完成日志
@@ -153,29 +177,23 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
       level: 'info',
       phase: 'ai' as any,
-      step: `生成选题详情（批次 ${batchIndex + 1}/${totalBatches}）`,
+      step: `生成选题详情（批次 ${newIndex}/${totalBatches}）`,
       status: 'success',
       output: {
         本批数量: batchTopics.length,
-        累计数量: allTopics.length,
+        累计数量: (JSON.parse((await taskQueue.get(taskId))!.resultData!)).topics.length,
       },
     } as AnalysisLog);
 
-    console.log(`[Topics] 批次 ${batchIndex + 1}/${totalBatches} 完成, 累计: ${allTopics.length}`);
+    console.log(`[Topics] 批次 ${newIndex}/${totalBatches} 完成`);
 
     // 检查是否完成所有批次
-    if (batchIndex + 1 >= totalBatches) {
-      // 标记选题生成完成
-      await taskQueue.update(taskId, {
-        topicStep: 'complete',
-        currentStep: '选题详情生成完成',
-      });
-
+    if (isCompleted) {
       return NextResponse.json({
         success: true,
         data: {
           completed: true,
-          totalTopics: allTopics.length,
+          totalTopics: (JSON.parse((await taskQueue.get(taskId))!.resultData!)).topics.length,
           message: '选题详情生成完成',
         },
       });
@@ -185,10 +203,10 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         completed: false,
-        currentBatch: batchIndex + 1,
+        currentBatch: newIndex,
         totalBatches,
-        totalTopics: allTopics.length,
-        message: `批次 ${batchIndex + 1}/${totalBatches} 完成，累计 ${allTopics.length} 条`,
+        totalTopics: (JSON.parse((await taskQueue.get(taskId))!.resultData!)).topics.length,
+        message: `批次 ${newIndex}/${totalBatches} 完成`,
       },
     });
 

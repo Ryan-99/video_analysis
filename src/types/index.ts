@@ -27,6 +27,15 @@ export type TaskStatus =
   | 'completed'
   | 'failed';
 
+/**
+ * 选题生成步骤
+ */
+export type TopicStep =
+  | 'outline'   // 生成大纲
+  | 'details'   // 生成详情
+  | 'complete'  // 完成
+  | null;       // 未开始
+
 export interface AIProviderConfig {
   id: string;
   name: string;

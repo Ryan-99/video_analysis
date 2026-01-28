@@ -3,6 +3,7 @@
 import { taskQueue } from '@/lib/queue/database';
 import { analysisLogger } from '@/lib/logger';
 import { VideoData, AccountAnalysis, AnalysisLog, ViralVideo, MonthlyData, Task, TaskStatus } from '@/types';
+import { TaskStateMachine } from '@/lib/queue/state-machine';
 import {
   calculateAllMetrics,
   groupByMonth,
@@ -13,6 +14,54 @@ import {
 } from '@/lib/calculator';
 import { aiAnalysisService } from '@/lib/ai-analysis/service';
 import * as XLSX from 'xlsx';
+
+/**
+ * 日志步骤函数类型
+ */
+type LogStepFunc = (
+  phase: string,
+  step: string,
+  status: 'start' | 'progress' | 'success' | 'error',
+  details?: {
+    input?: any;
+    output?: any;
+    error?: string;
+  }
+) => Promise<void>;
+
+/**
+ * 安全处理错误：更新状态、清理中间状态、释放锁
+ *
+ * 这是统一的错误处理函数，确保：
+ * 1. 状态被正确设置为 failed
+ * 2. 所有中间状态被清理（processing、topicStep、analysisStep等）
+ * 3. processing 锁被释放（在 atomicUpdate 中通过 processing: false 实现）
+ * 4. 错误信息被记录
+ */
+async function handleTaskError(
+  taskId: string,
+  error: unknown,
+  logStep?: LogStepFunc
+): Promise<void> {
+  const errorMessage = error instanceof Error ? error.message : '未知错误';
+
+  if (logStep) {
+    await logStep('system', '任务失败', 'error', { error: errorMessage });
+  }
+
+  // 原子性地更新状态并清理所有中间状态
+  await taskQueue.atomicUpdate(taskId, {
+    status: 'failed',
+    error: errorMessage,
+    // 清理中间状态（包括 processing 标记，相当于释放锁）
+    processing: false,
+    topicStep: null,
+    topicDetailIndex: null,
+    analysisStep: null,
+  });
+
+  console.error(`[Analysis] 任务 ${taskId} 失败:`, errorMessage);
+}
 
 /**
  * 使用动态配置调用AI（保留用于兼容）
@@ -196,11 +245,6 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     // 步骤6: AI分析 - 生成选题库（分步执行）
     await logStep('ai', '开始AI分析 - 选题库生成', 'start', {
     });
-    await taskQueue.update(taskId, {
-      currentStep: '正在生成选题库...',
-      progress: 70,
-      topicStep: 'outline',
-    });
 
     // 保存当前进度到数据库，供后续步骤使用
     // 按日期分组，找出每天的Top1视频（用于图表）
@@ -222,6 +266,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     }
     const dailyTop1Data = Array.from(dailyTop1.values()).sort((a, b) => a.date.localeCompare(b.date));
 
+    // 构建完整结果数据
     const intermediateResult = JSON.stringify({
       account: accountAnalysis,
       monthlyTrend: {
@@ -244,27 +289,21 @@ export async function executeAnalysis(taskId: string): Promise<void> {
       topics: [], // 待选题生成完成后再填充
     });
 
-    // 修复：原子性更新，将 status、topicStep、resultData 一起设置，避免中间状态
-    await taskQueue.update(taskId, {
+    // 原子性更新：将所有相关字段一起设置，避免中间状态
+    await taskQueue.atomicUpdate(taskId, {
       status: 'topic_generating',
       resultData: intermediateResult,
       topicStep: 'outline',
+      currentStep: '正在生成选题库...',
+      progress: 70,
+      analysisStep: null, // 清理中间步骤标记
     });
 
     console.log('[Analysis] 选题生成由独立端点处理, 暂停主流程');
     return; // 退出，等待选题生成完成后再继续
 
   } catch (error) {
-    // 记录错误日志
-    await logStep('system', '任务失败', 'error', {
-      error: error instanceof Error ? error.message : '未知错误',
-    });
-
-    // 更新任务状态
-    await taskQueue.update(taskId, {
-      status: 'failed',
-      error: error instanceof Error ? error.message : '未知错误',
-    });
+    await handleTaskError(taskId, error, logStep);
     throw error;
   }
 }
@@ -504,15 +543,7 @@ export async function completeAnalysis(taskId: string): Promise<void> {
     console.log('[Analysis] 分析流程完成, taskId:', taskId);
 
   } catch (error) {
-    await logStep('system', '完成分析失败', 'error', {
-      error: error instanceof Error ? error.message : '未知错误',
-    });
-
-    await taskQueue.update(taskId, {
-      status: 'failed',
-      error: error instanceof Error ? error.message : '未知错误',
-    });
-
+    await handleTaskError(taskId, error, logStep);
     throw error;
   }
 }
@@ -617,26 +648,22 @@ export async function executeAnalysisStep(taskId: string, step: number): Promise
       // 完成分析流程：保存 resultData 并设置 topicStep
       await step6_Complete(task, stepData, logStep);
     } else {
-      // 继续下一步
-      await taskQueue.update(taskId, {
+      // 继续下一步：使用正确的状态而非 queued
+      const nextStatus = TaskStateMachine.getNextStepStatus(nextStep);
+
+      await taskQueue.atomicUpdate(taskId, {
         analysisStep: nextStep,
         analysisData: JSON.stringify(stepData),
-        status: 'queued', // 使用queued让/jobs/process继续处理
+        status: nextStatus, // ✅ 使用准确的状态（parsing 或 analyzing）
+        currentStep: TaskStateMachine.getStepDescription(nextStep),
+        progress: TaskStateMachine.getStepProgress(nextStep),
       });
     }
 
     console.log(`[Analysis Step] 步骤 ${step} 完成，下一步: ${nextStep}`);
 
   } catch (error) {
-    await logStep('system', `步骤 ${step} 失败`, 'error', {
-      error: error instanceof Error ? error.message : '未知错误',
-    });
-
-    await taskQueue.update(taskId, {
-      status: 'failed',
-      error: error instanceof Error ? error.message : '未知错误',
-    });
-
+    await handleTaskError(taskId, error, logStep);
     throw error;
   }
 }
