@@ -602,9 +602,7 @@ export class AIAnalysisService {
     }).join('\n');
 
     // 3. 第一次 AI 调用：主分析
-    const prompt1 = promptEngine.render('viral_analysis_main', {
-      file_name: fileName || '未知文件',
-      total_videos: totalVideos || virals.length,
+    const prompt1 = promptEngine.render('viral_analysis', {
       total_virals: virals.length,
       threshold: Math.round(threshold).toString(),
       monthly_summary: monthlySummary,
@@ -809,9 +807,7 @@ export class AIAnalysisService {
     }).join('\n');
 
     // 3. 第一次 AI 调用：主分析
-    const prompt1 = promptEngine.render('viral_analysis_main', {
-      file_name: fileName || '未知文件',
-      total_videos: totalVideos || virals.length,
+    const prompt1 = promptEngine.render('viral_analysis', {
       total_virals: virals.length,
       threshold: Math.round(threshold).toString(),
       monthly_summary: monthlySummary,

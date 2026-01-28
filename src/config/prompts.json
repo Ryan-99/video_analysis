@@ -82,14 +82,22 @@
     },
     "viral_analysis": {
       "name": "爆款视频分析",
-      "template": "你是专业的抖音内容分析师。请分析以下爆款视频，按内容类型分组并提取规律。\n\n【爆款视频列表】\n{{viral_videos}}\n\n【判定阈值】\n{{threshold}}\n\n请严格按照以下JSON格式输出：\n{\n  \"summary\": \"爆款总结（2-3句话）\",\n  \"byCategory\": [\n    {\"category\": \"分类名称\", \"count\": 5, \"avgEngagement\": 50000, \"description\": \"特征描述\"},\n    {\"category\": \"分类名称\", \"count\": 3, \"avgEngagement\": 40000, \"description\": \"特征描述\"}\n  ],\n  \"patterns\": {\n    \"commonElements\": \"共同元素\",\n    \"timingPattern\": \"时间规律\",\n    \"titlePattern\": \"标题规律\"\n  }\n}",
+      "template": "你是专业的抖音内容分析师。请分析以下爆款视频数据。\n\n【数据概览】\n总爆款数：{{total_virals}}条\n判定阈值：{{threshold}}\n\n【逐月数据摘要】\n{{monthly_summary}}\n\n【全部爆款视频详细数据】\n{{viral_videos_detail}}\n\n请严格按照以下JSON格式输出：\n\n{\n  \"summary\": \"爆款总结（2-3句话）\",\n  \"monthlyList\": [\n    {\n      \"month\": \"2021年8月\",\n      \"threshold\": 50000,\n      \"videos\": [\n        {\n          \"publishTime\": \"2021/8/6 16:00\",\n          \"title\": \"视频标题\",\n          \"likes\": 463881,\n          \"comments\": 15345,\n          \"saves\": 60711,\n          \"shares\": 91209,\n          \"totalEngagement\": 631146,\n          \"saveRate\": 9.62\n        }\n      ]\n    }\n  ],\n  \"byCategory\": [\n    {\"category\": \"分类名称\", \"count\": 5, \"avgEngagement\": 50000, \"description\": \"特征描述\"},\n    {\"category\": \"分类名称\", \"count\": 3, \"avgEngagement\": 40000, \"description\": \"特征描述\"}\n  ],\n  \"patterns\": {\n    \"commonElements\": \"共同元素\",\n    \"timingPattern\": \"时间规律\",\n    \"titlePattern\": \"标题规律\"\n  }\n}\n\n【关键要点】\n1. monthlyList：按月份分组爆款视频，每月包含阈值和完整视频列表\n2. 只返回JSON，不要任何解释或说明文字",
       "variables": {
-        "viral_videos": {
-          "description": "爆款视频列表",
+        "total_virals": {
+          "description": "爆款总数",
           "required": true
         },
         "threshold": {
-          "description": "爆款判定阈值",
+          "description": "判定阈值",
+          "required": true
+        },
+        "monthly_summary": {
+          "description": "逐月数据摘要",
+          "required": true
+        },
+        "viral_videos_detail": {
+          "description": "全部爆款视频详细数据",
           "required": true
         }
       },
