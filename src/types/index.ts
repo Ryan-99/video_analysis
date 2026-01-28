@@ -71,6 +71,7 @@ export interface Task {
 
   // 防并发锁字段（Vercel Serverless 环境需要数据库级别的锁）
   processing?: boolean;  // 标记任务是否正在处理中
+  processingLockedAt?: Date | null;  // 锁定时间戳（用于超时检测）
 
   createdAt: Date;
   updatedAt: Date;

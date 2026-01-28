@@ -17,21 +17,8 @@ export async function POST(request: NextRequest) {
   console.log(`[Jobs] ${timestamp} - 触发`);
 
   try {
-    // 使用数据库级别的锁，防止 Vercel Serverless 多实例并发处理
+    // 获取所有任务
     const allTasks = await taskQueue.getAll();
-
-    // 查找正在处理的任务
-    const processingTask = allTasks.find(t => t.processing === true);
-    if (processingTask) {
-      console.log(`[Jobs] 已有任务在处理中 (ID: ${processingTask.id})，跳过本次执行`);
-      return NextResponse.json({
-        success: true,
-        message: '已有任务在处理中',
-        processing: true,
-        taskId: processingTask.id,
-      });
-    }
-
     console.log(`[Jobs] 数据库中共有 ${allTasks.length} 个任务`);
 
     // 统计各状态任务数量
@@ -98,9 +85,19 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 在开始处理前设置数据库级别的锁
-    console.log(`[Jobs] 设置任务 ${task.id} 为处理中状态`);
-    await taskQueue.update(task.id, { processing: true });
+    // 使用原子操作获取任务锁（防止竞态条件）
+    console.log(`[Jobs] 尝试获取任务 ${task.id} 的原子锁`);
+    const locked = await taskQueue.acquireLockWithTimeout(task.id);
+    if (!locked) {
+      console.log(`[Jobs] 任务 ${task.id} 已被其他进程锁定，跳过本次执行`);
+      return NextResponse.json({
+        success: true,
+        message: '任务已被其他进程锁定',
+        processing: true,
+        taskId: task.id,
+      });
+    }
+    console.log(`[Jobs] 成功获取任务 ${task.id} 的原子锁`);
 
     try {
       // 检查任务是否在进行分步分析
@@ -134,9 +131,9 @@ export async function POST(request: NextRequest) {
         error: errorMessage,
       });
     } finally {
-      // 释放数据库级别的锁
-      console.log(`[Jobs] 释放任务 ${task.id} 的处理中状态`);
-      await taskQueue.update(task.id, { processing: false });
+      // 使用原子操作释放锁
+      console.log(`[Jobs] 释放任务 ${task.id} 的原子锁`);
+      await taskQueue.releaseLock(task.id);
     }
 
     return NextResponse.json({

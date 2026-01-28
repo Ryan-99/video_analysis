@@ -59,6 +59,7 @@ model AnalysisTask {
 
   // 防并发锁字段（Vercel Serverless 环境需要数据库级别的锁）
   processing          Boolean? @default(false)  // 标记任务是否正在处理中
+  processingLockedAt  DateTime? // 锁定时间戳（用于超时检测）
 
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt

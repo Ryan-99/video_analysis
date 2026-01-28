@@ -128,6 +128,88 @@ class DatabaseTaskQueue {
   }
 
   /**
+   * 原子操作：尝试获取任务锁
+   * 只有当 processing=false 时才会设置成功
+   * @returns 是否成功获取锁
+   */
+  async acquireLock(taskId: string): Promise<boolean> {
+    const result = await prisma.analysisTask.updateMany({
+      where: {
+        id: taskId,
+        processing: false  // 原子条件：只有未锁定时才更新
+      },
+      data: {
+        processing: true,
+        processingLockedAt: new Date()
+      }
+    });
+
+    return result.count > 0; // 更新了1行说明成功
+  }
+
+  /**
+   * 释放任务锁
+   */
+  async releaseLock(taskId: string): Promise<void> {
+    await prisma.analysisTask.update({
+      where: { id: taskId },
+      data: {
+        processing: false,
+        processingLockedAt: null
+      }
+    });
+  }
+
+  /**
+   * 带超时机制的原子锁获取
+   * 如果锁已超时（5分钟），会强制释放并重新获取
+   * @returns 是否成功获取锁
+   */
+  async acquireLockWithTimeout(taskId: string): Promise<boolean> {
+    const LOCK_TIMEOUT = 5 * 60 * 1000; // 5分钟
+
+    const task = await prisma.analysisTask.findUnique({
+      where: { id: taskId }
+    });
+
+    if (!task) return false;
+
+    // 检查是否已超时
+    if (task.processing && task.processingLockedAt) {
+      const lockedDuration = Date.now() - task.processingLockedAt.getTime();
+      if (lockedDuration > LOCK_TIMEOUT) {
+        // 超时，强制释放并重新获取
+        console.log(`[DatabaseTaskQueue] 任务 ${taskId} 锁已超时 ${lockedDuration}ms，强制释放`);
+        await prisma.analysisTask.update({
+          where: { id: taskId },
+          data: {
+            processing: false,
+            processingLockedAt: null
+          }
+        });
+        // 继续尝试获取新锁
+      } else {
+        // 未超时，锁仍然有效
+        return false;
+      }
+    }
+
+    // 尝试获取锁
+    const result = await prisma.analysisTask.updateMany({
+      where: {
+        id: taskId,
+        processing: false
+      },
+      data: {
+        processing: true,
+        processingLockedAt: new Date()
+      }
+    });
+
+    return result.count > 0;
+  }
+
+  /**
    * 将数据库模型映射到 Task 类型
    */
   private mapToTask(dbTask: any): Task {
@@ -160,6 +242,7 @@ class DatabaseTaskQueue {
       topicDetailIndex: dbTask.topicDetailIndex,
       topicBatchSize: dbTask.topicBatchSize,
       processing: dbTask.processing,
+      processingLockedAt: dbTask.processingLockedAt,
       createdAt: dbTask.createdAt,
       updatedAt: dbTask.updatedAt,
       completedAt: dbTask.completedAt,
