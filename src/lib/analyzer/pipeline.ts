@@ -968,6 +968,7 @@ async function step6_Complete(
       byCategory: stepData.viralAnalysis?.byCategory || [], // ⭐ 完整保留：medianEngagement, medianSaveRate, p90SaveRate
       commonMechanisms: stepData.viralAnalysis?.commonMechanisms, // ⭐ 新增：共性机制
       methodology: stepData.viralAnalysis?.methodology,
+      patterns: stepData.viralAnalysis?.patterns, // ✅ 添加 patterns 字段，用于选题生成
     },
     dailyTop1: stepData.dailyTop1,
     topics: [],
