@@ -51,6 +51,7 @@
 | 2025-01-28 | TypeScript 类型不匹配：Prisma 返回 `string | null` 但 Task 类型定义为 `string | undefined` | 统一使用 `string | null` 类型匹配 Prisma schema | 定义类型时明确区分 `null` 和 `undefined`，确保与数据库 schema 一致 |
 | 2025-01-28 | 状态机类型不一致：删除 calculating 状态但未同步更新 TaskStatus 类型 | 同步修改类型定义和状态转换规则 | **类型修改时必须同步更新所有相关定义**（见 3.2） |
 | 2025-01-28 | 类型定义与 Prisma Schema 不同步：calculating 状态在代码中使用但 TypeScript 类型缺失 | 在 TaskStatus 类型中添加 'calculating'，并在 STATE_TRANSITIONS 中添加转换规则 | **Prisma Schema 与 TypeScript 类型必须保持一致**（见 3.2） |
+| 2025-01-28 | 状态转换规则与代码流程不匹配：分步分析中 parsing → analyzing 被拒绝 | 修改 STATE_TRANSITIONS，允许 parsing 可以转到 calculating 或 analyzing | **状态转换规则必须匹配实际代码流程**（见 3.2） |
 
 ### 3.2 最佳实践
 
@@ -59,6 +60,7 @@
 | **类型系统映射规则** | Prisma 中 `String?` 生成 `string \| null`，TypeScript 可选字段 `fieldName?: string` 表示 `string \| undefined`。与数据库交互时，应使用 `string \| null` 而非 `string \| undefined` | 定义与数据库模型对应的 TypeScript 接口时 |
 | **类型定义同步原则** | 修改类型时，必须同时更新：1) 类型定义（如 TaskStatus）；2) 运行时常量/配置（如 STATE_TRANSITIONS）；3) 所有使用该类型的地方。**任何遗漏都会导致编译错误** | 所有类型相关的修改 |
 | **Prisma Schema 一致性** | Prisma Schema 中的 enum 定义必须与 TypeScript 类型定义**完全一致**。修改 Prisma enum 时必须同步修改 TypeScript 类型，反之亦然 | 修改数据库 schema、添加/删除状态值 |
+| **状态转换规则设计** | 状态转换规则必须考虑所有代码路径：1) 完整流程；2) 分步流程；3) 异常情况。**不要过度限制状态转换**，要允许合理的多种转换路径 | 设计状态机、修改状态转换规则 |
 | **系统化调试流程** | 遇到类型错误时：1) 仔细阅读错误信息定位字段；2) 对比类型定义和实际值；3) 找出所有相似问题；4) 统一修复；5) 验证构建 | 修复编译错误、类型不匹配问题 |
 | **null vs undefined** | `null` 表示"值为空"，`undefined` 表示"值不存在"。数据库可空字段用 `null`，未定义的属性用 `undefined`。类型定义时要明确区分 | 类型定义、API 设计、数据处理 |
 

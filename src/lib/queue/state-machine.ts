@@ -9,7 +9,7 @@ import { Task, TaskStatus, TopicStep } from '@/types';
  */
 export const STATE_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   queued: ['parsing', 'analyzing', 'failed'],
-  parsing: ['calculating', 'failed'],
+  parsing: ['calculating', 'analyzing', 'failed'], // parsing 可以转到 calculating（完整流程）或 analyzing（分步流程）
   calculating: ['analyzing', 'failed'],
   analyzing: ['topic_generating', 'failed'],
   topic_generating: ['generating_charts', 'completed', 'failed'],
