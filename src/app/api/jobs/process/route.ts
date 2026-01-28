@@ -176,9 +176,9 @@ async function handleTopicGeneration(taskId: string): Promise<void> {
     if (!hasResultData) {
       throw new Error('分析数据不完整：resultData 为空，任务状态异常。可能原因：分析流程未完成就被设置为 topic_generating 状态');
     }
-    // 尝试解析 resultData 验证完整性
+    // 尝试解析 resultData 验证完整性（使用非空断言，因为上面已经检查过）
     try {
-      const resultData = JSON.parse(task.resultData);
+      const resultData = JSON.parse(task.resultData!);
       if (!resultData.account || !resultData.virals) {
         throw new Error('分析数据不完整：resultData 缺少 account 或 virals 数据');
       }
