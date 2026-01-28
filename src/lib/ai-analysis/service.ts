@@ -15,98 +15,82 @@ import { calculateMetrics } from '@/lib/analyzer/calculations';
 export function cleanAIResponse(response: string): string {
   let cleaned = response.trim();
 
-  // 调试：记录原始响应的前500字符
-  console.log('[cleanAIResponse] 原始响应长度:', cleaned.length);
-  console.log('[cleanAIResponse] 原始响应预览:', cleaned.substring(0, 500));
+  // 1. 提取 JSON 内容（从第一个 { 或 [ 开始）
+  const jsonStart = cleaned.indexOf('{');
+  const jsonArrayStart = cleaned.indexOf('[');
+  const startIndex = jsonStart === -1 ? jsonArrayStart :
+                    jsonArrayStart === -1 ? jsonStart :
+                    Math.min(jsonStart, jsonArrayStart);
 
-  // 1. 尝试提取第一个有效的 JSON 对象/数组
-  // 查找 { 或 [ 的位置（可能被 markdown 包围）
-  const jsonStartPattern = /[\{\[]/;
-  const startMatch = cleaned.match(jsonStartPattern);
-
-  if (startMatch && startMatch.index !== undefined) {
-    // 找到了 JSON 起始，截取从这里开始的内容
-    cleaned = cleaned.substring(startMatch.index);
-    console.log('[cleanAIResponse] 提取JSON后长度:', cleaned.length);
+  if (startIndex !== -1) {
+    cleaned = cleaned.substring(startIndex);
   }
 
-  // 2. 移除 markdown 代码块语言标记（如 ```json）
-  if (cleaned.startsWith('```')) {
-    const firstNewline = cleaned.indexOf('\n');
-    if (firstNewline !== -1) {
-      cleaned = cleaned.substring(firstNewline + 1);
-    }
+  // 2. 移除 ```json 标记
+  if (cleaned.startsWith('```json')) {
+    cleaned = cleaned.substring(7);
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.substring(3);
   }
 
-  // 3. 查找匹配的结束括号
-  let braceCount = 0;
-  let bracketCount = 0;
-  let endIndex = -1;
+  // 3. 查找匹配的结束括号并截取（考虑字符串内部和转义字符）
   const firstChar = cleaned.charAt(0);
-
   if (firstChar === '{') {
-    // 查找匹配的 }
+    let depth = 0;
+    let inString = false;
+    let escapeNext = false;
     for (let i = 0; i < cleaned.length; i++) {
-      const char = cleaned[i];
-      if (char === '{') braceCount++;
-      else if (char === '}') braceCount--;
-
-      if (braceCount === 0) {
-        endIndex = i + 1;
-        break;
+      const c = cleaned[i];
+      if (escapeNext) {
+        escapeNext = false;
+        continue;
+      }
+      if (c === '\\') {
+        escapeNext = true;
+        continue;
+      }
+      if (c === '"') {
+        inString = !inString;
+        continue;
+      }
+      if (!inString) {
+        if (c === '{') depth++;
+        else if (c === '}') {
+          depth--;
+          if (depth === 0) {
+            cleaned = cleaned.substring(0, i + 1);
+            break;
+          }
+        }
       }
     }
   } else if (firstChar === '[') {
-    // 查找匹配的 ]
+    let depth = 0;
     for (let i = 0; i < cleaned.length; i++) {
-      const char = cleaned[i];
-      if (char === '[') bracketCount++;
-      else if (char === ']') bracketCount--;
-
-      if (bracketCount === 0) {
-        endIndex = i + 1;
-        break;
+      const c = cleaned[i];
+      if (c === '[') depth++;
+      else if (c === ']') {
+        depth--;
+        if (depth === 0) {
+          cleaned = cleaned.substring(0, i + 1);
+          break;
+        }
       }
     }
   }
 
-  if (endIndex !== -1) {
-    cleaned = cleaned.substring(0, endIndex);
-  }
-
-  // 4. 移除可能残留的 ``` 标记
+  // 4. 移除残留的 ``` 标记
   cleaned = cleaned.replace(/```/g, '').trim();
 
-  // 调试：在替换前检查是否有中文引号
-  const hasLeftQuote = cleaned.includes('"');
-  const hasRightQuote = cleaned.includes('"');
-  console.log('[cleanAIResponse] 替换前 - 包含中文左引号:"', hasLeftQuote, '中文右引号:"', hasRightQuote);
-  if (hasLeftQuote || hasRightQuote) {
-    // 找到第一个中文引号的位置
-    const leftQuoteIdx = cleaned.indexOf('"');
-    const rightQuoteIdx = cleaned.indexOf('"');
-    console.log('[cleanAIResponse] 中文引号位置 - 左:', leftQuoteIdx, '右:', rightQuoteIdx);
-    console.log('[cleanAIResponse] 引号周围内容:', cleaned.substring(Math.max(0, (leftQuoteIdx ?? 0) - 20), (leftQuoteIdx ?? 0) + 30));
-  }
-
-  // 5. 替换中文标点符号为英文（在提取JSON内容后进行）
-  // 中文全角引号 -> 英文半角引号
-  cleaned = cleaned.replace(/"/g, '"').replace(/"/g, '"');
-  // 中文逗号 -> 英文逗号（在 JSON 中使用）
-  cleaned = cleaned.replace(/，/g, ',');
-  // 中文冒号 -> 英文冒号
-  cleaned = cleaned.replace(/：/g, ':');
-  // 中文分号 -> 英文分号
-  cleaned = cleaned.replace(/；/g, ';');
-  // 中文问号 -> 英文问号
-  cleaned = cleaned.replace(/？/g, '?');
-  // 中文感叹号 -> 英文感叹号
-  cleaned = cleaned.replace(/！/g, '!');
-
-  // 调试：替换后再次检查
-  const stillHasLeftQuote = cleaned.includes('"');
-  const stillHasRightQuote = cleaned.includes('"');
-  console.log('[cleanAIResponse] 替换后 - 仍包含中文左引号:"', stillHasLeftQuote, '中文右引号:"', stillHasRightQuote);
+  // 5. 替换中文标点（使用 split/join 确保全部替换）
+  cleaned = cleaned.split('"').join('"').split('"').join('"');
+  cleaned = cleaned.split('，').join(',');
+  cleaned = cleaned.split('：').join(':');
+  cleaned = cleaned.split('；').join(';');
+  cleaned = cleaned.split('？').join('?');
+  cleaned = cleaned.split('！').join('!');
+  cleaned = cleaned.split('（').join('(').split('）').join(')');
+  cleaned = cleaned.split('【').join('[').split('】').join(']');
 
   return cleaned;
 }
