@@ -1374,7 +1374,7 @@ ${existingCategories}
    * @param timeout - 超时时间（毫秒）
    * @param maxTokens - 最大token数（默认8000）
    */
-  private async callAI(prompt: string, aiConfig?: string, timeout: number = 180000, maxTokens: number = 8000, retries: number = 3): Promise<string> {
+  private async callAI(prompt: string, aiConfig?: string | null, timeout: number = 180000, maxTokens: number = 8000, retries: number = 3): Promise<string> {
     if (!aiConfig) {
       throw new Error('AI配置未设置');
     }
