@@ -129,13 +129,16 @@ export default function AnalyzePage({ params }: { params: Promise<{ taskId: stri
   const isFailed = taskStatus?.status === 'failed' ||
     logs.some((log) => log.status === 'error');
 
-  // 定期轮询更新（2秒间隔）
+  // 定期轮询更新（1秒间隔，优化响应速度）
   useEffect(() => {
     if (!taskId || isFailed) return; // 失败后停止轮询
 
+    // 立即执行一次
+    loadData();
+
     const interval = setInterval(() => {
       loadData();
-    }, 2000);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [taskId, isFailed]);

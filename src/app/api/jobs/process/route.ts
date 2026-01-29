@@ -47,20 +47,21 @@ export async function POST(request: NextRequest) {
       task = analyzingTasks[0];
       console.log(`[Jobs] 继续分步分析: ${task.id}, step=${task.analysisStep}`);
     } else if (queuedTasks.length > 0) {
-      // 新任务 - 检查是否需要分步分析
+      // 新任务 - 优先使用完整流程
       const queuedTask = queuedTasks[0];
-      // 检查是否有 analysisStep 且小于 6（未完成分析）
-      if (queuedTask.analysisStep !== null && queuedTask.analysisStep !== undefined && queuedTask.analysisStep < 6) {
+      // 优先检查：analysisStep 为空说明是新任务，使用完整流程
+      if (queuedTask.analysisStep === undefined || queuedTask.analysisStep === null) {
+        // 新任务：优先使用完整流程
         task = queuedTask;
-        console.log(`[Jobs] 继续分步分析(queued): ${task.id}, step=${task.analysisStep}`);
-      } else if (queuedTask.analysisStep === undefined || queuedTask.analysisStep === null) {
-        // 兼容旧任务 - 使用 executeAnalysis
+        console.log(`[Jobs] 开始新任务（完整流程）: ${task.id}, 文件=${task.fileName}`);
+      } else if (queuedTask.analysisStep !== null && queuedTask.analysisStep !== undefined && queuedTask.analysisStep < 6) {
+        // 只有明确设置了 analysisStep 的任务才使用分步流程
         task = queuedTask;
-        console.log(`[Jobs] 开始新任务(旧模式): ${task.id}, 文件=${task.fileName}`);
+        console.log(`[Jobs] 继续分步分析: ${task.id}, step=${task.analysisStep}`);
       } else {
         // analysisStep >= 6，应该进入选题生成，但状态仍为 queued
         task = queuedTask;
-        console.log(`[Jobs] 开始新任务: ${task.id}, 文件=${task.fileName}`);
+        console.log(`[Jobs] 继续任务: ${task.id}, 文件=${task.fileName}`);
       }
     } else {
       console.log('[Jobs] 没有待处理的任务');

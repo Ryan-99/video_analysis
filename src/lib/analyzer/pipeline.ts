@@ -30,37 +30,81 @@ type LogStepFunc = (
 ) => Promise<void>;
 
 /**
+ * 判断错误是否可重试
+ * 可重试的错误类型：网络错误、超时、连接被拒绝、速率限制
+ */
+function isRetryableError(error: any): boolean {
+  const retryablePatterns = [
+    /network/i,
+    /timeout/i,
+    /ECONNREFUSED/i,
+    /ETIMEDOUT/i,
+    /fetch failed/i,
+    /429/,  // 速率限制
+  ];
+
+  const errorMessage = error instanceof Error ? error.message : String(error);
+
+  return retryablePatterns.some(pattern =>
+    pattern.test(errorMessage) ||
+    (error.code && pattern.test(error.code))
+  );
+}
+
+/**
  * 安全处理错误：更新状态、清理中间状态、释放锁
  *
  * 这是统一的错误处理函数，确保：
- * 1. 状态被正确设置为 failed
+ * 1. 状态被正确设置
  * 2. 所有中间状态被清理（processing、topicStep、analysisStep等）
  * 3. processing 锁被释放（在 atomicUpdate 中通过 processing: false 实现）
  * 4. 错误信息被记录
+ * 5. 可重试错误自动重试
  */
 async function handleTaskError(
   taskId: string,
   error: unknown,
   logStep?: LogStepFunc
 ): Promise<void> {
-  const errorMessage = error instanceof Error ? error.message : '未知错误';
-
-  if (logStep) {
-    await logStep('system', '任务失败', 'error', { error: errorMessage });
+  const task = await taskQueue.get(taskId);
+  if (!task) {
+    console.error(`[Analysis] 任务不存在: ${taskId}`);
+    return;
   }
 
-  // 原子性地更新状态并清理所有中间状态
-  await taskQueue.atomicUpdate(taskId, {
-    status: 'failed',
-    error: errorMessage,
-    // 清理中间状态（包括 processing 标记，相当于释放锁）
-    processing: false,
-    topicStep: null,
-    topicDetailIndex: null,
-    analysisStep: null,
-  });
+  const isRetryable = isRetryableError(error);
+  const retryCount = task.retryCount || 0;
+  const maxRetries = 3;
 
-  console.error(`[Analysis] 任务 ${taskId} 失败:`, errorMessage);
+  if (isRetryable && retryCount < maxRetries) {
+    // 标记为可重试
+    await taskQueue.update(taskId, {
+      status: 'queued',
+      processing: false,
+      retryCount: retryCount + 1,
+      error: `重试 ${retryCount + 1}/${maxRetries}: ${error instanceof Error ? error.message : String(error)}`
+    });
+    console.log(`[Analysis] 任务 ${taskId} 进入重试队列 (${retryCount + 1}/${maxRetries})`);
+  } else {
+    // 永久失败
+    const errorMessage = error instanceof Error ? error.message : '未知错误';
+
+    if (logStep) {
+      await logStep('system', '任务失败', 'error', { error: errorMessage });
+    }
+
+    // 原子性地更新状态并清理所有中间状态
+    await taskQueue.atomicUpdate(taskId, {
+      status: 'failed',
+      error: errorMessage,
+      processing: false,
+      topicStep: null,
+      topicDetailIndex: null,
+      analysisStep: null,
+    });
+
+    console.error(`[Analysis] 任务 ${taskId} 失败:`, errorMessage);
+  }
 }
 
 /**
