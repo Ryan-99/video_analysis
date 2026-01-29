@@ -652,6 +652,14 @@ export async function executeAnalysisStep(taskId: string, step: number): Promise
       // 继续下一步：使用正确的状态而非 queued
       const nextStatus = TaskStateMachine.getNextStepStatus(nextStep);
 
+      console.log(`[Analysis Step] 步骤 ${step} 完成，准备更新到步骤 ${nextStep}`);
+      console.log(`[Analysis Step] 即将调用 atomicUpdate，参数:`, JSON.stringify({
+        analysisStep: nextStep,
+        status: nextStatus,
+        progress: TaskStateMachine.getStepProgress(nextStep),
+        currentStep: TaskStateMachine.getStepDescription(nextStep),
+      }));
+
       await taskQueue.atomicUpdate(taskId, {
         analysisStep: nextStep,
         analysisData: JSON.stringify(stepData),
@@ -659,6 +667,16 @@ export async function executeAnalysisStep(taskId: string, step: number): Promise
         currentStep: TaskStateMachine.getStepDescription(nextStep),
         progress: TaskStateMachine.getStepProgress(nextStep),
         processing: false, // ✅ 释放锁，允许下次触发时继续执行
+      });
+
+      console.log(`[Analysis Step] atomicUpdate 调用完成，步骤 ${step} → ${nextStep}`);
+
+      // 验证更新是否真的保存到数据库
+      const verifyTask = await taskQueue.get(taskId);
+      console.log(`[Analysis Step] 验证数据库状态:`, {
+        analysisStep: verifyTask?.analysisStep,
+        status: verifyTask?.status,
+        progress: verifyTask?.progress,
       });
     }
 
