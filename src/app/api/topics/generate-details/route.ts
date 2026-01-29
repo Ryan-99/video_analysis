@@ -38,6 +38,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 检查任务是否正在处理
+    if (task.processing) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: { code: 'TASK_PROCESSING', message: '任务正在处理中，请稍后再试' }
+        },
+        { status: 409 }
+      );
+    }
+
     // 检查是否处于选题生成状态
     if (task.status !== 'topic_generating') {
       return NextResponse.json(

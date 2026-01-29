@@ -81,13 +81,6 @@ class DatabaseTaskQueue {
    * 使用 Prisma 事务确保一致性
    */
   async atomicUpdate(id: string, updates: Partial<Task>): Promise<Task | null> {
-    console.log('[DatabaseTaskQueue] atomicUpdate 开始:', id, '意图更新:', JSON.stringify({
-      status: updates.status,
-      progress: updates.progress,
-      currentStep: updates.currentStep,
-      analysisStep: updates.analysisStep,
-    }));
-
     return await prisma.$transaction(async (tx) => {
       // 获取当前任务
       const current = await tx.analysisTask.findUnique({
@@ -99,12 +92,12 @@ class DatabaseTaskQueue {
         throw new Error('任务不存在');
       }
 
-      console.log('[DatabaseTaskQueue] atomicUpdate: 当前数据库状态:', {
-        status: current.status,
-        progress: current.progress,
-        currentStep: current.currentStep,
-        analysisStep: current.analysisStep,
-      });
+      // 验证进度单调递增
+      if (updates.progress !== undefined && current.progress !== null) {
+        if (updates.progress < current.progress) {
+          console.warn(`[DatabaseTaskQueue] ⚠️ 进度倒退: ${current.progress}% -> ${updates.progress}%`);
+        }
+      }
 
       // 验证状态转换（当状态真的改变时才验证）
       if (updates.status && updates.status !== current.status) {
@@ -119,11 +112,9 @@ class DatabaseTaskQueue {
             `非法状态转换: ${current.status} -> ${updates.status}`
           );
         }
-        console.log('[DatabaseTaskQueue] atomicUpdate: 状态转换验证通过',
-          `${current.status} -> ${updates.status}`);
       }
 
-      // 过滤掉 undefined 值
+      // 过滤掉 undefined 值，并自动释放锁
       const updateData: any = {};
       for (const [key, value] of Object.entries(updates)) {
         if (value !== undefined) {
@@ -131,7 +122,10 @@ class DatabaseTaskQueue {
         }
       }
 
-      console.log('[DatabaseTaskQueue] atomicUpdate: 执行数据库更新，更新数据:', JSON.stringify(updateData));
+      // 自动释放锁：如果未指定 processing，默认为 false
+      if (updateData.processing === undefined) {
+        updateData.processing = false;
+      }
 
       // 执行更新
       const updated = await tx.analysisTask.update({
@@ -139,42 +133,27 @@ class DatabaseTaskQueue {
         data: updateData,
       });
 
-      console.log('[DatabaseTaskQueue] atomicUpdate: 数据库更新完成，新状态:', {
-        status: updated.status,
-        progress: updated.progress,
-        currentStep: updated.currentStep,
-        analysisStep: updated.analysisStep,
-      });
-
       // 验证一致性
       const task = this.mapToTask(updated);
       const consistency = TaskStateMachine.validateConsistency(task);
       if (!consistency.valid) {
         console.error('[DatabaseTaskQueue] atomicUpdate: 一致性验证失败:', consistency.error);
-        console.error('[DatabaseTaskQueue] 失败时的任务状态:', JSON.stringify({
-          status: task.status,
-          topicStep: task.topicStep,
-          resultData: task.resultData?.substring(0, 100),
-        }));
         throw new Error(`状态不一致: ${consistency.error}`);
       }
 
-      console.log('[DatabaseTaskQueue] atomicUpdate: 所有验证通过，事务将提交');
       return updated;
-    }).then(result => {
-      console.log('[DatabaseTaskQueue] atomicUpdate: 事务已提交，返回结果');
-      return result;
-    }).catch(error => {
-      console.error('[DatabaseTaskQueue] atomicUpdate: 事务失败/回滚');
-      console.error('[DatabaseTaskQueue] 错误类型:', error.constructor.name);
-      console.error('[DatabaseTaskQueue] 错误信息:', error.message);
+    }).catch(async (error) => {
+      console.error('[DatabaseTaskQueue] atomicUpdate: 事务失败，尝试释放锁', error.message);
 
-      // 检查是否是 Prisma 特定错误
-      if (error.code) {
-        console.error('[DatabaseTaskQueue] Prisma 错误代码:', error.code);
-      }
-      if (error.meta) {
-        console.error('[DatabaseTaskQueue] Prisma 错误元数据:', JSON.stringify(error.meta));
+      // 事务失败时尝试释放锁，避免任务永久锁定
+      try {
+        await prisma.analysisTask.update({
+          where: { id },
+          data: { processing: false, processingLockedAt: null }
+        });
+        console.log('[DatabaseTaskQueue] atomicUpdate: 锁已释放');
+      } catch (releaseError) {
+        console.error('[DatabaseTaskQueue] atomicUpdate: 释放锁失败', releaseError);
       }
 
       throw error;

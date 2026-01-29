@@ -91,8 +91,9 @@ export class TaskStateMachine {
 
   /**
    * 获取步骤的进度百分比
+   * 使用简单的等差数列，每步间隔 10%
    */
   static getStepProgress(step: number): number {
-    return 10 + step * 12; // 10, 22, 34, 46, 58, 70, 82
+    return 10 + step * 10; // 10, 20, 30, 40, 50, 60, 70
   }
 }

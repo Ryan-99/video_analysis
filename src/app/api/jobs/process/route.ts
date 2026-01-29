@@ -41,31 +41,26 @@ export async function POST(request: NextRequest) {
     if (topicTasks.length > 0) {
       // 优先选题生成任务
       task = topicTasks[0];
-      console.log(`[Jobs] ========== 继续选题生成任务: ${task.id} ==========`);
-      console.log(`[Jobs] topicStep: ${task.topicStep}, topicDetailIndex: ${task.topicDetailIndex}`);
+      console.log(`[Jobs] 继续选题生成: ${task.id}, topicStep=${task.topicStep}`);
     } else if (analyzingTasks.length > 0) {
       // 继续分步分析任务
       task = analyzingTasks[0];
-      console.log(`[Jobs] ========== 继续分步分析任务: ${task.id} ==========`);
-      console.log(`[Jobs] analysisStep: ${task.analysisStep}, status: ${task.status}`);
+      console.log(`[Jobs] 继续分步分析: ${task.id}, step=${task.analysisStep}`);
     } else if (queuedTasks.length > 0) {
       // 新任务 - 检查是否需要分步分析
       const queuedTask = queuedTasks[0];
       // 检查是否有 analysisStep 且小于 6（未完成分析）
       if (queuedTask.analysisStep !== null && queuedTask.analysisStep !== undefined && queuedTask.analysisStep < 6) {
         task = queuedTask;
-        console.log(`[Jobs] ========== 继续分步分析任务（状态为queued）: ${task.id} ==========`);
-        console.log(`[Jobs] analysisStep: ${task.analysisStep}`);
+        console.log(`[Jobs] 继续分步分析(queued): ${task.id}, step=${task.analysisStep}`);
       } else if (queuedTask.analysisStep === undefined || queuedTask.analysisStep === null) {
         // 兼容旧任务 - 使用 executeAnalysis
         task = queuedTask;
-        console.log(`[Jobs] ========== 开始新任务（旧模式）: ${task.id} ==========`);
-        console.log(`[Jobs] 文件: ${task.fileName}`);
+        console.log(`[Jobs] 开始新任务(旧模式): ${task.id}, 文件=${task.fileName}`);
       } else {
         // analysisStep >= 6，应该进入选题生成，但状态仍为 queued
         task = queuedTask;
-        console.log(`[Jobs] ========== 开始新任务: ${task.id} ==========`);
-        console.log(`[Jobs] 文件: ${task.fileName}`);
+        console.log(`[Jobs] 开始新任务: ${task.id}, 文件=${task.fileName}`);
       }
     } else {
       console.log('[Jobs] 没有待处理的任务');
@@ -105,25 +100,22 @@ export async function POST(request: NextRequest) {
         // 分步分析模式
         console.log(`[Jobs] 执行分步分析，步骤: ${task.analysisStep}`);
         await executeAnalysisStep(task.id, task.analysisStep);
-        console.log(`[Jobs] ========== 分步分析步骤完成: ${task.id}, 步骤: ${task.analysisStep} ==========`);
+        console.log(`[Jobs] 分步分析步骤完成: ${task.id}, 步骤: ${task.analysisStep}`);
       } else if (task.status === 'queued') {
         // 新任务：执行完整分析流程（到选题生成阶段）
         console.log('[Jobs] 执行完整分析流程（旧模式兼容）');
         await executeAnalysis(task.id);
-        console.log(`[Jobs] ========== 任务步骤完成: ${task.id} ==========`);
+        console.log(`[Jobs] 任务步骤完成: ${task.id}`);
       } else if (task.status === 'topic_generating') {
         // 选题生成任务：继续处理
         console.log('[Jobs] 继续选题生成流程');
         await handleTopicGeneration(task.id);
-        console.log(`[Jobs] ========== 选题生成步骤完成: ${task.id} ==========`);
+        console.log(`[Jobs] 选题生成步骤完成: ${task.id}`);
       } else {
-        console.log(`[Jobs] ========== 任务步骤完成: ${task.id} ==========`);
+        console.log(`[Jobs] 任务步骤完成: ${task.id}`);
       }
     } catch (error) {
-      console.error(`[Jobs] ========== 任务失败: ${task.id} ==========`);
-      console.error('[Jobs] 错误类型:', error instanceof Error ? error.constructor.name : typeof error);
-      console.error('[Jobs] 错误信息:', error instanceof Error ? error.message : String(error));
-      console.error('[Jobs] 错误堆栈:', error instanceof Error ? error.stack : '无堆栈');
+      console.error(`[Jobs] 任务失败: ${task.id}, 错误:`, error instanceof Error ? error.message : String(error));
 
       const errorMessage = error instanceof Error ? error.message : '未知错误';
       await taskQueue.update(task.id, {
@@ -192,7 +184,7 @@ async function handleTopicGeneration(taskId: string): Promise<void> {
   // 根据当前步骤决定下一步操作
   if (task.topicStep === 'outline' || task.topicStep === null) {
     // 生成选题大纲 - 直接调用内部函数
-    console.log('[Jobs] --- 阶段: 生成选题大纲 ---');
+    console.log('[Jobs] 生成选题大纲');
     await generateTopicOutline(taskId);
     console.log('[Jobs] 大纲生成完成');
   } else if (task.topicStep === 'details') {
@@ -203,8 +195,7 @@ async function handleTopicGeneration(taskId: string): Promise<void> {
     const totalBatches = Math.ceil(outlines.length / batchSize);
     const currentIndex = task.topicDetailIndex || 0;
 
-    console.log(`[Jobs] --- 阶段: 生成选题详情 ---`);
-    console.log(`[Jobs] 批次 ${currentIndex + 1}/${totalBatches}, 每批 ${batchSize} 条, 共 ${outlines.length} 条`);
+    console.log(`[Jobs] 生成选题详情，批次 ${currentIndex + 1}/${totalBatches}`);
 
     const result = await generateTopicDetails(taskId);
     console.log('[Jobs] 详情批次完成:', JSON.stringify(result));
