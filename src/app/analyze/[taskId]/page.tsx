@@ -78,9 +78,10 @@ export default function AnalyzePage({ params }: { params: Promise<{ taskId: stri
 
     try {
       // 并行获取任务状态和日志
+      // 注意：必须禁用缓存，否则前端获取不到后端的实时进度更新
       const [taskRes, logsRes] = await Promise.all([
-        fetch(`/api/tasks/${taskId}`),
-        fetch(`/api/logs/${taskId}`)
+        fetch(`/api/tasks/${taskId}`, { cache: 'no-store' }),
+        fetch(`/api/logs/${taskId}`, { cache: 'no-store' })
       ]);
 
       const taskResult = await taskRes.json();

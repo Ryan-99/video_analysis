@@ -36,6 +36,10 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: task,
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
     });
   } catch (error) {
     console.error('[Tasks API] 查询任务错误:', error);

@@ -26,6 +26,10 @@ export async function GET(
         logs,
         summary,
       },
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
     });
   } catch (error) {
     return NextResponse.json(
