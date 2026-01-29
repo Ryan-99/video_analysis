@@ -56,22 +56,22 @@ class DatabaseTaskQueue {
       }
     }
 
-    // console.log('[DatabaseTaskQueue] 更新任务前:', id, 'updates:', JSON.stringify({
-    //   status: updates.status,
-    //   progress: updates.progress,
-    //   currentStep: updates.currentStep,
-    // }));
+    console.log('[DatabaseTaskQueue] update:', id, 'updates:', JSON.stringify({
+      status: updates.status,
+      progress: updates.progress,
+      currentStep: updates.currentStep,
+    }));
 
     const task = await prisma.analysisTask.update({
       where: { id },
       data: updateData,
     });
 
-    // console.log('[DatabaseTaskQueue] 更新任务后:', id, '数据库值:', {
-    //   status: task.status,
-    //   progress: task.progress,
-    //   currentStep: task.currentStep,
-    // });
+    console.log('[DatabaseTaskQueue] update完成:', id, '数据库值:', {
+      status: task.status,
+      progress: task.progress,
+      currentStep: task.currentStep,
+    });
 
     return this.mapToTask(task);
   }
