@@ -15,30 +15,14 @@ import { calculateMetrics } from '@/lib/analyzer/calculations';
 export function cleanAIResponse(response: string): string {
   let cleaned = response.trim();
 
-  // 1. 首先替换所有中文标点（必须在括号匹配之前，避免中文引号干扰字符串边界检测）
-  // 使用正则表达式替换，避免直接使用中文引号字符导致解析错误
-  cleaned = cleaned
-    // 中文双引号
-    .replace(/\u201C/g, '"').replace(/\u201D/g, '"')
-    // 中文单引号
-    .replace(/\u2018/g, "'").replace(/\u2019/g, "'")
-    // 其他中文标点
-    .replace(/，/g, ',')
-    .replace(/：/g, ':')
-    .replace(/；/g, ';')
-    .replace(/？/g, '?')
-    .replace(/！/g, '!')
-    .replace(/（/g, '(').replace(/）/g, ')')
-    .replace(/【/g, '[').replace(/】/g, ']');
-
-  // 2. 移除 ```json 标记
+  // 1. 移除 ```json 标记（必须在提取 JSON 之前）
   if (cleaned.startsWith('```json')) {
     cleaned = cleaned.substring(7);
   } else if (cleaned.startsWith('```')) {
     cleaned = cleaned.substring(3);
   }
 
-  // 3. 提取 JSON 内容（从第一个 { 或 [ 开始）
+  // 2. 提取 JSON 内容（从第一个 { 或 [ 开始）
   const jsonStart = cleaned.indexOf('{');
   const jsonArrayStart = cleaned.indexOf('[');
   const startIndex = jsonStart === -1 ? jsonArrayStart :
@@ -49,7 +33,7 @@ export function cleanAIResponse(response: string): string {
     cleaned = cleaned.substring(startIndex);
   }
 
-  // 4. 查找匹配的结束括号并截取（考虑字符串内部和转义字符）
+  // 3. 查找匹配的结束括号并截取（考虑字符串内部和转义字符）
   const firstChar = cleaned.charAt(0);
   if (firstChar === '{') {
     let depth = 0;
@@ -65,7 +49,9 @@ export function cleanAIResponse(response: string): string {
         escapeNext = true;
         continue;
       }
-      if (c === '"') {
+      // 处理各种引号：ASCII " 和中文 """""
+      const isQuote = c === '"' || c === '\u201C' || c === '\u201D';
+      if (isQuote) {
         inString = !inString;
         continue;
       }
@@ -95,8 +81,23 @@ export function cleanAIResponse(response: string): string {
     }
   }
 
-  // 5. 移除残留的 ``` 标记
+  // 4. 移除残留的 ``` 标记
   cleaned = cleaned.replace(/```/g, '').trim();
+
+  // 5. 替换中文标点（在括号匹配之后，只处理提取的 JSON 内容）
+  cleaned = cleaned
+    // 中文双引号
+    .replace(/\u201C/g, '"').replace(/\u201D/g, '"')
+    // 中文单引号
+    .replace(/\u2018/g, "'").replace(/\u2019/g, "'")
+    // 其他中文标点
+    .replace(/，/g, ',')
+    .replace(/：/g, ':')
+    .replace(/；/g, ';')
+    .replace(/？/g, '?')
+    .replace(/！/g, '!')
+    .replace(/（/g, '(').replace(/）/g, ')')
+    .replace(/【/g, '[').replace(/】/g, ']');
 
   return cleaned;
 }
