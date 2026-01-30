@@ -30,15 +30,26 @@ export async function GET(
       id: task.id,
       status: task.status,
       progress: task.progress,
+      progressType: typeof task.progress,
       currentStep: task.currentStep,
+      analysisStep: task.analysisStep,
+      processing: task.processing,
     });
+
+    // 确保进度值被正确序列化（处理 null/undefined 情况）
+    const responseData = {
+      ...task,
+      progress: task.progress ?? 0,  // 确保 null/undefined 被转换为 0
+    };
 
     return NextResponse.json({
       success: true,
-      data: task,
+      data: responseData,
     }, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
       },
     });
   } catch (error) {
