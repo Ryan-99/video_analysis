@@ -15,7 +15,26 @@ import { calculateMetrics } from '@/lib/analyzer/calculations';
 export function cleanAIResponse(response: string): string {
   let cleaned = response.trim();
 
-  // 1. 提取 JSON 内容（从第一个 { 或 [ 开始）
+  // 1. 首先替换所有中文标点（必须在括号匹配之前，避免中文引号干扰字符串边界检测）
+  // 使用 split/join 确保全部替换
+  cleaned = cleaned.split('"').join('"').split('"').join('"');
+  cleaned = cleaned.split(''').join("'").split(''').join("'");
+  cleaned = cleaned.split('，').join(',');
+  cleaned = cleaned.split('：').join(':');
+  cleaned = cleaned.split('；').join(';');
+  cleaned = cleaned.split('？').join('?');
+  cleaned = cleaned.split('！').join('!');
+  cleaned = cleaned.split('（').join('(').split('）').join(')');
+  cleaned = cleaned.split('【').join('[').split('】').join(']');
+
+  // 2. 移除 ```json 标记
+  if (cleaned.startsWith('```json')) {
+    cleaned = cleaned.substring(7);
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.substring(3);
+  }
+
+  // 3. 提取 JSON 内容（从第一个 { 或 [ 开始）
   const jsonStart = cleaned.indexOf('{');
   const jsonArrayStart = cleaned.indexOf('[');
   const startIndex = jsonStart === -1 ? jsonArrayStart :
@@ -26,14 +45,7 @@ export function cleanAIResponse(response: string): string {
     cleaned = cleaned.substring(startIndex);
   }
 
-  // 2. 移除 ```json 标记
-  if (cleaned.startsWith('```json')) {
-    cleaned = cleaned.substring(7);
-  } else if (cleaned.startsWith('```')) {
-    cleaned = cleaned.substring(3);
-  }
-
-  // 3. 查找匹配的结束括号并截取（考虑字符串内部和转义字符）
+  // 4. 查找匹配的结束括号并截取（考虑字符串内部和转义字符）
   const firstChar = cleaned.charAt(0);
   if (firstChar === '{') {
     let depth = 0;
@@ -79,18 +91,8 @@ export function cleanAIResponse(response: string): string {
     }
   }
 
-  // 4. 移除残留的 ``` 标记
+  // 5. 移除残留的 ``` 标记
   cleaned = cleaned.replace(/```/g, '').trim();
-
-  // 5. 替换中文标点（使用 split/join 确保全部替换）
-  cleaned = cleaned.split('"').join('"').split('"').join('"');
-  cleaned = cleaned.split('，').join(',');
-  cleaned = cleaned.split('：').join(':');
-  cleaned = cleaned.split('；').join(';');
-  cleaned = cleaned.split('？').join('?');
-  cleaned = cleaned.split('！').join('!');
-  cleaned = cleaned.split('（').join('(').split('）').join(')');
-  cleaned = cleaned.split('【').join('[').split('】').join(']');
 
   return cleaned;
 }
@@ -99,19 +101,19 @@ export function cleanAIResponse(response: string): string {
  * 安全地解析 AI 返回的 JSON
  * 尝试多种策略来解析可能包含问题的 JSON
  */
-export function safeParseJSON(jsonString: string, maxAttempts = 3): any {
+export function safeParseJSON(jsonString: string, maxAttempts = 5): any {
   const attempts: Array<{ name: string; transform: (s: string) => string }> = [
     {
       name: '直接解析',
       transform: (s) => s,
     },
     {
-      name: '替换所有中文标点',
+      name: '再次替换中文标点（正则）',
       transform: (s) => {
         let result = s;
-        // 替换所有可能的全角标点为半角
-        result = result.replace(/"/g, '"').replace(/"/g, '"');
-        result = result.replace(/'/g, "'").replace(/'/g, "'");
+        // 使用正则全局替换所有中文标点
+        result = result.replace(/[\u201C\u201D\uFF02\u201E\u201F\u2033\u2036]/g, '"'); // 各种中文引号
+        result = result.replace(/[\u2018\u2019\uFF07]/g, "'"); // 各种中文单引号
         result = result.replace(/，/g, ',');
         result = result.replace(/：/g, ':');
         result = result.replace(/；/g, ';');
@@ -126,12 +128,64 @@ export function safeParseJSON(jsonString: string, maxAttempts = 3): any {
       name: '移除所有不可见字符',
       transform: (s) => {
         // 移除可能存在的零宽字符、BOM等
-        let result = s.replace(/[\u200B-\u200D\uFEFF]/g, '');
+        let result = s.replace(/[\u200B-\u200D\uFEFF\u200E\u200F]/g, '');
         // 再替换中文标点
-        result = result.replace(/"/g, '"').replace(/"/g, '"');
-        result = result.replace(/'/g, "'").replace(/'/g, "'");
+        result = result.replace(/[\u201C\u201D\uFF02\u201E\u201F\u2033\u2036]/g, '"');
+        result = result.replace(/[\u2018\u2019\uFF07]/g, "'");
         result = result.replace(/，/g, ',');
         result = result.replace(/：/g, ':');
+        return result;
+      },
+    },
+    {
+      name: '截取到第一个完整对象',
+      transform: (s) => {
+        // 尝试找到第一个完整的 JSON 对象
+        let result = s;
+        const firstBrace = result.indexOf('{');
+        if (firstBrace === -1) return result;
+
+        let depth = 0;
+        let inString = false;
+        let escapeNext = false;
+        for (let i = firstBrace; i < result.length; i++) {
+          const c = result[i];
+          if (escapeNext) {
+            escapeNext = false;
+            continue;
+          }
+          if (c === '\\') {
+            escapeNext = true;
+            continue;
+          }
+          if (c === '"') {
+            inString = !inString;
+            continue;
+          }
+          if (!inString) {
+            if (c === '{') depth++;
+            else if (c === '}') {
+              depth--;
+              if (depth === 0) {
+                return result.substring(firstBrace, i + 1);
+              }
+            }
+          }
+        }
+        return result;
+      },
+    },
+    {
+      name: '强制修复常见错误',
+      transform: (s) => {
+        let result = s;
+        // 移除末尾的逗号（{ "a": 1, } -> { "a": 1 }）
+        result = result.replace(/,\s*([}\]])/g, '$1');
+        // 修复未引用的键（{ a: 1 } -> { "a": 1 }）
+        result = result.replace(/([{]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/g, '$1"$2"$3');
+        // 替换中文标点
+        result = result.replace(/[\u201C\u201D\uFF02]/g, '"');
+        result = result.replace(/，/g, ',');
         return result;
       },
     },
