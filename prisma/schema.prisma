@@ -61,6 +61,9 @@ model AnalysisTask {
   processing          Boolean? @default(false)  // 标记任务是否正在处理中
   processingLockedAt  DateTime? // 锁定时间戳（用于超时检测）
 
+  // 重试机制字段
+  retryCount          Int?     @default(0)  // 重试次数计数器
+
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   completedAt    DateTime?

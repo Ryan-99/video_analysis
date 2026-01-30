@@ -82,6 +82,9 @@ export interface Task {
   processing?: boolean | null;  // 标记任务是否正在处理中
   processingLockedAt?: Date | null;  // 锁定时间戳（用于超时检测）
 
+  // 重试机制字段
+  retryCount?: number | null;  // 重试次数计数器
+
   createdAt: Date;
   updatedAt: Date;
   completedAt: Date | null;
