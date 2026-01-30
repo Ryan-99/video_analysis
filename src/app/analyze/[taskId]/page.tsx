@@ -180,18 +180,16 @@ export default function AnalyzePage({ params }: { params: Promise<{ taskId: stri
       }
     : null;
 
-  // 计算进度百分比
-  const progress = taskStatus?.progress ??
-    (summary ? Math.round((summary.completedSteps || 0) / Math.max(summary.totalSteps || 1, 1) * 100) : 0);
+  // 计算进度百分比 - 直接使用后端返回的 progress 值
+  const progress = taskStatus?.progress ?? 0;
 
   // 调试：记录进度计算
   useEffect(() => {
-    console.log('[Frontend] 进度计算:', {
+    console.log('[Frontend] 进度更新:', {
       taskStatusProgress: taskStatus?.progress,
-      summaryProgress: summary ? Math.round((summary.completedSteps || 0) / Math.max(summary.totalSteps || 1, 1) * 100) : '无summary',
       finalProgress: progress,
     });
-  }, [taskStatus?.progress, summary, progress]);
+  }, [taskStatus?.progress, progress]);
 
   // 当前步骤状态
   const currentStep = taskStatus?.currentStep || logs[logs.length - 1]?.step || '准备中...';
