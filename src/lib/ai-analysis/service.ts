@@ -15,6 +15,11 @@ import { calculateMetrics } from '@/lib/analyzer/calculations';
 export function cleanAIResponse(response: string): string {
   let cleaned = response.trim();
 
+  // 诊断日志：记录原始响应信息
+  const responsePreview = response.substring(0, Math.min(300, response.length));
+  console.log('[cleanAIResponse] 原始响应长度:', response.length);
+  console.log('[cleanAIResponse] 前300字符:', responsePreview);
+
   // 1. 移除 ```json 标记（必须在提取 JSON 之前）
   if (cleaned.startsWith('```json')) {
     cleaned = cleaned.substring(7);
@@ -100,6 +105,26 @@ export function cleanAIResponse(response: string): string {
     .replace(/（/g, '(').replace(/）/g, ')');
   // 移除【】的替换 - 它们在 JSON 字符串值内部是合法的
 
+  // 诊断日志：检查清理后的内容
+  console.log('[cleanAIResponse] 清理后长度:', cleaned.length);
+  const cleanedPreview = cleaned.substring(0, Math.min(300, cleaned.length));
+  console.log('[cleanAIResponse] 清理后前300字符:', cleanedPreview);
+
+  // 诊断：检测前200字符中的所有引号位置和上下文
+  console.log('[cleanAIResponse] 前200字符中的引号位置分析:');
+  let quoteCount = 0;
+  for (let i = 0; i < Math.min(200, cleaned.length); i++) {
+    const charCode = cleaned.charCodeAt(i);
+    if (charCode === 34) {  // ASCII 双引号
+      quoteCount++;
+      const contextStart = Math.max(0, i - 15);
+      const contextEnd = Math.min(cleaned.length, i + 15);
+      const context = cleaned.substring(contextStart, contextEnd);
+      console.log(`  Position ${i}: "${context.replace(/\n/g, '\\n')}"`);
+    }
+  }
+  console.log('[cleanAIResponse] 总引号数:', quoteCount);
+
   return cleaned;
 }
 
@@ -108,6 +133,21 @@ export function cleanAIResponse(response: string): string {
  * 尝试多种策略来解析可能包含问题的 JSON
  */
 export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
+  // 诊断日志：输入字符串分析
+  console.log('[safeParseJSON] 输入字符串长度:', jsonString.length);
+
+  // 检测前100字符中可能的问题模式
+  let suspiciousPatterns = 0;
+  const preview = jsonString.substring(0, Math.min(100, jsonString.length));
+  console.log('[safeParseJSON] 前100字符预览:', preview);
+
+  // 检测连续的引号（可能表示未转义）
+  const consecutiveQuotes = preview.match(/"[^"]{0,10}"/g);
+  if (consecutiveQuotes && consecutiveQuotes.length > 2) {
+    console.log('[safeParseJSON] 警告：检测到多个连续的引号模式，可能存在未转义的引号');
+    suspiciousPatterns++;
+  }
+
   const attempts: Array<{ name: string; transform: (s: string) => string }> = [
     {
       name: '直接解析',
@@ -336,7 +376,28 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
       console.log(`[safeParseJSON] ✅ 尝试 ${i + 1} (${attempt.name}) 成功`);
       return parsed;
     } catch (error) {
-      console.log(`[safeParseJSON] ❌ 尝试 ${i + 1} (${attempt.name}) 失败:`, error instanceof Error ? error.message : String(error));
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.log(`[safeParseJSON] ❌ 尝试 ${i + 1} (${attempt.name}) 失败:`, errorMsg);
+
+      // 第一次失败时，添加详细的诊断信息
+      if (i === 0) {
+        console.log('[safeParseJSON] === 诊断信息 ===');
+        const inputPreview = jsonString.substring(0, Math.min(500, jsonString.length));
+        console.log('[safeParseJSON] 输入前500字符:', inputPreview);
+
+        // 分析错误位置
+        const positionMatch = errorMsg.match(/position (\d+)/);
+        if (positionMatch) {
+          const errorPos = parseInt(positionMatch[1]);
+          const contextStart = Math.max(0, errorPos - 30);
+          const contextEnd = Math.min(jsonString.length, errorPos + 30);
+          const errorContext = jsonString.substring(contextStart, contextEnd);
+          console.log(`[safeParseJSON] 错误位置 ${errorPos} 上下文:`, errorContext);
+          console.log(`[safeParseJSON] 错误位置的字符:`, jsonString.charAt(errorPos), `(code: ${jsonString.charCodeAt(errorPos)})`);
+        }
+        console.log('[safeParseJSON] === 诊断结束 ===');
+      }
+
       if (i === Math.min(attempts.length, maxAttempts) - 1) {
         // 最后一次尝试也失败了，抛出错误
         throw error;
