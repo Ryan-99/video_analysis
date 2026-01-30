@@ -81,7 +81,7 @@ async function handleTaskError(
     // 可重试：使用 update + 显式释放锁
     // 添加重试日志，让用户能区分"重试"和"新执行"
     if (logStep) {
-      await logStep('system', `步骤重试 (${retryCount + 1}/${maxRetries})`, 'info', {
+      await logStep('system', `步骤重试 (${retryCount + 1}/${maxRetries})`, 'progress', {
         step: task.analysisStep,
         reason: error instanceof Error ? error.message : String(error)
       });
