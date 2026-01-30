@@ -715,7 +715,7 @@ export async function executeAnalysisStep(taskId: string, step: number): Promise
         status: nextStatus,
         currentStep: TaskStateMachine.getStepDescription(nextStep),
         progress: TaskStateMachine.getStepProgress(nextStep),
-        processing: false,
+        processing: true, // 保持锁定状态，由 process/route.ts 的 finally 块统一释放
       });
 
       console.log(`[Analysis Step] 步骤 ${step} → ${nextStep} 完成`);

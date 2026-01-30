@@ -71,3 +71,53 @@ body: JSON.stringify({
   max_tokens: maxTokens,  // ✅ 已添加
 }),
 ```
+
+---
+
+## 会话 3：前后端进度计算与锁机制问题 (2026-01-30)
+
+### 问题日志
+```
+2026-01-30 04:10:38.947 [info] update完成: xxx 数据库值: { progress: 40, currentStep: '正在分析账号概况...' }
+...
+2026-01-30 04:11:05.793 [warning] [DatabaseTaskQueue] releaseLock: 任务 xxx 未释放锁, processing=false或不存在
+```
+
+### 问题分析
+1. **进度显示**: 步骤完成后，进度直接设置为下一步的完成进度（如步骤0完成后设置为40%），这是设计行为
+2. **锁释放警告**: `atomicUpdate` 在步骤完成后设置了 `processing: false`，导致锁被释放，然后 `process/route.ts` 的 `finally` 块尝试再次释放锁
+
+### 修复实施 ✅
+
+**修改文件**: [src/lib/analyzer/pipeline.ts:712-719](../src/lib/analyzer/pipeline.ts#L712-L719)
+
+**修改内容**: 将 `processing: false` 改为 `processing: true`
+
+**修改前**:
+```typescript
+await taskQueue.atomicUpdate(taskId, {
+  analysisStep: nextStep,
+  analysisData: JSON.stringify(stepData),
+  status: nextStatus,
+  currentStep: TaskStateMachine.getStepDescription(nextStep),
+  progress: TaskStateMachine.getStepProgress(nextStep),
+  processing: false,  // ❌ 导致锁被提前释放
+});
+```
+
+**修改后**:
+```typescript
+await taskQueue.atomicUpdate(taskId, {
+  analysisStep: nextStep,
+  analysisData: JSON.stringify(stepData),
+  status: nextStatus,
+  currentStep: TaskStateMachine.getStepDescription(nextStep),
+  progress: TaskStateMachine.getStepProgress(nextStep),
+  processing: true,  // ✅ 保持锁定，由 process/route.ts 的 finally 块统一释放
+});
+```
+
+### 验证结果
+- ✅ 前端 API 已设置 `Cache-Control: no-store`
+- ✅ 前端 fetch 已设置 `{ cache: 'no-store' }`
+- ⏳ 等待部署验证

@@ -238,3 +238,279 @@ const result1 = await this.callAI(prompt1, aiConfig, 240000, 16000);
 // 修改后
 const result1 = await this.callAI(prompt1, aiConfig, 240000, 12000);
 ```
+
+---
+
+## 新发现：前后端进度计算与锁机制问题 (2026-01-30)
+
+### 问题日志分析
+
+```
+2026-01-30 04:10:38.869 [info] [DatabaseTaskQueue] update: xxx updates: {"status":"analyzing","currentStep":"正在分析账号概况..."}
+2026-01-30 04:10:38.947 [info] [DatabaseTaskQueue] update完成: xxx 数据库值: { status: 'analyzing', progress: 40, currentStep: '正在分析账号概况...' }
+...
+2026-01-30 04:11:05.696 [info] [Jobs] 分步分析步骤完成: xxx, 步骤: 1
+2026-01-30 04:11:05.696 [info] [Jobs] 释放任务 xxx 的原子锁
+2026-01-30 04:11:05.793 [warning] [DatabaseTaskQueue] releaseLock: 任务 xxx 未释放锁, processing=false或不存在
+```
+
+### 根本原因分析
+
+#### 问题 1: 步骤开始时设置进度导致进度覆盖
+
+**代码位置**: `src/lib/analyzer/pipeline.ts` 的各步骤函数
+
+**问题代码** (步骤1为例，第801-806行):
+```typescript
+await taskQueue.update(task.id, {
+  status: 'analyzing',
+  currentStep: '正在分析账号概况...',
+  // ❌ 注意：不在这里设置 progress，避免与步骤完成后的进度冲突
+  // progress 会在步骤完成后通过 atomicUpdate 统一更新
+});
+```
+
+虽然注释说"不在这里设置 progress"，但实际上 `update` 函数会保留数据库中的 `progress: 40`（从上一步更新来的值），然后在步骤完成后，`atomicUpdate` 会设置新的进度值。
+
+**实际执行流程**:
+1. 步骤 1 开始时: `update` 保留 `progress: 40`
+2. 步骤 1 完成后: `atomicUpdate` 设置 `progress: 40` (仍然是40)
+3. 问题: 步骤完成时的进度应该比步骤开始时的进度高，但实际相同
+
+**进度配置** (`src/lib/queue/progress-config.ts`):
+```typescript
+export const STEP_FLOW_PROGRESS = {
+  step0_parse_complete: 25,    // 步骤0完成
+  step1_account_complete: 40,  // 步骤1完成 - 与步骤0完成相同!
+  step2_monthly_complete: 55,  // 步骤2完成
+  ...
+}
+```
+
+**发现**: `step1_account_complete: 40` 与 `step0_parse_complete: 25` 之间的差距是 15%，但步骤1开始时显示 40%，步骤1完成后仍然是 40%，这说明进度没有被正确更新。
+
+#### 问题 2: atomicUpdate 自动释放锁机制
+
+**代码位置**: `src/lib/queue/database.ts` 第128-131行
+
+```typescript
+// 自动释放锁：如果未指定 processing，默认为 false
+if (updateData.processing === undefined) {
+  updateData.processing = false;
+}
+```
+
+**问题**:
+- `atomicUpdate` 会在每次调用时**自动释放锁**（设置 `processing: false`）
+- 但是，分步流程中，步骤完成后不应该立即释放锁
+- 锁应该在 `process/route.ts` 的 `finally` 块中释放（第134-138行）
+
+**实际执行流程**:
+1. `process/route.ts` 获取锁 (`acquireLockWithTimeout`)
+2. 执行 `executeAnalysisStep` → `atomicUpdate` (自动释放锁!)
+3. `process/route.ts` 的 `finally` 块尝试释放锁 → 此时锁已被 `atomicUpdate` 释放
+4. 警告: `releaseLock: 任务 xxx 未释放锁, processing=false或不存在`
+
+#### 问题 3: 前端轮询缓存
+
+**代码位置**: 需要检查前端 API 调用
+
+**问题**: Next.js 默认缓存可能导致前端获取到过期的任务状态
+
+---
+
+### 优化方案
+
+#### 方案 1: 修复进度配置
+
+**问题**: `step1_account_complete: 40` 应该比 `step0_parse_complete: 25` 高，但实际上步骤1完成后进度仍然是40
+
+**分析**:
+- 步骤 0 完成后，`atomicUpdate` 设置 `progress: 25`
+- 步骤 1 开始时，`update` 保留 `progress: 25`（但从日志看是40）
+- 步骤 1 完成后，`atomicUpdate` 设置 `progress: 40`
+
+**从日志看**，步骤1开始时 `progress` 已经是 40，这说明：
+- 要么上一步（步骤0）完成后设置的是 40（而不是25）
+- 要么 `update` 函数没有正确保留进度值
+
+#### 方案 2: 修复 atomicUpdate 的自动释放锁机制
+
+**当前行为**: `atomicUpdate` 总是自动释放锁
+
+**问题**: 分步流程中，步骤完成后不应释放锁，应该由 `process/route.ts` 的 `finally` 块统一释放
+
+**修复方案**:
+1. 修改 `atomicUpdate`，添加参数控制是否自动释放锁
+2. 或者，在分步流程的 `atomicUpdate` 调用中显式设置 `processing: true`
+
+#### 方案 3: 确保前端 API 禁用缓存
+
+**修复方案**:
+1. 前端调用时添加 `{ cache: 'no-store' }`
+2. 后端 API 响应添加 `Cache-Control: no-store` 响应头
+
+---
+
+### 核心问题确认
+
+#### 问题 1: 步骤开始时进度被下一步的进度覆盖 ✅ 已确认
+
+**代码位置**: `src/lib/analyzer/pipeline.ts` 第712-718行
+
+**问题代码**:
+```typescript
+await taskQueue.atomicUpdate(taskId, {
+  analysisStep: nextStep,           // 设置下一步的步骤号
+  analysisData: JSON.stringify(stepData),
+  status: nextStatus,                // 设置下一步的状态
+  currentStep: TaskStateMachine.getStepDescription(nextStep),  // 下一步的描述
+  progress: TaskStateMachine.getStepProgress(nextStep),        // ⚠️ 下一步的进度!
+  processing: false,
+});
+```
+
+**问题分析**:
+- 当步骤 0 完成后，`nextStep = 1`，`getStepProgress(1)` 返回 `40`
+- 这意味着步骤 0 完成后，进度直接被设置为步骤 1 完成后的进度（40%）
+- 同样，步骤 1 完成后，`nextStep = 2`，进度被设置为步骤 2 完成后的进度（55%）
+
+**这是正确的行为吗？**
+- 从用户体验角度，步骤完成后显示下一步的进度是合理的（表示"即将进入下一步"）
+- 但这导致的问题是：步骤执行过程中，进度不会变化，始终显示步骤完成后的进度值
+
+**从日志看**:
+```
+04:10:38.947 [info] update完成: xxx 数据库值: { progress: 40, currentStep: '正在分析账号概况...' }
+```
+这表示步骤 1 开始时，进度已经是 40%。这是步骤 0 完成后设置的进度（`getStepProgress(1) = 40`）。
+
+**结论**: 这不是bug，而是设计行为。步骤完成后立即设置下一步的进度，让用户知道即将进入哪个步骤。
+
+#### 问题 2: atomicUpdate 自动释放锁导致警告 ✅ 已确认
+
+**代码流程**:
+1. `process/route.ts` 第86行: `await taskQueue.acquireLockWithTimeout(task.id)` - 获取锁
+2. 第109行: `await executeAnalysisStep(task.id, task.analysisStep)` - 执行步骤
+3. `pipeline.ts` 第712-718行: `await taskQueue.atomicUpdate(..., processing: false)` - 自动释放锁!
+4. `process/route.ts` 第135行: `await taskQueue.releaseLock(task.id)` - 尝试释放锁（但已被释放）
+5. 警告: `releaseLock: 任务 xxx 未释放锁, processing=false或不存在`
+
+**问题根源**:
+- `atomicUpdate` 在第718行显式设置了 `processing: false`
+- 这导致锁在步骤完成后立即被释放
+- 然后 `process/route.ts` 的 `finally` 块尝试再次释放锁，导致警告
+
+**解决方案**:
+- 选项A: 移除第718行的 `processing: false`，让 `process/route.ts` 的 `finally` 块统一释放锁
+- 选项B: 修改 `process/route.ts`，在调用 `executeAnalysisStep` 之前检查是否需要释放锁
+
+#### 问题 3: 进度在步骤执行过程中不更新 ⚠️ 可能存在
+
+**当前行为**:
+- 步骤开始时: 进度 = 步骤完成后的进度值（如40%）
+- 步骤执行中: 进度保持不变（因为没有更新）
+- 步骤完成后: 进度 = 下一步完成后的进度值（如55%）
+
+**理想行为**:
+- 步骤开始时: 进度 = 上一步完成后的进度值 + 一点增量（如26%）
+- 步骤执行中: 进度逐渐增加（如果可以的话）
+- 步骤完成后: 进度 = 本步骤完成后的进度值（如40%）
+
+---
+
+### 优化方案总结
+
+#### 方案 1: 修复锁释放机制（推荐）
+
+**修改**: `src/lib/analyzer/pipeline.ts` 第712-719行
+
+```typescript
+// 修改前
+await taskQueue.atomicUpdate(taskId, {
+  analysisStep: nextStep,
+  analysisData: JSON.stringify(stepData),
+  status: nextStatus,
+  currentStep: TaskStateMachine.getStepDescription(nextStep),
+  progress: TaskStateMachine.getStepProgress(nextStep),
+  processing: false,  // ❌ 移除这行
+});
+
+// 修改后
+await taskQueue.atomicUpdate(taskId, {
+  analysisStep: nextStep,
+  analysisData: JSON.stringify(stepData),
+  status: nextStatus,
+  currentStep: TaskStateMachine.getStepDescription(nextStep),
+  progress: TaskStateMachine.getStepProgress(nextStep),
+  // ✅ 不设置 processing: false，让 process/route.ts 的 finally 块统一释放
+});
+```
+
+**原因**: `atomicUpdate` 默认会自动释放锁（见 `database.ts` 第129-131行），所以显式设置 `processing: false` 是多余的，而且会导致警告。
+
+**等等！** 让我再检查 `atomicUpdate` 的自动释放逻辑...
+
+重新阅读 `database.ts` 第128-131行:
+```typescript
+// 自动释放锁：如果未指定 processing，默认为 false
+if (updateData.processing === undefined) {
+  updateData.processing = false;
+}
+```
+
+这意味着：
+- 如果不指定 `processing`，会自动设置为 `false`（释放锁）
+- 如果指定 `processing: true`，会保持锁定状态
+
+所以，正确的修复方案是：
+**添加 `processing: true`**，而不是移除 `processing: false`!
+
+```typescript
+// 修改后
+await taskQueue.atomicUpdate(taskId, {
+  analysisStep: nextStep,
+  analysisData: JSON.stringify(stepData),
+  status: nextStatus,
+  currentStep: TaskStateMachine.getStepDescription(nextStep),
+  progress: TaskStateMachine.getStepProgress(nextStep),
+  processing: true,  // ✅ 保持锁定，让 process/route.ts 的 finally 块释放
+});
+```
+
+#### 方案 2: 调整进度计算逻辑（可选）
+
+**当前进度值**:
+- 步骤 0 完成: 25%
+- 步骤 1 完成: 40%
+- 步骤 2 完成: 55%
+- ...
+
+**问题**: 步骤完成后，进度直接跳到下一步的完成值，用户看不到步骤的进展。
+
+**可选方案**:
+1. 在步骤开始时设置一个"开始进度"（如步骤1开始时26%）
+2. 在步骤完成后设置"完成进度"（如步骤1完成时40%）
+
+但这需要修改代码逻辑，当前的设计（直接设置为下一步的完成进度）也是合理的。
+
+---
+
+### 需要验证的问题
+
+1. **锁释放流程**: ✅ 已确认 - 需要添加 `processing: true`
+2. **进度显示逻辑**: ✅ 已确认 - 当前设计是合理的
+3. **前端进度显示**: 需要检查前端 API 调用是否禁用缓存
+
+---
+
+### 关键文件
+
+| 文件 | 作用 | 需要修改 |
+|------|------|----------|
+| `src/lib/queue/database.ts` | 锁机制实现 | 是 |
+| `src/lib/analyzer/pipeline.ts` | 分步流程实现 | 可能 |
+| `src/lib/queue/progress-config.ts` | 进度配置 | 可能 |
+| `src/lib/queue/state-machine.ts` | 状态机 | 需要检查 |
+| `src/app/api/jobs/process/route.ts` | 任务处理入口 | 需要检查 |
+| 前端 API 调用 | 进度轮询 | 需要检查 |
