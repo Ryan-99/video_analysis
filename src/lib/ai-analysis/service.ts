@@ -126,7 +126,7 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
         result = result.replace(/？/g, '?');
         result = result.replace(/！/g, '!');
         result = result.replace(/（/g, '(').replace(/）/g, ')');
-        result = result.replace(/【/g, '[').replace(/】/g, ']');
+        // 移除【】的替换 - 它们在 JSON 字符串值内部是合法的
         return result;
       },
     },
