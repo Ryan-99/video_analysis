@@ -79,13 +79,21 @@ async function handleTaskError(
 
   if (isRetryable && retryCount < maxRetries) {
     // 可重试：使用 update + 显式释放锁
+    // 添加重试日志，让用户能区分"重试"和"新执行"
+    if (logStep) {
+      await logStep('system', `步骤重试 (${retryCount + 1}/${maxRetries})`, 'info', {
+        step: task.analysisStep,
+        reason: error instanceof Error ? error.message : String(error)
+      });
+    }
+
     await taskQueue.update(taskId, {
       status: 'queued',
       processing: false,
       retryCount: retryCount + 1,
       error: `重试 ${retryCount + 1}/${maxRetries}: ${error instanceof Error ? error.message : String(error)}`
     });
-    console.log(`[Analysis] 任务 ${taskId} 进入重试队列 (${retryCount + 1}/${maxRetries})`);
+    console.log(`[Analysis] 任务 ${taskId} 进入重试队列 (${retryCount + 1}/${maxRetries}), 步骤: ${task.analysisStep}`);
   } else {
     // 永久失败：使用 atomicUpdate + 自动释放锁
     const errorMessage = error instanceof Error ? error.message : '未知错误';
@@ -596,6 +604,22 @@ export async function completeAnalysis(taskId: string): Promise<void> {
     console.log('[Analysis] 分析流程完成, taskId:', taskId);
 
   } catch (error) {
+    console.error('[Analysis] completeAnalysis 执行失败:', error);
+
+    // 确保即使失败，状态也被设置为 completed（容错处理）
+    // 避免任务卡在 generating_charts 状态
+    try {
+      await taskQueue.update(taskId, {
+        status: 'completed',
+        progress: FULL_FLOW_PROGRESS.task_complete,
+        currentStep: '分析完成',
+        completedAt: new Date(),
+      });
+      console.log('[Analysis] 已强制设置任务为 completed 状态');
+    } catch (updateError) {
+      console.error('[Analysis] 强制设置 completed 状态也失败:', updateError);
+    }
+
     await handleTaskError(taskId, error, logStep);
     throw error;
   }
@@ -724,6 +748,7 @@ export async function executeAnalysisStep(taskId: string, step: number): Promise
     console.log(`[Analysis Step] 步骤 ${step} 完成，下一步: ${nextStep}`);
 
   } catch (error) {
+    console.error(`[Analysis Step] 步骤 ${step} atomicUpdate 失败:`, error instanceof Error ? error.message : String(error));
     await handleTaskError(taskId, error, logStep);
     throw error;
   }
