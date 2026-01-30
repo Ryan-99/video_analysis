@@ -741,8 +741,7 @@ async function step0_ParseData(
   await taskQueue.update(task.id, {
     status: 'parsing',
     currentStep: '正在解析数据...',
-    // 注意：不在这里设置 progress，避免与步骤完成后的进度冲突
-    // progress 会在步骤完成后通过 atomicUpdate 统一更新
+    progress: TaskStateMachine.getStepStartProgress(0), // 5% - 步骤开始时设置进度
   });
 
   const videos = await parseData(task.fileId, task.fileName, task.columnMapping, task.fileUrl, task.fileContent);
@@ -801,8 +800,7 @@ async function step1_AccountOverview(
   await taskQueue.update(task.id, {
     status: 'analyzing',
     currentStep: '正在分析账号概况...',
-    // 注意：不在这里设置 progress，避免与步骤完成后的进度冲突
-    // progress 会在步骤完成后通过 atomicUpdate 统一更新
+    progress: TaskStateMachine.getStepStartProgress(1), // 28% - 步骤开始时设置进度
   });
 
   const accountAnalysis = await aiAnalysisService.analyzeAccountOverview(
@@ -838,7 +836,7 @@ async function step2_MonthlyTrend(
   await logStep('ai', '开始AI分析 - 月度趋势', 'start');
   await taskQueue.update(task.id, {
     currentStep: '正在分析月度趋势...',
-    // 注意：不在这里设置 progress，避免与步骤完成后的进度冲突
+    progress: TaskStateMachine.getStepStartProgress(2), // 42% - 步骤开始时设置进度
   });
 
   const monthlyTrendAnalysis = await aiAnalysisService.analyzeMonthlyTrend(
@@ -875,7 +873,7 @@ async function step3_ExplosivePeriods(
   await logStep('ai', '开始AI分析 - 爆发期详情', 'start');
   await taskQueue.update(task.id, {
     currentStep: '正在分析爆发期详情...',
-    // 注意：不在这里设置 progress，避免与步骤完成后的进度冲突
+    progress: TaskStateMachine.getStepStartProgress(3), // 57% - 步骤开始时设置进度
   });
 
   // 爆发期详情已在月度趋势分析中包含，这里可以进行额外的细化分析
@@ -902,7 +900,7 @@ async function step4_ViralMain(
   await logStep('ai', '开始AI分析 - 数据分组与口径说明', 'start');
   await taskQueue.update(task.id, {
     currentStep: '正在生成数据口径说明...',
-    // 注意：不在这里设置 progress，避免与步骤完成后的进度冲突
+    progress: TaskStateMachine.getStepStartProgress(4), // 67% - 步骤开始时设置进度
   });
 
   const dataScopeResult = await aiAnalysisService.analyzeViralDataScope(
@@ -926,7 +924,7 @@ async function step4_ViralMain(
   await logStep('ai', '开始AI分析 - 爆款分类分析', 'start');
   await taskQueue.update(task.id, {
     currentStep: '正在进行爆款分类分析...',
-    // 注意：不在这里设置 progress，避免与步骤完成后的进度冲突
+    // 步骤4已经开始，不需要重复设置进度
   });
 
   const classificationResult = await aiAnalysisService.analyzeViralClassification(
@@ -976,7 +974,7 @@ async function step5_Methodology(
   await logStep('ai', '开始AI分析 - 方法论抽象', 'start');
   await taskQueue.update(task.id, {
     currentStep: '正在抽象方法论...',
-    // 注意：不在这里设置 progress，避免与步骤完成后的进度冲突
+    progress: TaskStateMachine.getStepStartProgress(5), // 72% - 步骤开始时设置进度
   });
 
   // 调用新函数：执行方法论抽象（第二次 AI 调用）

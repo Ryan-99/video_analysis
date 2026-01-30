@@ -105,15 +105,38 @@ export class TaskStateMachine {
       0: STEP_FLOW_PROGRESS.step0_parse_complete,     // 25
       1: STEP_FLOW_PROGRESS.step1_account_complete,   // 40
       2: STEP_FLOW_PROGRESS.step2_monthly_complete,   // 55
-      3: STEP_FLOW_PROGRESS.step3_explosive_complete, // 65 (新增，确保递增)
+      3: STEP_FLOW_PROGRESS.step3_explosive_complete, // 65
       4: STEP_FLOW_PROGRESS.step4_viral_complete,     // 70
       5: STEP_FLOW_PROGRESS.step5_methodology_complete, // 75
-      6: STEP_FLOW_PROGRESS.step6_complete,           // 76 (原75)
+      6: STEP_FLOW_PROGRESS.step6_complete,           // 76
     };
 
     const progress = progressMap[step];
     if (progress === undefined) {
       throw new Error(`无效的步骤号: ${step}`);
+    }
+
+    return progress;
+  }
+
+  /**
+   * 获取步骤开始时的进度百分比
+   * 在步骤开始时设置此进度，确保前端能立即看到进度变化
+   */
+  static getStepStartProgress(step: number): number {
+    const progressMap: Record<number, number> = {
+      0: STEP_FLOW_PROGRESS.step0_parse_start,      // 5
+      1: STEP_FLOW_PROGRESS.step1_account_start,    // 28
+      2: STEP_FLOW_PROGRESS.step2_monthly_start,    // 42
+      3: STEP_FLOW_PROGRESS.step3_explosive_start,  // 57
+      4: STEP_FLOW_PROGRESS.step4_viral_start,      // 67
+      5: STEP_FLOW_PROGRESS.step5_methodology_start, // 72
+    };
+
+    const progress = progressMap[step];
+    if (progress === undefined) {
+      // 步骤6不需要单独的开始进度，使用完成进度
+      return STEP_FLOW_PROGRESS.step6_complete;
     }
 
     return progress;

@@ -349,18 +349,7 @@ class DatabaseTaskQueue {
       completedAt: dbTask.completedAt,
     };
 
-    // 调试：记录映射结果（临时启用以排查进度问题）
-    console.log('[DatabaseTaskQueue] mapToTask:', {
-      id: mapped.id,
-      status: mapped.status,
-      progress: mapped.progress,
-      progressType: typeof mapped.progress,
-      dbTaskProgress: dbTask.progress,
-      dbTaskProgressType: typeof dbTask.progress,
-      currentStep: mapped.currentStep,
-    });
-
-    // 确保 progress 不是 null/undefined
+    // 确保 progress 不是 null/undefined（防御性处理）
     if (mapped.progress === null || mapped.progress === undefined) {
       console.error('[DatabaseTaskQueue] mapToTask: progress 是 null/undefined，使用默认值 0');
       mapped.progress = 0;

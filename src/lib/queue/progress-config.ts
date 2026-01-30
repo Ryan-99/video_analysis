@@ -31,22 +31,34 @@ export const FULL_FLOW_PROGRESS = {
   task_complete: 100,
 } as const;
 
-/** 分步流程进度配置（与完整流程对齐） */
+/** 分步流程进度配置（双进度机制：开始进度 + 完成进度） */
 export const STEP_FLOW_PROGRESS = {
-  /** 步骤0：解析数据完成 */
-  step0_parse_complete: 25,    // 与完整流程 account_analysis_complete 对齐
-  /** 步骤1：账号概况完成 */
-  step1_account_complete: 40,  // 与完整流程 monthly_trend_complete 对齐
-  /** 步骤2：月度趋势完成 */
-  step2_monthly_complete: 55,  // 与完整流程 viral_analysis_complete 对齐
-  /** 步骤3：爆发期完成 */
-  step3_explosive_complete: 65, // 新增，确保递增
-  /** 步骤4：爆款分类完成 */
-  step4_viral_complete: 70,    // 与完整流程 analysis_complete 对齐
-  /** 步骤5：方法论完成 */
-  step5_methodology_complete: 75, // 与完整流程 topic_outline_complete 对齐
+  /** 步骤0：解析数据 */
+  step0_parse_start: 5,        // 步骤开始时设置
+  step0_parse_complete: 25,     // 步骤完成时设置
+
+  /** 步骤1：账号概况 */
+  step1_account_start: 28,     // 步骤开始时设置
+  step1_account_complete: 40,   // 步骤完成时设置
+
+  /** 步骤2：月度趋势 */
+  step2_monthly_start: 42,     // 步骤开始时设置
+  step2_monthly_complete: 55,   // 步骤完成时设置
+
+  /** 步骤3：爆发期 */
+  step3_explosive_start: 57,    // 步骤开始时设置
+  step3_explosive_complete: 65, // 步骤完成时设置
+
+  /** 步骤4：爆款分类 */
+  step4_viral_start: 67,       // 步骤开始时设置
+  step4_viral_complete: 70,     // 步骤完成时设置
+
+  /** 步骤5：方法论 */
+  step5_methodology_start: 72,  // 步骤开始时设置
+  step5_methodology_complete: 75, // 步骤完成时设置
+
   /** 步骤6：分步完成，进入选题生成 */
-  step6_complete: 76,          // 进入选题生成
+  step6_complete: 76,           // 进入选题生成
 } as const;
 
 /**

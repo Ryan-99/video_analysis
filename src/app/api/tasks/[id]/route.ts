@@ -26,20 +26,10 @@ export async function GET(
       );
     }
 
-    console.log('[Tasks API] 返回任务数据:', {
-      id: task.id,
-      status: task.status,
-      progress: task.progress,
-      progressType: typeof task.progress,
-      currentStep: task.currentStep,
-      analysisStep: task.analysisStep,
-      processing: task.processing,
-    });
-
-    // 确保进度值被正确序列化（处理 null/undefined 情况）
+    // 确保 progress 不为 null（防御性处理）
     const responseData = {
       ...task,
-      progress: task.progress ?? 0,  // 确保 null/undefined 被转换为 0
+      progress: task.progress ?? 0,
     };
 
     return NextResponse.json({
