@@ -260,7 +260,19 @@ async function handleTopicDetailsContinuous(taskId: string): Promise<void> {
   while (batchCount < maxBatches) {
     // 检查超时
     if (Date.now() - startTime > maxDuration) {
-      console.warn('[Jobs] 选题详情处理超时，暂停等待下次触发');
+      console.warn('[Jobs] 选题详情处理超时，标记任务为失败');
+      // 超时后设置任务为失败状态，避免卡在中间状态
+      try {
+        await taskQueue.update(taskId, {
+          status: 'failed',
+          error: '选题生成超时，请重试',
+          currentStep: '选题生成超时',
+          progress: 42, // 设置一个明确的进度值，避免前端显示不一致
+        });
+        console.log('[Jobs] 已将任务标记为失败');
+      } catch (updateError) {
+        console.error('[Jobs] 设置失败状态时出错:', updateError);
+      }
       break;
     }
 
