@@ -97,8 +97,16 @@ export default function AnalyzePage({ params }: { params: Promise<{ taskId: stri
         });
         setTaskStatus(newTaskStatus);
 
-        // 检测到待处理或选题生成状态，自动触发处理
-        if (newTaskStatus?.status === 'queued' || newTaskStatus?.status === 'topic_generating') {
+        // 检测到待处理状态，自动触发处理
+        // 包括：queued（新任务）、topic_generating（选题生成）、parsing/calculating/analyzing（分步分析中）
+        const isQueued = newTaskStatus?.status === 'queued';
+        const isTopicGenerating = newTaskStatus?.status === 'topic_generating';
+        const isAnalyzing = newTaskStatus?.status === 'parsing' ||
+                           newTaskStatus?.status === 'calculating' ||
+                           newTaskStatus?.status === 'analyzing';
+        const isInProgress = isAnalyzing && (newTaskStatus?.analysisStep ?? 0) < 6; // 分步分析未完成
+
+        if (isQueued || isTopicGenerating || isInProgress) {
           triggerJobProcessing();
         }
       }
