@@ -106,7 +106,7 @@ export function cleanAIResponse(response: string): string {
  * 安全地解析 AI 返回的 JSON
  * 尝试多种策略来解析可能包含问题的 JSON
  */
-export function safeParseJSON(jsonString: string, maxAttempts = 5): any {
+export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
   const attempts: Array<{ name: string; transform: (s: string) => string }> = [
     {
       name: '直接解析',
@@ -163,7 +163,9 @@ export function safeParseJSON(jsonString: string, maxAttempts = 5): any {
             escapeNext = true;
             continue;
           }
-          if (c === '"') {
+          // 处理各种引号
+          const isQuote = c === '"' || c === '\u201C' || c === '\u201D';
+          if (isQuote) {
             inString = !inString;
             continue;
           }
@@ -191,6 +193,135 @@ export function safeParseJSON(jsonString: string, maxAttempts = 5): any {
         // 替换中文标点
         result = result.replace(/[\u201C\u201D\uFF02]/g, '"');
         result = result.replace(/，/g, ',');
+        return result;
+      },
+    },
+    {
+      name: '智能补全截断的JSON',
+      transform: (s) => {
+        let result = s.trim();
+        const firstBrace = result.indexOf('{');
+        if (firstBrace === -1) return result;
+
+        // 统计括号和引号
+        let openBraces = 0;
+        let openBrackets = 0;
+        let inString = false;
+        let escapeNext = false;
+
+        for (let i = firstBrace; i < result.length; i++) {
+          const c = result[i];
+          if (escapeNext) {
+            escapeNext = false;
+            continue;
+          }
+          if (c === '\\') {
+            escapeNext = true;
+            continue;
+          }
+          const isQuote = c === '"' || c === '\u201C' || c === '\u201D';
+          if (isQuote) {
+            inString = !inString;
+            continue;
+          }
+          if (!inString) {
+            if (c === '{') openBraces++;
+            else if (c === '}') openBraces--;
+            else if (c === '[') openBrackets++;
+            else if (c === ']') openBrackets--;
+          }
+        }
+
+        // 补全缺失的括号
+        while (openBrackets > 0) {
+          result += ']';
+          openBrackets--;
+        }
+        while (openBraces > 0) {
+          result += '}';
+          openBraces--;
+        }
+
+        // 如果在字符串中截断，尝试关闭字符串
+        if (inString) {
+          result += '"';
+        }
+
+        return result;
+      },
+    },
+    {
+      name: '提取部分有效数据',
+      transform: (s) => {
+        // 当JSON被严重截断时，尝试提取可用的部分数据
+        let result = s.trim();
+        const firstBrace = result.indexOf('{');
+        if (firstBrace === -1) return result;
+
+        // 找到最后一个完整的键值对
+        let depth = 0;
+        let inString = false;
+        let escapeNext = false;
+        let lastCompletePos = firstBrace;
+
+        for (let i = firstBrace; i < result.length; i++) {
+          const c = result[i];
+          if (escapeNext) {
+            escapeNext = false;
+            continue;
+          }
+          if (c === '\\') {
+            escapeNext = true;
+            continue;
+          }
+          const isQuote = c === '"' || c === '\u201C' || c === '\u201D';
+          if (isQuote) {
+            inString = !inString;
+            continue;
+          }
+          if (!inString) {
+            if (c === '{') {
+              depth++;
+              lastCompletePos = i; // 记录这个位置作为可能的有效截止点
+            } else if (c === '}') {
+              depth--;
+              if (depth >= 0) {
+                lastCompletePos = i + 1; // 记录完整对象的位置
+              }
+              if (depth === 0) {
+                // 找到完整对象，返回
+                return result.substring(firstBrace, i + 1);
+              }
+            } else if (c === ',') {
+              // 记录逗号位置，可能是一个完整的键值对结束
+              lastCompletePos = i;
+            }
+          }
+        }
+
+        // 如果没找到完整对象，返回到上一个可能有效的位置
+        if (lastCompletePos > firstBrace) {
+          let partial = result.substring(firstBrace, lastCompletePos);
+          // 补全括号
+          let openBraces = 0;
+          let inStr = false;
+          for (let i = 0; i < partial.length; i++) {
+            const c = partial[i];
+            if (c === '\\') { i++; continue; }
+            const isQuote = c === '"' || c === '\u201C' || c === '\u201D';
+            if (isQuote) { inStr = !inStr; continue; }
+            if (!inStr && c === '{') openBraces++;
+          }
+          // 移除末尾的逗号或无效字符
+          partial = partial.replace(/[,]\s*$/, '');
+          // 补全右括号
+          while (openBraces > 0) {
+            partial += '}';
+            openBraces--;
+          }
+          return partial;
+        }
+
         return result;
       },
     },
@@ -452,7 +583,7 @@ export class AIAnalysisService {
       viral_videos_detail: viralDetail,
     });
 
-    const result1 = await this.callAI(prompt1, aiConfig, 240000, 12000); // 4分钟，12000 tokens（为 Vercel 留出 60s 缓冲）
+    const result1 = await this.callAI(prompt1, aiConfig, 240000, 16000); // 4分钟，16000 tokens（为 Vercel 留出 60s 缓冲）
     const baseAnalysis = safeParseJSON(cleanAIResponse(result1));
     console.log('[analyzeMonthlyTrend] 基础分析完成，explosivePeriods数量:', baseAnalysis.explosivePeriods?.length || 0);
 
@@ -499,7 +630,7 @@ export class AIAnalysisService {
         time_range_mapping: timeRangeMapping,
       });
 
-      const result2 = await this.callAI(prompt2, aiConfig, 240000, 12000); // 4分钟，12000 tokens（为 Vercel 留出 60s 缓冲）
+      const result2 = await this.callAI(prompt2, aiConfig, 240000, 16000); // 4分钟，16000 tokens（为 Vercel 留出 60s 缓冲）
       const detailAnalysis = safeParseJSON(cleanAIResponse(result2));
 
       // 合并结果：将 topVideos 合并到对应的 explosivePeriod
@@ -652,7 +783,7 @@ export class AIAnalysisService {
       viral_videos_detail: viralDetail,
     });
 
-    const result1 = await this.callAI(prompt1, aiConfig, 240000, 12000); // 4分钟，12000 tokens（为 Vercel 留出 60s 缓冲）
+    const result1 = await this.callAI(prompt1, aiConfig, 240000, 16000); // 4分钟，16000 tokens（为 Vercel 留出 60s 缓冲）
     const mainAnalysis = safeParseJSON(cleanAIResponse(result1));
     console.log('[analyzeViralVideosMain] 主分析完成');
 
@@ -735,7 +866,7 @@ export class AIAnalysisService {
       viral_samples: viralSamples,
     });
 
-    const result2 = await this.callAI(prompt2, aiConfig, 240000, 12000); // 4分钟，12000 tokens（为 Vercel 留出 60s 缓冲）
+    const result2 = await this.callAI(prompt2, aiConfig, 240000, 16000); // 4分钟，16000 tokens（为 Vercel 留出 60s 缓冲）
     const methodology = safeParseJSON(cleanAIResponse(result2));
     console.log('[analyzeViralVideosMethodology] 方法论抽象完成');
 
@@ -853,7 +984,7 @@ export class AIAnalysisService {
       viral_videos_detail: viralDetail,
     });
 
-    const result = await this.callAI(prompt, aiConfig, 240000, 12000); // 4分钟，12000 tokens
+    const result = await this.callAI(prompt, aiConfig, 240000, 16000); // 4分钟，16000 tokens
     const classification = safeParseJSON(cleanAIResponse(result));
     console.log('[analyzeViralClassification] 爆款分类分析完成');
 
@@ -1080,7 +1211,7 @@ export class AIAnalysisService {
       viral_videos_detail: viralDetail,
     });
 
-    const result1 = await this.callAI(prompt1, aiConfig, 240000, 12000); // 4分钟，12000 tokens（为 Vercel 留出 60s 缓冲）
+    const result1 = await this.callAI(prompt1, aiConfig, 240000, 16000); // 4分钟，16000 tokens（为 Vercel 留出 60s 缓冲）
     const mainAnalysis = safeParseJSON(cleanAIResponse(result1));
     console.log('[analyzeViralVideos] 主分析完成');
 
@@ -1097,7 +1228,7 @@ export class AIAnalysisService {
       viral_samples: viralSamples,
     });
 
-    const result2 = await this.callAI(prompt2, aiConfig, 240000, 12000); // 4分钟，12000 tokens（为 Vercel 留出 60s 缓冲）
+    const result2 = await this.callAI(prompt2, aiConfig, 240000, 16000); // 4分钟，16000 tokens（为 Vercel 留出 60s 缓冲）
     const methodology = safeParseJSON(cleanAIResponse(result2));
     console.log('[analyzeViralVideos] 方法论抽象完成');
 
@@ -1386,7 +1517,7 @@ ${existingCategories}
       let result = '';
       try {
         // 每批超时 240 秒（4分钟），为 Vercel 留出缓冲时间
-        result = await this.callAI(prompt, aiConfig, 240000, 12000); // 240秒，12000 tokens（为 Vercel 留出 60s 缓冲）
+        result = await this.callAI(prompt, aiConfig, 240000, 16000); // 240秒，16000 tokens（为 Vercel 留出 60s 缓冲）
 
         const cleaned = cleanAIResponse(result);
         const parsed = safeParseJSON(cleaned);
