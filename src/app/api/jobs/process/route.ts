@@ -130,6 +130,14 @@ export async function POST(request: NextRequest) {
     }
     console.log(`[Jobs] 成功获取任务 ${task.id} 的原子锁`);
 
+    // 关键修复：获取锁后重新读取任务，确保获取最新的 analysisStep
+    // 避免使用锁获取前的旧数据导致重复执行同一步骤
+    const refreshedTask = await taskQueue.get(task.id);
+    if (refreshedTask) {
+      task = refreshedTask;
+      console.log(`[Jobs] 重新读取任务，当前步骤: ${task.analysisStep}, 状态: ${task.status}`);
+    }
+
     try {
       // 检查任务是否在进行分步分析
       if (task.analysisStep !== null && task.analysisStep !== undefined && task.analysisStep < 6) {
