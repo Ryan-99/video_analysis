@@ -16,16 +16,20 @@ export function cleanAIResponse(response: string): string {
   let cleaned = response.trim();
 
   // 1. 首先替换所有中文标点（必须在括号匹配之前，避免中文引号干扰字符串边界检测）
-  // 使用 split/join 确保全部替换
-  cleaned = cleaned.split('"').join('"').split('"').join('"');
-  cleaned = cleaned.split(''').join("'").split(''').join("'");
-  cleaned = cleaned.split('，').join(',');
-  cleaned = cleaned.split('：').join(':');
-  cleaned = cleaned.split('；').join(';');
-  cleaned = cleaned.split('？').join('?');
-  cleaned = cleaned.split('！').join('!');
-  cleaned = cleaned.split('（').join('(').split('）').join(')');
-  cleaned = cleaned.split('【').join('[').split('】').join(']');
+  // 使用正则表达式替换，避免直接使用中文引号字符导致解析错误
+  cleaned = cleaned
+    // 中文双引号
+    .replace(/\u201C/g, '"').replace(/\u201D/g, '"')
+    // 中文单引号
+    .replace(/\u2018/g, "'").replace(/\u2019/g, "'")
+    // 其他中文标点
+    .replace(/，/g, ',')
+    .replace(/：/g, ':')
+    .replace(/；/g, ';')
+    .replace(/？/g, '?')
+    .replace(/！/g, '!')
+    .replace(/（/g, '(').replace(/）/g, ')')
+    .replace(/【/g, '[').replace(/】/g, ']');
 
   // 2. 移除 ```json 标记
   if (cleaned.startsWith('```json')) {
