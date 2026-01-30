@@ -4,6 +4,7 @@ import { taskQueue } from '@/lib/queue/database';
 import { analysisLogger } from '@/lib/logger';
 import { VideoData, AccountAnalysis, AnalysisLog, ViralVideo, MonthlyData, Task, TaskStatus } from '@/types';
 import { TaskStateMachine } from '@/lib/queue/state-machine';
+import { FULL_FLOW_PROGRESS, STEP_FLOW_PROGRESS } from '@/lib/queue/progress-config';
 import {
   calculateAllMetrics,
   groupByMonth,
@@ -77,7 +78,7 @@ async function handleTaskError(
   const maxRetries = 3;
 
   if (isRetryable && retryCount < maxRetries) {
-    // 标记为可重试
+    // 可重试：使用 update + 显式释放锁
     await taskQueue.update(taskId, {
       status: 'queued',
       processing: false,
@@ -86,22 +87,29 @@ async function handleTaskError(
     });
     console.log(`[Analysis] 任务 ${taskId} 进入重试队列 (${retryCount + 1}/${maxRetries})`);
   } else {
-    // 永久失败
+    // 永久失败：使用 atomicUpdate + 自动释放锁
     const errorMessage = error instanceof Error ? error.message : '未知错误';
-
     if (logStep) {
       await logStep('system', '任务失败', 'error', { error: errorMessage });
     }
 
-    // 原子性地更新状态并清理所有中间状态
-    await taskQueue.atomicUpdate(taskId, {
-      status: 'failed',
-      error: errorMessage,
-      processing: false,
-      topicStep: null,
-      topicDetailIndex: null,
-      analysisStep: null,
-    });
+    try {
+      await taskQueue.atomicUpdate(taskId, {
+        status: 'failed',
+        error: errorMessage,
+        processing: false,
+        topicStep: null,
+        topicDetailIndex: null,
+        analysisStep: null,
+      });
+    } catch (updateError) {
+      // atomicUpdate 失败，手动释放锁
+      console.error('[Analysis] atomicUpdate失败,尝试手动释放锁', updateError);
+      const released = await taskQueue.releaseLock(taskId);
+      if (!released) {
+        console.error(`[Analysis] 手动释放锁也失败: ${taskId}`);
+      }
+    }
 
     console.error(`[Analysis] 任务 ${taskId} 失败:`, errorMessage);
   }
@@ -166,7 +174,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     await taskQueue.update(taskId, {
       status: 'parsing',
       currentStep: '正在解析数据...',
-      progress: 5,
+      progress: FULL_FLOW_PROGRESS.parse_start,
     });
 
     const videos = await parseData(task.fileId, task.fileName, task.columnMapping, task.fileUrl, task.fileContent);
@@ -179,7 +187,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     await taskQueue.update(taskId, {
       status: 'calculating',
       currentStep: '正在计算指标...',
-      progress: 15,
+      progress: FULL_FLOW_PROGRESS.calculate_complete,
     });
 
     const calcStartTime = Date.now();
@@ -210,7 +218,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     await taskQueue.update(taskId, {
       status: 'analyzing',
       currentStep: '正在分析账号概况...',
-      progress: 25,
+      progress: FULL_FLOW_PROGRESS.account_analysis_complete,
     });
 
     const accountStartTime = Date.now();
@@ -230,7 +238,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     });
     await taskQueue.update(taskId, {
       currentStep: '正在分析月度趋势...',
-      progress: 40,
+      progress: FULL_FLOW_PROGRESS.monthly_trend_complete,
     });
 
     const monthlyStartTime = Date.now();
@@ -257,7 +265,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
     });
     await taskQueue.update(taskId, {
       currentStep: '正在分析爆款视频...',
-      progress: 55,
+      progress: FULL_FLOW_PROGRESS.viral_analysis_complete,
     });
 
     const viralStartTime = Date.now();
@@ -339,7 +347,7 @@ export async function executeAnalysis(taskId: string): Promise<void> {
       resultData: intermediateResult,
       topicStep: 'outline',
       currentStep: '正在生成选题库...',
-      progress: 70,
+      progress: FULL_FLOW_PROGRESS.analysis_complete,
       analysisStep: null, // 清理中间步骤标记
       processing: false, // ✅ 释放锁，允许选题生成端点获取锁
     });
@@ -560,7 +568,7 @@ export async function completeAnalysis(taskId: string): Promise<void> {
     await taskQueue.update(taskId, {
       status: 'generating_charts',
       currentStep: '正在生成报告...',
-      progress: 90,
+      progress: FULL_FLOW_PROGRESS.chart_generation_complete,
     });
 
     await logStep('report', '报告生成完成', 'success', {
@@ -570,7 +578,7 @@ export async function completeAnalysis(taskId: string): Promise<void> {
     // 完成任务
     await taskQueue.update(taskId, {
       status: 'completed',
-      progress: 100,
+      progress: FULL_FLOW_PROGRESS.task_complete,
       currentStep: '分析完成',
       recordCount: task.recordCount,
       viralCount,
@@ -1031,7 +1039,7 @@ async function step6_Complete(
     resultData: intermediateResult,
     status: 'topic_generating',
     currentStep: '正在生成选题库...',
-    progress: 75,
+    progress: STEP_FLOW_PROGRESS.step6_complete,
     topicStep: 'outline',
     analysisStep: 7, // 标记分析步骤已完成
   });

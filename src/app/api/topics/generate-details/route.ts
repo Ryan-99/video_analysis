@@ -3,6 +3,7 @@ import { taskQueue } from '@/lib/queue/database';
 import { prisma } from '@/lib/db';
 import { aiAnalysisService } from '@/lib/ai-analysis/service';
 import { analysisLogger } from '@/lib/logger';
+import { calculateTopicDetailsProgress, FULL_FLOW_PROGRESS } from '@/lib/queue/progress-config';
 import type { AnalysisLog } from '@/types';
 import type { TopicOutline, FullTopic } from '@/lib/ai-analysis/service';
 
@@ -155,7 +156,7 @@ export async function POST(request: NextRequest) {
 
       // 合并新批次数据
       const mergedTopics = [...allTopics, ...batchTopics];
-      const progress = 75 + Math.floor((newIndex / totalBatches) * 15);
+      const progress = calculateTopicDetailsProgress(batchIndex, totalBatches);
 
       // 准备更新数据
       const updatedResultData = {
@@ -178,7 +179,7 @@ export async function POST(request: NextRequest) {
           topicStep: isCompleted ? 'complete' : 'details',
           status: newStatus,
           currentStep: newCurrentStep,
-          progress: isCompleted ? 90 : progress,
+          progress: isCompleted ? FULL_FLOW_PROGRESS.topic_details_complete : progress,
         },
       });
     });

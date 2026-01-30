@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/db';
 import { Task, TaskStatus } from '@/types';
 import { TaskStateMachine } from '@/lib/queue/state-machine';
+import { validateProgressMonotonic } from '@/lib/queue/progress-config';
 
 /**
  * 数据库任务队列实现
@@ -92,10 +93,12 @@ class DatabaseTaskQueue {
         throw new Error('任务不存在');
       }
 
-      // 验证进度单调递增
+      // 验证进度单调递增（使用中央配置，拒绝倒退更新）
       if (updates.progress !== undefined && current.progress !== null) {
-        if (updates.progress < current.progress) {
-          console.warn(`[DatabaseTaskQueue] ⚠️ 进度倒退: ${current.progress}% -> ${updates.progress}%`);
+        const validation = validateProgressMonotonic(current.progress, updates.progress);
+        if (!validation.valid) {
+          console.error(`[DatabaseTaskQueue] ${validation.reason}`);
+          throw new Error(`进度验证失败: ${validation.reason}`);
         }
       }
 
@@ -143,19 +146,10 @@ class DatabaseTaskQueue {
 
       return updated;
     }).catch(async (error) => {
-      console.error('[DatabaseTaskQueue] atomicUpdate: 事务失败，尝试释放锁', error.message);
-
-      // 事务失败时尝试释放锁，避免任务永久锁定
-      try {
-        await prisma.analysisTask.update({
-          where: { id },
-          data: { processing: false, processingLockedAt: null }
-        });
-        console.log('[DatabaseTaskQueue] atomicUpdate: 锁已释放');
-      } catch (releaseError) {
-        console.error('[DatabaseTaskQueue] atomicUpdate: 释放锁失败', releaseError);
-      }
-
+      console.error('[DatabaseTaskQueue] atomicUpdate: 事务失败', error.message);
+      // 事务失败时不自动释放锁，让调用者决定
+      // 原因：可能是并发更新，自动释放会覆盖其他事务的结果
+      console.error('[DatabaseTaskQueue] atomicUpdate: 事务失败,未自动释放锁,由调用者处理');
       throw error;
     });
   }
@@ -233,36 +227,52 @@ class DatabaseTaskQueue {
   }
 
   /**
-   * 释放任务锁（带验证）
+   * 释放任务锁（带验证和错误报告）
    * 只有当 processing=true 时才释放，避免错误释放
+   * @returns 是否成功释放锁
    */
-  async releaseLock(taskId: string): Promise<void> {
-    await prisma.analysisTask.updateMany({
+  async releaseLock(taskId: string): Promise<boolean> {
+    const result = await prisma.analysisTask.updateMany({
       where: {
         id: taskId,
-        processing: true  // ✅ 验证：只有确实是锁定状态才释放
+        processing: true  // 验证：只有确实是锁定状态才释放
       },
       data: {
         processing: false,
         processingLockedAt: null
       }
     });
+
+    if (result.count === 0) {
+      console.warn(`[DatabaseTaskQueue] releaseLock: 任务 ${taskId} 未释放锁, processing=false或不存在`);
+      return false;
+    }
+
+    if (result.count > 1) {
+      console.error(`[DatabaseTaskQueue] releaseLock: 意外更新 ${result.count} 行, 预期1行`);
+    }
+
+    return true;
   }
 
   /**
    * 带超时机制的原子锁获取（使用事务避免竞态窗口）
-   * 如果锁已超时（5分钟），会强制释放并重新获取
-   * @returns 是否成功获取锁
+   * 如果锁已超时（10分钟），会强制释放并重新获取
+   * @returns { success, timeoutExpired, wasLocked }
    */
-  async acquireLockWithTimeout(taskId: string): Promise<boolean> {
-    const LOCK_TIMEOUT = 5 * 60 * 1000; // 5分钟
+  async acquireLockWithTimeout(taskId: string): Promise<{
+    success: boolean;
+    timeoutExpired: boolean;
+    wasLocked: boolean;
+  }> {
+    const LOCK_TIMEOUT = 10 * 60 * 1000; // 10分钟（从5分钟增加）
 
     return await prisma.$transaction(async (tx) => {
       const task = await tx.analysisTask.findUnique({
         where: { id: taskId }
       });
 
-      if (!task) return false;
+      if (!task) return { success: false, timeoutExpired: false, wasLocked: false };
 
       // 检查是否已超时（在事务中）
       if (task.processing && task.processingLockedAt) {
@@ -280,7 +290,7 @@ class DatabaseTaskQueue {
           // 继续尝试获取新锁
         } else {
           // 未超时，锁仍然有效
-          return false;
+          return { success: false, timeoutExpired: false, wasLocked: true };
         }
       }
 
@@ -296,7 +306,7 @@ class DatabaseTaskQueue {
         }
       });
 
-      return result.count > 0;
+      return { success: result.count > 0, timeoutExpired: false, wasLocked: false };
     });
   }
 

@@ -83,12 +83,18 @@ export async function POST(request: NextRequest) {
 
     // 使用原子操作获取任务锁（防止竞态条件）
     console.log(`[Jobs] 尝试获取任务 ${task.id} 的原子锁`);
-    const locked = await taskQueue.acquireLockWithTimeout(task.id);
-    if (!locked) {
-      console.log(`[Jobs] 任务 ${task.id} 已被其他进程锁定，跳过本次执行`);
+    const lockResult = await taskQueue.acquireLockWithTimeout(task.id);
+    if (!lockResult.success) {
+      let message = '任务已被其他进程锁定';
+      if (lockResult.timeoutExpired) {
+        message = '任务锁超时，请稍后重试';
+      } else if (lockResult.wasLocked) {
+        message = '任务正在处理中';
+      }
+      console.log(`[Jobs] 任务 ${task.id} ${message}，跳过本次执行`);
       return NextResponse.json({
         success: true,
-        message: '任务已被其他进程锁定',
+        message,
         processing: true,
         taskId: task.id,
       });
@@ -126,7 +132,10 @@ export async function POST(request: NextRequest) {
     } finally {
       // 使用原子操作释放锁
       console.log(`[Jobs] 释放任务 ${task.id} 的原子锁`);
-      await taskQueue.releaseLock(task.id);
+      const released = await taskQueue.releaseLock(task.id);
+      if (!released) {
+        console.warn(`[Jobs] 任务 ${task.id} 释放锁失败或锁已不存在`);
+      }
     }
 
     return NextResponse.json({

@@ -2,6 +2,7 @@
 // 任务状态机辅助类
 
 import { Task, TaskStatus, TopicStep } from '@/types';
+import { STEP_FLOW_PROGRESS } from '@/lib/queue/progress-config';
 
 /**
  * 状态机转换规则
@@ -24,14 +25,20 @@ export const STATE_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
  */
 export class TaskStateMachine {
   /**
-   * 验证状态转换是否合法
+   * 验证状态转换是否合法（带日志）
    */
   static validateTransition(
     currentStatus: TaskStatus,
     newStatus: TaskStatus
   ): boolean {
     const allowed = STATE_TRANSITIONS[currentStatus] || [];
-    return allowed.includes(newStatus);
+    const valid = allowed.includes(newStatus);
+
+    if (!valid) {
+      console.error(`[StateMachine] 非法状态转换: ${currentStatus} -> ${newStatus}, 允许: ${allowed.join(', ')}`);
+    }
+
+    return valid;
   }
 
   /**
@@ -91,20 +98,24 @@ export class TaskStateMachine {
 
   /**
    * 获取步骤的进度百分比
-   * 统一分步流程和完整流程的进度序列
+   * 使用中央配置，确保与完整流程对齐
    */
   static getStepProgress(step: number): number {
-    // 与完整流程对齐：25, 40, 55, 70, 85, 90
     const progressMap: Record<number, number> = {
-      0: 25,  // 解析完成 → 月度趋势完成（与完整流程25对齐）
-      1: 40,  // 账号分析完成 → 爆款分析开始（与完整流程40对齐）
-      2: 55,  // 月度趋势完成 → 爆款分析进行中（与完整流程55对齐）
-      3: 70,  // 爆发期完成 → 爆款分析完成（与完整流程70对齐）
-      4: 85,  // 爆款分类完成 → 选题生成准备（比完整流程稍高）
-      5: 90,  // 方法论完成 → 选题生成开始
-      6: 90,  // 保存完成 → 选题生成
+      0: STEP_FLOW_PROGRESS.step0_parse_complete,     // 25
+      1: STEP_FLOW_PROGRESS.step1_account_complete,   // 40
+      2: STEP_FLOW_PROGRESS.step2_monthly_complete,   // 55
+      3: STEP_FLOW_PROGRESS.step3_explosive_complete, // 65 (新增，确保递增)
+      4: STEP_FLOW_PROGRESS.step4_viral_complete,     // 70
+      5: STEP_FLOW_PROGRESS.step5_methodology_complete, // 75
+      6: STEP_FLOW_PROGRESS.step6_complete,           // 76 (原75)
     };
 
-    return progressMap[step] ?? 10 + step * 10;
+    const progress = progressMap[step];
+    if (progress === undefined) {
+      throw new Error(`无效的步骤号: ${step}`);
+    }
+
+    return progress;
   }
 }
