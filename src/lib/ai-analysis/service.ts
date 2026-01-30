@@ -85,6 +85,7 @@ export function cleanAIResponse(response: string): string {
   cleaned = cleaned.replace(/```/g, '').trim();
 
   // 5. 替换中文标点（在括号匹配之后，只处理提取的 JSON 内容）
+  // 注意：不要替换【】→[]，因为这可能破坏 JSON 字符串值内部的合法内容
   cleaned = cleaned
     // 中文双引号
     .replace(/\u201C/g, '"').replace(/\u201D/g, '"')
@@ -96,8 +97,8 @@ export function cleanAIResponse(response: string): string {
     .replace(/；/g, ';')
     .replace(/？/g, '?')
     .replace(/！/g, '!')
-    .replace(/（/g, '(').replace(/）/g, ')')
-    .replace(/【/g, '[').replace(/】/g, ']');
+    .replace(/（/g, '(').replace(/）/g, ')');
+  // 移除【】的替换 - 它们在 JSON 字符串值内部是合法的
 
   return cleaned;
 }
