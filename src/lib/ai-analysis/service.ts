@@ -424,7 +424,7 @@ export class AIAnalysisService {
       monthly_data_summary: monthlyDataSummary, // 新增：月度数据摘要
     });
 
-    const result = await this.callAI(prompt, aiConfig, 180000, 8000); // 3分钟，8000 tokens
+    const result = await this.callAI(prompt, aiConfig, 180000, 16000); // 3分钟，16000 tokens
     const aiAnalysis = safeParseJSON(cleanAIResponse(result));
 
     // 7. 合并程序计算的数据和 AI 分析结果
@@ -926,7 +926,7 @@ export class AIAnalysisService {
       monthly_summary: monthlySummary,
     });
 
-    const result = await this.callAI(prompt, aiConfig, 240000, 8000); // 4分钟，8000 tokens
+    const result = await this.callAI(prompt, aiConfig, 240000, 16000); // 4分钟，16000 tokens
     const dataScope = safeParseJSON(cleanAIResponse(result));
     console.log('[analyzeViralDataScope] 数据分组与口径说明完成');
 
