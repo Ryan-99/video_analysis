@@ -1,5 +1,6 @@
 // src/lib/topics/service.ts
 // 选题生成服务 - 可被内部直接调用
+// 注意：这些函数假设调用者已经持有任务锁，不会再次获取锁
 import { taskQueue } from '@/lib/queue/database';
 import { aiAnalysisService } from '@/lib/ai-analysis/service';
 import { analysisLogger } from '@/lib/logger';
@@ -13,7 +14,7 @@ type TopicDetailsResult =
   | { completed: false; currentBatch: number; totalBatches: number; totalTopics: number; message: string };
 
 /**
- * 生成选题大纲（带锁保护）
+ * 生成选题大纲（内部调用，假设调用者已持有锁）
  */
 export async function generateTopicOutline(taskId: string): Promise<void> {
   console.log('[Topics] 开始生成大纲, taskId:', taskId);
@@ -23,17 +24,7 @@ export async function generateTopicOutline(taskId: string): Promise<void> {
     throw new Error('任务不存在');
   }
 
-  // 获取锁
-  const lockResult = await taskQueue.acquireLockWithTimeout(taskId);
-  if (!lockResult.success) {
-    if (lockResult.timeoutExpired) {
-      throw new Error('任务锁超时,请稍后重试');
-    } else if (lockResult.wasLocked) {
-      throw new Error('任务正在处理中,请稍后再试');
-    } else {
-      throw new Error('获取任务锁失败');
-    }
-  }
+  // 注意：调用者（jobs/process/route.ts）已经持有锁，这里不再获取锁
 
   try {
     // 检查任务状态
@@ -108,16 +99,14 @@ export async function generateTopicOutline(taskId: string): Promise<void> {
 
     console.log('[Topics] 大纲生成完成, 数量:', outlines.length);
 
-  } finally {
-    const released = await taskQueue.releaseLock(taskId);
-    if (!released) {
-      console.error('[Topics] 释放锁失败, taskId:', taskId);
-    }
+  } catch (error) {
+    // 错误会被 jobs/process/route.ts 的 try-catch 捕获并处理
+    throw error;
   }
 }
 
 /**
- * 生成选题详情（单批次，带锁保护）
+ * 生成选题详情（单批次，内部调用，假设调用者已持有锁）
  */
 export async function generateTopicDetails(taskId: string): Promise<TopicDetailsResult> {
   console.log('[Topics] 开始生成详情, taskId:', taskId);
@@ -127,17 +116,7 @@ export async function generateTopicDetails(taskId: string): Promise<TopicDetails
     throw new Error('任务不存在');
   }
 
-  // 获取锁
-  const lockResult = await taskQueue.acquireLockWithTimeout(taskId);
-  if (!lockResult.success) {
-    if (lockResult.timeoutExpired) {
-      throw new Error('任务锁超时,请稍后重试');
-    } else if (lockResult.wasLocked) {
-      throw new Error('任务正在处理中,请稍后再试');
-    } else {
-      throw new Error('获取任务锁失败');
-    }
-  }
+  // 注意：调用者（jobs/process/route.ts）已经持有锁，这里不再获取锁
 
   try {
     // 检查是否处于选题生成状态
@@ -272,10 +251,8 @@ export async function generateTopicDetails(taskId: string): Promise<TopicDetails
       message: `批次 ${batchIndex + 1}/${totalBatches} 完成，累计 ${allTopics.length} 条`,
     };
 
-  } finally {
-    const released = await taskQueue.releaseLock(taskId);
-    if (!released) {
-      console.error('[Topics] 释放锁失败, taskId:', taskId);
-    }
+  } catch (error) {
+    // 错误会被 jobs/process/route.ts 的 try-catch 捕获并处理
+    throw error;
   }
 }
