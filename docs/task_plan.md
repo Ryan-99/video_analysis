@@ -191,3 +191,85 @@ AI请求失败: OpenAI API错误 (400): {"error":{"message":"Model not support",
 
 **下一步**：
 - ⏳ 部署到 Vercel 并验证
+
+---
+
+## 会话 4: 前端进度显示为 0% 的根本原因分析与修复 (2026-01-30)
+
+### 问题概述
+用户报告：前台一直是0%，等到后台都处理了好几个步骤了，前台才显示40且一直不动
+
+### 根本原因
+
+**步骤开始时不更新进度**: 
+- 步骤执行期间 progress 保持为旧值（0%）
+- 步骤完成后跳到下一步的完成进度（40%）
+- 前端看到进度跳变，体验不佳
+
+### 修复方案
+
+**双进度机制**:
+- 每个步骤有开始进度和完成进度
+- 步骤开始时设置开始进度
+- 步骤完成后设置完成进度
+- 确保进度单调递增，无跳变
+
+### 阶段划分
+
+#### 阶段 1: 深度代码分析 [complete]
+- [x] 分析前端进度显示逻辑
+- [x] 分析后端进度更新逻辑
+- [x] 分析锁机制实现
+- [x] 检查数据库和类型定义
+
+**阶段 1 总结**：
+- **核心问题**: 步骤开始时不设置 progress，导致前端看到旧进度
+- **时序问题**: 步骤执行期间 progress 不更新
+- **设计缺陷**: 只有完成进度，没有开始进度
+
+#### 阶段 2: 实施修复 [complete]
+
+**修改的文件**:
+1. `src/lib/queue/progress-config.ts` - 添加步骤开始进度
+2. `src/lib/queue/state-machine.ts` - 添加 `getStepStartProgress` 函数
+3. `src/lib/analyzer/pipeline.ts` - 修改 step0-step5 所有步骤函数
+4. `src/lib/queue/database.ts` - 移除调试日志
+5. `src/app/api/tasks/[id]/route.ts` - 简化日志输出
+
+#### 阶段 3: 部署验证 [pending]
+- [ ] 部署到 Vercel
+- [ ] 测试进度同步
+- [ ] 验证前端显示
+
+### 新进度配置
+
+```typescript
+export const STEP_FLOW_PROGRESS = {
+  step0_parse_start: 5,        step0_parse_complete: 25,
+  step1_account_start: 28,     step1_account_complete: 40,
+  step2_monthly_start: 42,     step2_monthly_complete: 55,
+  step3_explosive_start: 57,    step3_explosive_complete: 65,
+  step4_viral_start: 67,        step4_viral_complete: 70,
+  step5_methodology_start: 72,  step5_methodology_complete: 75,
+  step6_complete: 76,
+} as const;
+```
+
+### 预期效果
+
+- ✅ 任务创建后立即显示 5%
+- ✅ 步骤执行期间显示当前步骤的开始进度
+- ✅ 步骤完成后平滑递增到完成进度
+- ✅ 进度始终单调递增，无跳变
+- ✅ 前端能实时看到进度变化
+
+### 当前状态
+
+**已完成**：
+- ✅ 深度代码分析完成
+- ✅ 双进度机制实施完成
+- ✅ 代码已提交并推送（8332a4e）
+
+**下一步**：
+- ⏳ 等待 Vercel 部署完成
+- ⏳ 测试验证进度同步

@@ -60,9 +60,11 @@ export default function AnalyzePage({ params }: { params: Promise<{ taskId: stri
     setIsProcessing(true);
 
     try {
+      // 传递 taskId 参数，确保后端处理正确的任务
       const response = await fetch('/api/jobs/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId }),
       });
       // 不等待响应，让后台处理
     } catch (error) {

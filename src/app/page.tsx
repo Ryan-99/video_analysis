@@ -107,12 +107,14 @@ export default function HomePage() {
         console.log('[HomePage] 即将调用后台处理接口...');
 
         // 调用 /api/jobs/process 来触发后台任务执行
+        // 传递 taskId 参数，确保后端处理正确的任务
         // 使用 keepalive: true 确保页面跳转后请求仍然继续
         fetch('/api/jobs/process', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify({ taskId: result.data.taskId }),
           keepalive: true, // 允许请求在页面卸载后继续
         }).catch(processError => {
           // 忽略错误，因为页面可能已经跳转

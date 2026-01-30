@@ -11,12 +11,27 @@ export const maxDuration = 300;
  * POST /api/jobs/process
  * 处理队列中的待处理任务
  * 可以被前端定时触发
+ *
+ * 请求体:
+ * - taskId?: string - 可选，指定要处理的任务ID
  */
 export async function POST(request: NextRequest) {
   const timestamp = new Date().toISOString();
   console.log(`[Jobs] ${timestamp} - 触发`);
 
   try {
+    // 解析请求体，获取指定的 taskId
+    let specifiedTaskId: string | undefined;
+    try {
+      const body = await request.json();
+      specifiedTaskId = body.taskId;
+      if (specifiedTaskId) {
+        console.log(`[Jobs] 前端指定任务ID: ${specifiedTaskId}`);
+      }
+    } catch {
+      // 请求体为空或无效，忽略
+    }
+
     // 获取所有任务
     const allTasks = await taskQueue.getAll();
     console.log(`[Jobs] 数据库中共有 ${allTasks.length} 个任务`);
@@ -28,48 +43,62 @@ export async function POST(request: NextRequest) {
     }, {} as Record<string, number>);
     console.log('[Jobs] 任务状态分布:', JSON.stringify(statusCount));
 
-    // 优先处理正在生成选题的任务
-    const topicTasks = allTasks.filter(t => t.status === 'topic_generating');
-    const queuedTasks = allTasks.filter(t => t.status === 'queued');
-    // 同时检查正在分析的任务（分步执行中）
-    const analyzingTasks = allTasks.filter(t => t.status === 'parsing' || t.status === 'calculating' || t.status === 'analyzing');
-
-    console.log(`[Jobs] 选题生成中: ${topicTasks.length}, 队列中: ${queuedTasks.length}, 分析中: ${analyzingTasks.length}`);
-
     let task: typeof allTasks[0] | null = null;
 
-    if (topicTasks.length > 0) {
-      // 优先选题生成任务
-      task = topicTasks[0];
-      console.log(`[Jobs] 继续选题生成: ${task.id}, topicStep=${task.topicStep}`);
-    } else if (analyzingTasks.length > 0) {
-      // 继续分步分析任务
-      task = analyzingTasks[0];
-      console.log(`[Jobs] 继续分步分析: ${task.id}, step=${task.analysisStep}`);
-    } else if (queuedTasks.length > 0) {
-      // 新任务 - 优先使用完整流程
-      const queuedTask = queuedTasks[0];
-      // 优先检查：analysisStep 为空说明是新任务，使用完整流程
-      if (queuedTask.analysisStep === undefined || queuedTask.analysisStep === null) {
-        // 新任务：优先使用完整流程
-        task = queuedTask;
-        console.log(`[Jobs] 开始新任务（完整流程）: ${task.id}, 文件=${task.fileName}`);
-      } else if (queuedTask.analysisStep !== null && queuedTask.analysisStep !== undefined && queuedTask.analysisStep < 6) {
-        // 只有明确设置了 analysisStep 的任务才使用分步流程
-        task = queuedTask;
-        console.log(`[Jobs] 继续分步分析: ${task.id}, step=${task.analysisStep}`);
+    // 如果前端指定了任务ID，优先处理该任务
+    if (specifiedTaskId) {
+      const specifiedTask = allTasks.find(t => t.id === specifiedTaskId);
+      if (specifiedTask) {
+        task = specifiedTask;
+        console.log(`[Jobs] 处理前端指定的任务: ${task.id}`);
       } else {
-        // analysisStep >= 6，应该进入选题生成，但状态仍为 queued
-        task = queuedTask;
-        console.log(`[Jobs] 继续任务: ${task.id}, 文件=${task.fileName}`);
+        console.warn(`[Jobs] 前端指定的任务不存在: ${specifiedTaskId}，回退到自动选择`);
       }
-    } else {
-      console.log('[Jobs] 没有待处理的任务');
-      return NextResponse.json({
-        success: true,
-        message: '没有待处理的任务',
-        processing: false,
-      });
+    }
+
+    // 如果没有指定任务或任务不存在，使用自动选择逻辑
+    if (!task) {
+      // 优先处理正在生成选题的任务
+      const topicTasks = allTasks.filter(t => t.status === 'topic_generating');
+      const queuedTasks = allTasks.filter(t => t.status === 'queued');
+      // 同时检查正在分析的任务（分步执行中）
+      const analyzingTasks = allTasks.filter(t => t.status === 'parsing' || t.status === 'calculating' || t.status === 'analyzing');
+
+      console.log(`[Jobs] 选题生成中: ${topicTasks.length}, 队列中: ${queuedTasks.length}, 分析中: ${analyzingTasks.length}`);
+
+      if (topicTasks.length > 0) {
+        // 优先选题生成任务
+        task = topicTasks[0];
+        console.log(`[Jobs] 继续选题生成: ${task.id}, topicStep=${task.topicStep}`);
+      } else if (analyzingTasks.length > 0) {
+        // 继续分步分析任务
+        task = analyzingTasks[0];
+        console.log(`[Jobs] 继续分步分析: ${task.id}, step=${task.analysisStep}`);
+      } else if (queuedTasks.length > 0) {
+        // 新任务 - 优先使用完整流程
+        const queuedTask = queuedTasks[0];
+        // 优先检查：analysisStep 为空说明是新任务，使用完整流程
+        if (queuedTask.analysisStep === undefined || queuedTask.analysisStep === null) {
+          // 新任务：优先使用完整流程
+          task = queuedTask;
+          console.log(`[Jobs] 开始新任务（完整流程）: ${task.id}, 文件=${task.fileName}`);
+        } else if (queuedTask.analysisStep !== null && queuedTask.analysisStep !== undefined && queuedTask.analysisStep < 6) {
+          // 只有明确设置了 analysisStep 的任务才使用分步流程
+          task = queuedTask;
+          console.log(`[Jobs] 继续分步分析: ${task.id}, step=${task.analysisStep}`);
+        } else {
+          // analysisStep >= 6，应该进入选题生成，但状态仍为 queued
+          task = queuedTask;
+          console.log(`[Jobs] 继续任务: ${task.id}, 文件=${task.fileName}`);
+        }
+      } else {
+        console.log('[Jobs] 没有待处理的任务');
+        return NextResponse.json({
+          success: true,
+          message: '没有待处理的任务',
+          processing: false,
+        });
+      }
     }
 
     if (!task) {

@@ -514,3 +514,98 @@ await taskQueue.atomicUpdate(taskId, {
 | `src/lib/queue/state-machine.ts` | 状态机 | 需要检查 |
 | `src/app/api/jobs/process/route.ts` | 任务处理入口 | 需要检查 |
 | 前端 API 调用 | 进度轮询 | 需要检查 |
+
+---
+
+## 会话 4: 前端进度显示为 0% 的根本原因分析与修复 (2026-01-30)
+
+### 问题描述
+用户报告：前台一直是0%，等到后台都处理了好几个步骤了，前台才显示40且一直不动。
+
+### 根本原因分析
+
+#### 问题 1: 步骤开始时不更新进度 ✅ 已确认并修复
+
+**代码位置**: `src/lib/analyzer/pipeline.ts` 第741-746行
+
+**问题代码**:
+```typescript
+await taskQueue.update(task.id, {
+  status: 'parsing',
+  currentStep: '正在解析数据...',
+  // ❌ 不设置 progress，所以 progress 保持为 0
+});
+```
+
+**时序问题**:
+```
+时间  →  步骤0开始  →  步骤0执行中  →  步骤0完成  →  步骤1开始  →  步骤1执行中  →  步骤1完成
+进度  →    0%      →     0%      →    40%     →    40%     →     40%     →    55%
+       ↑                                  ↑
+    前端显示0%                        前端突然跳到40%
+```
+
+**修复方案**: 双进度机制
+- **步骤开始进度**：步骤开始时设置较低的进度值
+- **步骤完成进度**：步骤完成后设置较高的进度值
+- **平滑递增**：确保进度始终单调递增，无跳变
+
+---
+
+### 修复实施 ✅
+
+#### 1. 添加步骤开始进度配置（progress-config.ts）
+
+新增进度值：
+- step0_parse_start: 5%
+- step1_account_start: 28%
+- step2_monthly_start: 42%
+- step3_explosive_start: 57%
+- step4_viral_start: 67%
+- step5_methodology_start: 72%
+
+#### 2. 添加获取开始进度的函数（state-machine.ts）
+
+```typescript
+static getStepStartProgress(step: number): number {
+  const progressMap: Record<number, number> = {
+    0: 5, 1: 28, 2: 42, 3: 57, 4: 67, 5: 72
+  };
+  return progressMap[step] ?? 76;
+}
+```
+
+#### 3. 修改所有步骤函数（pipeline.ts）
+
+每个步骤函数在开始时设置开始进度
+
+#### 4. 修复后的时序
+
+```
+时间  →  步骤0开始  →  步骤0执行中  →  步骤0完成  →  步骤1开始  →  步骤1执行中  →  步骤1完成
+进度  →    5%      →     5%      →    25%     →    28%     →     28%     →    40%
+       ↑                                  ↑
+    前端立即显示5%                    平滑递增
+```
+
+---
+
+### 修改的文件
+
+1. `src/lib/queue/progress-config.ts` - 添加步骤开始进度配置
+2. `src/lib/queue/state-machine.ts` - 添加 `getStepStartProgress` 函数
+3. `src/lib/analyzer/pipeline.ts` - 修改 step0-step5 所有步骤函数
+4. `src/lib/queue/database.ts` - 移除调试日志
+5. `src/app/api/tasks/[id]/route.ts` - 简化日志输出
+
+---
+
+### 预期效果
+
+- ✅ 任务创建后立即显示 5%
+- ✅ 步骤 0 执行期间保持 5%
+- ✅ 步骤 0 完成后平滑递增到 25%
+- ✅ 步骤 1 开始时跳到 28%
+- ✅ 进度始终单调递增，无跳变
+- ✅ 前端能实时看到当前步骤的进度
+
