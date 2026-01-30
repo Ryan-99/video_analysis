@@ -133,8 +133,8 @@ export default function AnalyzePage({ params }: { params: Promise<{ taskId: stri
   }, [taskId]);
 
   // 计算状态（需要在useEffect之前定义）
-  const isCompleted = taskStatus?.status === 'completed' ||
-    logs.some((log) => log.phase === 'report' && log.status === 'success');
+  // 只根据任务状态判断，不依赖日志（避免 step6_Complete 的 report 日志误判）
+  const isCompleted = taskStatus?.status === 'completed';
 
   const isFailed = taskStatus?.status === 'failed' ||
     logs.some((log) => log.status === 'error');

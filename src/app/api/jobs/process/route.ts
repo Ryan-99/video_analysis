@@ -191,6 +191,7 @@ export async function POST(request: NextRequest) {
 
 /**
  * 处理选题生成的分步执行
+ * 修改为持续执行模式：不依赖前端重复触发，自动处理所有批次
  */
 async function handleTopicGeneration(taskId: string): Promise<void> {
   const task = await taskQueue.get(taskId);
@@ -226,33 +227,87 @@ async function handleTopicGeneration(taskId: string): Promise<void> {
     console.log('[Jobs] 生成选题大纲');
     await generateTopicOutline(taskId);
     console.log('[Jobs] 大纲生成完成');
+
+    // 大纲生成完成后，立即继续处理选题详情
+    console.log('[Jobs] 大纲完成，继续处理选题详情');
+    await handleTopicDetailsContinuous(taskId);
+
   } else if (task.topicStep === 'details') {
-    // 生成选题详情（可能需要多次调用）
-    const batchSize = task.topicBatchSize || 10;
-    const topicOutlineData = task.topicOutlineData || '[]';
-    const outlines = JSON.parse(topicOutlineData);
-    const totalBatches = Math.ceil(outlines.length / batchSize);
-    const currentIndex = task.topicDetailIndex || 0;
+    // 生成选题详情（持续执行模式）
+    console.log('[Jobs] 选题详情阶段，开始持续处理');
+    await handleTopicDetailsContinuous(taskId);
 
-    console.log(`[Jobs] 生成选题详情，批次 ${currentIndex + 1}/${totalBatches}`);
-
-    const result = await generateTopicDetails(taskId);
-    console.log('[Jobs] 详情批次完成:', JSON.stringify(result));
-
-    // 如果所有批次完成，执行完成流程
-    if (result.completed) {
-      console.log('[Jobs] 所有选题详情生成完成，执行完成流程');
-      await completeAnalysis(taskId);
-    } else {
-      // 还有更多批次，保持 topic_generating 状态以便下次继续
-      console.log('[Jobs] 等待下一批次处理');
-    }
   } else if (task.topicStep === 'complete') {
     // 选题已完成，执行完成流程
     console.log('[Jobs] 选题已完成，执行完成流程');
     await completeAnalysis(taskId);
   } else {
     console.warn('[Jobs] 未知的 topicStep:', task.topicStep);
+  }
+}
+
+/**
+ * 持续处理选题详情批次
+ * 不依赖前端重复触发，自动循环处理所有批次直到完成或超时
+ */
+async function handleTopicDetailsContinuous(taskId: string): Promise<void> {
+  const maxBatches = 50; // 最大批次数，防止无限循环
+  const startTime = Date.now();
+  const maxDuration = 250000; // 最大执行时间 250秒（Hobby 计划限制 300秒，留余量）
+
+  let batchCount = 0;
+
+  while (batchCount < maxBatches) {
+    // 检查超时
+    if (Date.now() - startTime > maxDuration) {
+      console.warn('[Jobs] 选题详情处理超时，暂停等待下次触发');
+      break;
+    }
+
+    // 获取最新任务状态
+    const task = await taskQueue.get(taskId);
+    if (!task) {
+      throw new Error('任务不存在');
+    }
+
+    // 如果已完成，退出循环
+    if (task.topicStep === 'complete' || task.status === 'completed') {
+      console.log('[Jobs] 选题已完成，退出持续处理');
+      break;
+    }
+
+    // 如果不在 details 阶段，可能是刚开始
+    if (task.topicStep !== 'details') {
+      console.log(`[Jobs] 当前状态不是 details (${task.topicStep})，等待状态更新`);
+      break;
+    }
+
+    const batchSize = task.topicBatchSize || 10;
+    const topicOutlineData = task.topicOutlineData || '[]';
+    const outlines = JSON.parse(topicOutlineData);
+    const totalBatches = Math.ceil(outlines.length / batchSize);
+    const currentIndex = task.topicDetailIndex || 0;
+
+    console.log(`[Jobs] 处理选题详情批次 ${currentIndex + 1}/${totalBatches}`);
+
+    const result = await generateTopicDetails(taskId);
+    batchCount++;
+    console.log(`[Jobs] 详情批次 ${batchCount} 完成:`, JSON.stringify(result));
+
+    // 如果所有批次完成，执行完成流程并退出
+    if (result.completed) {
+      console.log('[Jobs] 所有选题详情生成完成，执行完成流程');
+      await completeAnalysis(taskId);
+      console.log('[Jobs] 选题详情持续处理完成');
+      break;
+    }
+
+    // 短暂延迟，避免 API 速率限制
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+
+  if (batchCount >= maxBatches) {
+    console.warn('[Jobs] 达到最大批次数限制，暂停处理');
   }
 }
 
