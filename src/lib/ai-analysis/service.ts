@@ -171,6 +171,70 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
       },
     },
     {
+      name: '修复未转义的引号',
+      transform: (s) => {
+        console.log('[fixUnescapedQuotes] 开始处理...');
+        const result: string[] = [];
+        let inString = false;
+        let escapeNext = false;
+        let fixCount = 0;
+
+        for (let i = 0; i < s.length; i++) {
+          const c = s[i];
+
+          // 处理转义符
+          if (escapeNext) {
+            result.push(c);
+            escapeNext = false;
+            continue;
+          }
+
+          if (c === '\\') {
+            result.push(c);
+            escapeNext = true;
+            continue;
+          }
+
+          // 处理引号
+          if (c === '"') {
+            if (!inString) {
+              // 字符串开始
+              inString = true;
+              result.push(c);
+            } else {
+              // 可能的字符串结束或内部引号
+              // 查看接下来的非空白字符
+              let nextIdx = i + 1;
+              while (nextIdx < s.length && /\s/.test(s[nextIdx])) {
+                nextIdx++;
+              }
+
+              const nextChar = nextIdx < s.length ? s[nextIdx] : '';
+
+              // 判断规则：如果后面是 , } ] : 则是字符串结束符
+              if (nextChar === ',' || nextChar === '}' || nextChar === ']' || nextChar === '' || nextChar === ':') {
+                // 这是字符串结束符
+                inString = false;
+                result.push(c);
+              } else {
+                // 这是字符串内部的引号，需要转义
+                console.log(`[fixUnescapedQuotes] 位置 ${i}: 检测到内部引号，添加转义符`);
+                result.push('\\"');
+                fixCount++;
+                // 不翻转 inString 状态
+              }
+            }
+            continue;
+          }
+
+          result.push(c);
+        }
+
+        console.log(`[fixUnescapedQuotes] 处理完成，共修复 ${fixCount} 个未转义引号`);
+        return result.join('');
+      },
+    },
+    {
       name: '移除所有不可见字符',
       transform: (s) => {
         // 移除可能存在的零宽字符、BOM等
