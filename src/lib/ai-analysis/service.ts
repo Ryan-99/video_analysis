@@ -171,21 +171,16 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
       },
     },
     {
-      name: '修复未转义的引号（增强版 - 多层检测）',
+      name: '修复未转义的引号（增强版 - 平衡检测）',
       transform: (s) => {
         console.log('[fixUnescapedQuotes] 开始处理...');
 
         // === 第一步：预处理 - 将疑似中文书名号模式的直引号对转换为书名号 ===
-        // 模式："中文"英文/数字"中文" -> "中文《英文/数字》中文"
-        // 示例："发布"Java学习路线"、"搭建个人网站"等" -> "发布《Java学习路线》、《搭建个人网站》等"
         let preprocessed = s;
         let convertedCount = 0;
 
-        // 使用正则匹配：中文+"+英文/数字内容+"+中文/标点
-        // 这个正则会匹配类似："Java"、"Python"、"123"等模式
         const titleQuotePattern = /"([^"]{1,30})"/g;
         preprocessed = preprocessed.replace(titleQuotePattern, (match, content) => {
-          // 检查内容是否主要是英文/数字（判断标准：超过50%是英文数字）
           const alphaNumCount = (content.match(/[a-zA-Z0-9]/g) || []).length;
           const totalCount = content.length;
           const isMainlyAlphaNum = totalCount > 0 && (alphaNumCount / totalCount) > 0.5;
@@ -201,42 +196,48 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
           console.log(`[fixUnescapedQuotes] 预处理：将 ${convertedCount} 个疑似书名号的直引号对转换为书名号`);
         }
 
-        // === 第二步：原有的引号转义逻辑（在预处理后的字符串上） ===
+        // === 第二步：使用平衡检测算法修复未转义的引号 ===
         const result: string[] = [];
         let inString = false;
         let escapeNext = false;
         let fixCount = 0;
 
-        // 辅助函数：检查字符是否为中文
-        const isChinese = (char: string): boolean => {
-          if (!char) return false;
-          const code = char.charCodeAt(0);
-          return (code >= 0x4E00 && code <= 0x9FFF) ||  // 基本汉字
-                 (code >= 0x3400 && code <= 0x4DBF);   // 扩展A
+        // 辅助函数：查找下一个非空白字符
+        const findNextNonWhitespace = (str: string, startIdx: number): { char: string, idx: number } => {
+          let idx = startIdx;
+          while (idx < str.length && /\s/.test(str[idx])) {
+            idx++;
+          }
+          return { char: idx < str.length ? str[idx] : '', idx };
         };
 
-        // 辅助函数：检查字符是否为英文或数字
-        const isAlphanumeric = (char: string): boolean => {
-          if (!char) return false;
-          const code = char.charCodeAt(0);
-          return (code >= 48 && code <= 57) ||   // 0-9
-                 (code >= 65 && code <= 90) ||   // A-Z
-                 (code >= 97 && code <= 122);    // a-z
-        };
-
-        // 辅助函数：获取字符上下文（前后各2个字符）
-        const getContext = (str: string, pos: number): { before: string, after: string } => {
-          const beforeStart = Math.max(0, pos - 2);
-          const before = str.substring(beforeStart, pos);
-          const afterStart = pos + 1;
-          const after = str.substring(afterStart, Math.min(str.length, pos + 3));
-          return { before, after };
+        // 辅助函数：检查从当前位置到下一个结束标记之间，引号是否平衡
+        const checkQuoteBalanceToEnd = (str: string, startPos: number): boolean => {
+          let balance = 0; // 0表示平衡，正数表示多出的开引号，负数表示多出的闭引号
+          for (let i = startPos; i < str.length; i++) {
+            const c = str[i];
+            if (c === '\\' && i + 1 < str.length) {
+              i++; // 跳过转义字符
+              continue;
+            }
+            if (c === '"') {
+              balance++;
+              // 检查这个引号后面是否是结束标记
+              const next = findNextNonWhitespace(str, i + 1);
+              if (next.char === ',' || next.char === '}' || next.char === ']' || next.char === '' || next.char === ':') {
+                // 如果引号平衡（当前是成对引号的结束），停止
+                if (balance % 2 === 0) {
+                  return true;
+                }
+              }
+            }
+          }
+          return balance % 2 === 0;
         };
 
         for (let i = 0; i < preprocessed.length; i++) {
           const c = preprocessed[i];
 
-          // 处理转义符
           if (escapeNext) {
             result.push(c);
             escapeNext = false;
@@ -249,87 +250,30 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
             continue;
           }
 
-          // 处理引号
           if (c === '"') {
             if (!inString) {
-              // 字符串开始
               inString = true;
               result.push(c);
             } else {
               // 可能的字符串结束或内部引号
-              // 查看接下来的非空白字符
-              let nextIdx = i + 1;
-              while (nextIdx < preprocessed.length && /\s/.test(preprocessed[nextIdx])) {
-                nextIdx++;
-              }
-              const nextChar = nextIdx < preprocessed.length ? preprocessed[nextIdx] : '';
+              const next = findNextNonWhitespace(preprocessed, i + 1);
+              const nextChar = next.char;
 
-              // 规则1：强结束标记（最高优先级）- 紧跟非空白字符为结束标记
+              // 检查是否真的是字符串结束：使用平衡检测
+              // 如果从这个位置到下一个结束标记之间，引号数量是奇数，说明这是内部引号
+              const isInternalQuote = !checkQuoteBalanceToEnd(preprocessed, i + 1);
+
+              // 强结束标记 + 平衡检测
               const isStrongEndMarker =
                 nextChar === ',' || nextChar === '}' || nextChar === ']' ||
                 nextChar === '' || nextChar === ':';
 
-              if (isStrongEndMarker) {
-                inString = false;
-                result.push(c);
-                console.log(`[fixUnescapedQuotes] 位置 ${i}: 强结束标记 (后跟: '${nextChar}')`);
-                continue;
-              }
-
-              // 获取上下文进行更详细的判断
-              const context = getContext(preprocessed, i);
-
-              // 规则2：中文+引号+英文模式检测
-              const hasChineseBefore = context.before.split('').some(ch => isChinese(ch));
-              const hasAlphaAfter = context.after.split('').some(ch => isAlphanumeric(ch));
-
-              if (hasChineseBefore && hasAlphaAfter) {
-                // 这是中文引号包裹的英文内容，需要转义
-                console.log(`[fixUnescapedQuotes] 位置 ${i}: 中文+引号+英文模式 (前: '${context.before}', 后: '${context.after}')，添加转义符`);
-                result.push('\\"');
-                fixCount++;
-                continue;
-              }
-
-              // 规则3：连续引号检测 - 下一个非空白字符也是引号
-              let nextNonSpaceIdx = nextIdx;
-              while (nextNonSpaceIdx < preprocessed.length && /\s/.test(preprocessed[nextNonSpaceIdx])) {
-                nextNonSpaceIdx++;
-              }
-              const nextNonSpace = nextNonSpaceIdx < preprocessed.length ? preprocessed[nextNonSpaceIdx] : '';
-
-              if (nextNonSpace === '"') {
-                console.log(`[fixUnescapedQuotes] 位置 ${i}: 连续引号模式，添加转义符`);
-                result.push('\\"');
-                fixCount++;
-                continue;
-              }
-
-              // 规则4：弱结束标记 - 中文标点
-              const isWeakEndMarker =
-                nextChar === '，' || nextChar === '。' ||
-                nextChar === '】' || nextChar === '：' ||
-                nextChar === '、' || nextChar === '；';
-
-              if (isWeakEndMarker) {
-                inString = false;
-                result.push(c);
-                console.log(`[fixUnescapedQuotes] 位置 ${i}: 弱结束标记 (后跟: '${nextChar}')`);
-                continue;
-              }
-
-              // 规则5：默认策略 - 保留原有逻辑作为兜底
-              const isEndMarker =
-                nextChar === ',' || nextChar === '}' || nextChar === ']' ||
-                nextChar === '' || nextChar === ':' ||
-                nextChar === '，' || nextChar === '】' || nextChar === '：';
-
-              if (isEndMarker) {
+              if (isStrongEndMarker && !isInternalQuote) {
+                // 确认是字符串结束
                 inString = false;
                 result.push(c);
               } else {
-                // 这是字符串内部的引号，需要转义
-                console.log(`[fixUnescapedQuotes] 位置 ${i}: 默认策略判定为内部引号 (下一个字符: '${nextChar}' [${nextChar.charCodeAt(0)}])，添加转义符`);
+                // 内部引号，需要转义
                 result.push('\\"');
                 fixCount++;
               }

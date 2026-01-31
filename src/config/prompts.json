@@ -82,7 +82,7 @@
     },
     "viral_analysis": {
       "name": "爆款视频分析",
-      "template": "你是专业的抖音内容分析师。请分析以下爆款视频，按内容类型分组并提取规律。\n\n【爆款视频列表】\n{{viral_videos}}\n\n【判定阈值】\n{{threshold}}\n\n请严格按照以下JSON格式输出：\n{\n  \"summary\": \"爆款总结（2-3句话）\",\n  \"byCategory\": [\n    {\"category\": \"分类名称\", \"count\": 5, \"avgEngagement\": 50000, \"description\": \"特征描述\"},\n    {\"category\": \"分类名称\", \"count\": 3, \"avgEngagement\": 40000, \"description\": \"特征描述\"}\n  ],\n  \"patterns\": {\n    \"commonElements\": \"共同元素\",\n    \"timingPattern\": \"时间规律\",\n    \"titlePattern\": \"标题规律\"\n  }\n}",
+      "template": "你是专业的抖音内容分析师。请分析以下爆款视频，按内容类型分组并提取规律。\n\n【爆款视频列表】\n{{viral_videos}}\n\n【判定阈值】\n{{threshold}}\n\n请严格按照以下JSON格式输出：\n{\n  \"summary\": \"爆款总结（2-3句话）\",\n  \"byCategory\": [\n    {\"category\": \"分类名称\", \"count\": 5, \"avgEngagement\": 50000, \"description\": \"特征描述\"},\n    {\"category\": \"分类名称\", \"count\": 3, \"avgEngagement\": 40000, \"description\": \"特征描述\"}\n  ],\n  \"patterns\": {\n    \"commonElements\": \"共同元素\",\n    \"timingPattern\": \"时间规律\",\n    \"titlePattern\": \"标题规律\"\n  }\n}\n\n【JSON格式特别要求】字符串值内部的引号处理：严禁在JSON字符串值内部使用直引号(\"，\")包裹内容。如需强调专有名词或标题，使用中文书名号《》替代。英文单词/技术名称直接写入，不添加引号。示例：❌ 学习\"Java\"路线  ✅ 学习《Java》路线；❌ \"Java学习路线\"教程  ✅ 《Java学习路线》教程\n只返回JSON，不要任何解释或说明文字",
       "variables": {
         "viral_videos": {
           "description": "爆款视频列表",
