@@ -90,11 +90,8 @@ export function cleanAIResponse(response: string): string {
   cleaned = cleaned.replace(/```/g, '').trim();
 
   // 5. 替换中文标点（在括号匹配之后，只处理提取的 JSON 内容）
+  // 注意：不转换中文引号，避免将内容中的合法引号误判为需要转义的字符
   cleaned = cleaned
-    // 中文双引号
-    .replace(/\u201C/g, '"').replace(/\u201D/g, '"')
-    // 中文单引号
-    .replace(/\u2018/g, "'").replace(/\u2019/g, "'")
     // 其他中文标点
     .replace(/，/g, ',')
     .replace(/：/g, ':')
