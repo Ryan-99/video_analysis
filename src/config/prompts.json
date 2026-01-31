@@ -209,6 +209,33 @@
         }
       },
       "outputFormat": "json"
+    },
+    "viral_analysis_data_scope": {
+      "name": "数据分组与口径说明",
+      "template": "你是专业的抖音数据分析师。请生成数据口径说明和月度分组信息。\n\n【数据概览】\n文件名：{{file_name}}\n总视频数：{{total_videos}}条\n爆款总数：{{total_virals}}条\n判定阈值：{{threshold}}\n\n【逐月数据摘要】\n{{monthly_summary}}\n\n【输出要求】\n请严格按照以下JSON格式输出：\n\n{\n  \"summary\": \"1句话概括：通过阈值法分析逐月逐日爆款视频，抽象出可复刻的套路。\",\n  \"dataScopeNote\": \"【数据分析口径说明】\\\\n单条视频互动总量 ≥ 当月阈值。\\\\n当月阈值 = max(当月P90, 当月中位数 + 3×MAD)：\\\\n- P90：这个月所有视频里，排到前10%的那个水平。假设这个月发了100条视频，把互动量从高到低排队，排到第10名那条的互动量，就是P90。\\\\n- MAD（中位数绝对偏差）：比平均数更抗离群点（适合爆款这种长尾分布）。\\\\n举例：这个月7条视频互动量：[10, 12, 13, 14, 15, 18, 100]\\\\n第一步：中位数=14；第二步：偏离值|x-14|=[4,2,1,0,1,4,86]；第三步：偏离值中位数=2。所以MAD=2。\\\\n- 为什么不用平均数？因为抖音数据常见情况：绝大多数视频几万互动，偶尔一条爆几百万。用平均数会被爆款拉高，导致判断失真。MAD即使有一条爆到天上，也不会把正常水平抬得离谱。\\\\n- 中位数+3×MAD ≈ 比正常水平高出一大截的线（14+3×2=20，超过20的就明显冒尖）。\",\n  \"monthlyList\": [\n    {\"month\": \"2021年8月\", \"threshold\": 50000, \"viralCount\": 15},\n    {\"month\": \"2021年9月\", \"threshold\": 65000, \"viralCount\": 23}\n  ]\n}\n\n【输出规则】\n1. summary：1句话概括\n2. dataScopeNote：数据分析口径说明（必须通俗解释P90与MAD，必须含一个MAD计算小例子）\n3. monthlyList：逐月摘要，包含月份、阈值、爆款数量\n4. 只返回JSON，不要任何解释或说明文字",
+      "variables": {
+        "file_name": {
+          "description": "文件名",
+          "required": true
+        },
+        "total_videos": {
+          "description": "总视频数",
+          "required": true
+        },
+        "total_virals": {
+          "description": "爆款总数",
+          "required": true
+        },
+        "threshold": {
+          "description": "判定阈值",
+          "required": true
+        },
+        "monthly_summary": {
+          "description": "逐月数据摘要",
+          "required": true
+        }
+      },
+      "outputFormat": "json"
     }
   }
 }
