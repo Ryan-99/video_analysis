@@ -199,7 +199,7 @@ function generateAccountSection(account: Report['account']): Paragraph[] {
   return paragraphs;
 }
 
-function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buffer): Paragraph[] {
+function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buffer): (Paragraph | Table)[] {
   console.log('[Word Report] generateMonthlySection - trend.keys:', Object.keys(trend));
   console.log('[Word Report] generateMonthlySection - trend.data 存在:', !!trend.data);
   if (trend.data) {
@@ -408,7 +408,7 @@ function generateMonthlyTable(data: Report['monthlyTrend']['data']): (Paragraph 
   return [table];
 }
 
-function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): Paragraph[] {
+function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): (Paragraph | Table)[] {
   console.log('[Word Report] generateViralSection - virals.keys:', Object.keys(virals));
   console.log('[Word Report] generateViralSection - byCategory 存在:', !!virals.byCategory);
   if (virals.byCategory) {
