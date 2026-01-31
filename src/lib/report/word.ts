@@ -366,7 +366,7 @@ function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buf
   return paragraphs;
 }
 
-function generateMonthlyTable(data: Report['monthlyTrend']['data']): Paragraph[] {
+function generateMonthlyTable(data: Report['monthlyTrend']['data']): (Paragraph | Table)[] {
   console.log('[Word Report] generateMonthlyTable - data.length:', data?.length || 0);
 
   if (!data || data.length === 0) {
@@ -638,7 +638,7 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): P
 /**
  * 生成扩展版爆款分类表格（包含中位数和P90）
  */
-function generateViralCategoriesTableExtended(categories: Report['virals']['byCategory']): Paragraph[] {
+function generateViralCategoriesTableExtended(categories: Report['virals']['byCategory']): (Paragraph | Table)[] {
   console.log('[Word Report] generateViralCategoriesTableExtended - categories.length:', categories?.length || 0);
 
   if (!categories || categories.length === 0) {
@@ -697,7 +697,7 @@ function generateViralCategoriesTableExtended(categories: Report['virals']['byCa
 /**
  * 生成爆款选题库表格
  */
-function generateTopicLibraryTable(topicLibrary: Report['virals']['topicLibrary']): Paragraph[] {
+function generateTopicLibraryTable(topicLibrary: Report['virals']['topicLibrary']): (Paragraph | Table)[] {
   if (!topicLibrary || topicLibrary.length === 0) {
     return [new Paragraph({ children: [new TextRun({ text: '暂无选题库数据', italics: true })] })];
   }
