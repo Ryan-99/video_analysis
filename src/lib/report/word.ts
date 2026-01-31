@@ -405,7 +405,7 @@ function generateMonthlyTable(data: Report['monthlyTrend']['data']): Paragraph[]
     width: { size: 100, type: WidthType.PERCENTAGE },
   });
 
-  return [table];
+  return [new Paragraph({ children: [table] })];
 }
 
 function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): Paragraph[] {
@@ -674,7 +674,7 @@ function generateViralCategoriesTableExtended(categories: Report['virals']['byCa
     width: { size: 100, type: WidthType.PERCENTAGE },
   });
 
-  const paragraphs: Paragraph[] = [table];
+  const paragraphs: Paragraph[] = [new Paragraph({ children: [table] })];
 
   // 特征描述
   const hasDescription = categories.some((c: any) => c.description);
@@ -735,7 +735,7 @@ function generateTopicLibraryTable(topicLibrary: Report['virals']['topicLibrary'
     width: { size: 100, type: WidthType.PERCENTAGE },
   });
 
-  return [table];
+  return [new Paragraph({ children: [table] })];
 }
 
 function generateViralCategoriesTable(categories: Report['virals']['byCategory']): Paragraph[] {
