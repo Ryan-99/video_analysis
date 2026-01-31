@@ -1,0 +1,260 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-01-22",
+  "prompts": {
+    "account_overview": {
+      "name": "账号概况分析",
+      "template": "你是专业的抖音账号分析师。请基于以下信息，生成账号概况报告。\n\n【⚠️ 关键格式要求】\n1. 严格按照 JSON 格式输出，所有字符串值必须用双引号包裹\n2. **字符串内部绝对不要使用双引号(\\"), 使用单引号(')或书名号(《》)替代**\n   - ❌ 错误：\"从标题'XXXX'推断\"\n   - ✅ 正确：\"从标题《XXXX》推断\"\n   - ✅ 正确：\"从标题<XXXX>推断\"\n3. 确保所有括号、花括号正确配对\n4. 不要在 JSON 中间截断，确保结构完整\n\n【账号名称】\n{{account_name}}\n\n【视频标题列表】（前50条，用于推断内容特征）\n{{video_titles}}\n\n【数据统计】（已计算，直接使用）\n- 数据时间范围：{{date_range_start}} 至 {{date_range_end}}（共{{total_months}}个月）\n- 总视频数量：{{total_videos}} 条\n- 发布频率：约 {{publish_per_week}} 条/周\n{{#if has_gap}}- 存在断更期：{{gap_periods}}{{/if}}\n{{#unless has_gap}}- 不存在明显断更期（长期稳定输出）{{/unless}}\n- 发布时间分布（按小时）：\n{{publish_time_distribution}}\n\n【月度数据摘要】（用于分析发展阶段）\n{{monthly_data_summary}}\n\n【分析要求】\n\n请严格按照以下JSON格式输出，只分析和推断需要AI判断的内容：\n\n{\n  \"followerCount\": {\n    \"value\": \"推断的粉丝数（如：637.5万）\",\n    \"source\": \"inferred\",\n    \"basis\": \"从视频互动量、点赞中位数为XXXX推断，该账号具备XXX量级粉丝基础\"\n  },\n  \"accountType\": \"账号类型（如：职场 / 教育 / 社会结构认知型 IP）\",\n  \"contentFormat\": \"内容形态（如：真人出镜 + 观点输出；或：动画 + 技巧教程；或：口播 + 知识分享）\",\n  \"audience\": {\n    \"description\": \"核心受众人群（如：25-40岁，渴望在职场中晋升、解决管理难题、提升个人竞争力的白领和中层管理者）\",\n    \"basis\": \"从标题关键词《XXXX》《XXXX》高频出现推断，目标为XXXX人群\"\n  },\n  \"coreTopics\": [\"主题1\", \"主题2\", \"主题3\", \"主题4\", \"主题5\"],\n  \"monetization\": {\n    \"methods\": [\"方式1\", \"方式2\", \"方式3\"],\n    \"salesFunnel\": \"成交链路描述：前端（短视频/直播/引流品） -> 中端（私域/企微/社群） -> 后端（高价课程/咨询/服务）\",\n    \"priceRange\": \"主产品价格带描述：从XXX元到XXX元\",\n    \"consistency\": \"内容与变现一致性评价（高/中/低）及理由\"\n  },\n  \"stageDetails\": [\n    {\"type\": \"探索期\", \"period\": \"2022年5月 至 2022年12月\", \"description\": \"内容尝试期，互动量较低，探索内容方向\"},\n    {\"type\": \"起号期\", \"period\": \"2023年1月 至 2023年6月\", \"description\": \"开始找到方向，互动量稳步提升\"}\n  ]\n}\n\n【关键规则】\n1. 粉丝数：必须标注 source（verified/inferred/missing），推断必须提供依据basis\n2. 账号类型：可以是复合类型，用\" / \"分隔\n3. 内容形态：判断是真人出镜、动画、口播、教程等\n4. 核心母题：3-7个短词（2-4字），如果内容不稳定则设置为空数组[]\n5. 受众推断：必须提供basis（依据），说明从哪些标题关键词推断\n6. 变现方式：从内容性质推断，明确写出成交链路\n7. stageDetails：根据月度数据摘要分析账号的发展阶段（探索期/起号期/爆发期/成熟期/调整期），每个阶段需包含具体的起止时间和描述\n8. 只返回JSON，不要任何解释或说明文字",
+      "variables": {
+        "account_name": {
+          "description": "账号名称",
+          "required": true
+        },
+        "video_titles": {
+          "description": "视频标题列表（前50条）",
+          "required": true
+        },
+        "date_range_start": {
+          "description": "数据开始时间（程序计算）",
+          "required": true
+        },
+        "date_range_end": {
+          "description": "数据结束时间（程序计算）",
+          "required": true
+        },
+        "total_months": {
+          "description": "总月数（程序计算）",
+          "required": true
+        },
+        "total_videos": {
+          "description": "总视频数（程序计算）",
+          "required": true
+        },
+        "publish_per_week": {
+          "description": "每周发布数（程序计算）",
+          "required": true
+        },
+        "has_gap": {
+          "description": "是否有断更期（程序计算）",
+          "required": true
+        },
+        "gap_periods": {
+          "description": "断更期描述",
+          "required": false
+        },
+        "publish_time_distribution": {
+          "description": "发布时间分布（程序计算）",
+          "required": true
+        },
+        "monthly_data_summary": {
+          "description": "月度数据摘要（程序计算）",
+          "required": true
+        }
+      },
+      "outputFormat": "json"
+    },
+    "monthly_trend": {
+      "name": "月度趋势分析",
+      "template": "你是专业的抖音数据分析师。请分析以下月度趋势数据，生成完整的分析报告。\n\n【数据来源】\n文件名：{{file_name}}\n总视频数：{{total_videos}}条\n\n【月度数据摘要】\n{{monthly_data_summary}}\n\n【月度详细数据】\n{{monthly_data_table}}\n\n【爆款视频列表】（含完整互动数据）\n{{viral_videos_detail}}\n\n【分析要求】\n\n请严格按照以下JSON格式输出：\n\n{\n  \"summary\": \"通过分析[账号名]的月度平均综合表现趋势表，抽象出账号从[阶段A]→[阶段B]→[阶段C]各个环节的关键动作，找到一些规律\",\n  \"dataScopeNote\": \"数据来源：《{{file_name}}》（共{{total_videos}}条）\\\\n- 互动总量 = 点赞量 + 评论量 + 收藏量 + 转发量\\\\n- 收藏率（%）= 收藏量 / 互动总量 × 100\\\\n- 月度趋势图：按月统计当月视频的平均互动总量\",\n  \"stages\": [\n    {\"type\": \"阶段类型\", \"period\": \"时间段\", \"description\": \"阶段描述\"}\n  ],\n  \"peakMonths\": [\n    {\n      \"month\": \"2021-11\",\n      \"description\": \"第一个爆发期波峰（奠定账号层级）\",\n      \"topVideos\": [\n        {\n          \"publishTime\": \"2021/11/6 16:00\",\n          \"title\": \"视频标题\",\n          \"likes\": 463881,\n          \"comments\": 15345,\n          \"saves\": 60711,\n          \"shares\": 91209,\n          \"totalEngagement\": 631146,\n          \"saveRate\": 9.62\n        }\n      ]\n    }\n  ],\n  \"viralThemes\": {\n    \"hasThemes\": true,\n    \"themes\": [\n      {\"themeType\": \"内卷反转\", \"representativeTitle\": \"你是被卷...\", \"description\": \"...\"}\n    ]\n  },\n  \"explosivePeriods\": [\n    {\n      \"periodName\": \"起号爆发期\",\n      \"period\": \"2021年8月\",\n      \"explanation\": \"账号第一次出现连续多条高于基线的内容链路\"\n    }\n  ]\n}\n\n【重要提示】\n- totalEngagement 必须是计算后的数值，不要写数学表达式\n\n【输出规则】\n1. summary：1句话概括，包含账号发展阶段转换\n2. dataScopeNote：不超过4行，说明数据来源和计算口径\n3. stages：数据支持才分阶段，不支持则设置为空数组，在summary中说明原因\n4. peakMonths：挑选3-5个关键波峰月份，每个月份列出Top3爆款视频\n5. viralThemes：分析长期爆款母题/共性机制，有则给themes，无则设置hasThemes=false并填写reason\n6. explosivePeriods：将全周期按明显抬升/尖峰/持续高位切分成多个爆发期，只包含时期名、时间和解释（不包含视频列表，由用户手动查看数据）\n7. 只返回JSON，不要任何解释或说明文字\n\n【JSON 格式要求（重要）】\n1. 必须返回完整且格式正确的 JSON\n2. 确保所有括号、花括号都正确配对\n3. 字符串必须用双引号包裹，正确转义特殊字符\n4. **字符串内部的引号必须转义为 \\\"**\n5. **或者避免在字符串值中使用引号包裹专有名词**\n6. 不要在 JSON 中间截断，如因长度限制无法完成，请确保结构完整\n7. 优先保证 JSON 结构完整性，宁可减少某些字段的内容",
+      "variables": {
+        "file_name": {
+          "description": "文件名",
+          "required": true
+        },
+        "total_videos": {
+          "description": "总视频数",
+          "required": true
+        },
+        "monthly_data_summary": {
+          "description": "月度数据摘要（简化版）",
+          "required": true
+        },
+        "monthly_data_table": {
+          "description": "月度详细数据表格",
+          "required": true
+        },
+        "viral_videos_detail": {
+          "description": "爆款视频详细信息",
+          "required": true
+        }
+      },
+      "outputFormat": "json"
+    },
+    "viral_analysis": {
+      "name": "爆款视频分析",
+      "template": "你是专业的抖音内容分析师。请分析以下爆款视频数据。\n\n【数据概览】\n总爆款数：{{total_virals}}条\n判定阈值：{{threshold}}\n\n【逐月数据摘要】\n{{monthly_summary}}\n\n【全部爆款视频详细数据】\n{{viral_videos_detail}}\n\n请严格按照以下JSON格式输出：\n\n{\n  \"summary\": \"爆款总结（2-3句话）\",\n  \"monthlyList\": [\n    {\n      \"month\": \"2021年8月\",\n      \"threshold\": 50000,\n      \"videos\": [\n        {\n          \"publishTime\": \"2021/8/6 16:00\",\n          \"title\": \"视频标题\",\n          \"likes\": 463881,\n          \"comments\": 15345,\n          \"saves\": 60711,\n          \"shares\": 91209,\n          \"totalEngagement\": 631146,\n          \"saveRate\": 9.62\n        }\n      ]\n    }\n  ],\n  \"byCategory\": [\n    {\"category\": \"分类名称\", \"count\": 5, \"avgEngagement\": 50000, \"description\": \"特征描述\"},\n    {\"category\": \"分类名称\", \"count\": 3, \"avgEngagement\": 40000, \"description\": \"特征描述\"}\n  ],\n  \"patterns\": {\n    \"commonElements\": \"共同元素\",\n    \"timingPattern\": \"时间规律\",\n    \"titlePattern\": \"标题规律\"\n  }\n}\n\n【关键要点】\n1. monthlyList：按月份分组爆款视频，每月包含阈值和完整视频列表\n2. 只返回JSON，不要任何解释或说明文字\n\n【JSON 格式要求（重要）】\n1. 必须返回完整且格式正确的 JSON\n2. 确保所有括号、花括号都正确配对\n3. 字符串必须用双引号包裹，正确转义特殊字符\n4. **字符串内部的引号必须转义为 \\\"**\n5. **或者避免在字符串值中使用引号包裹专有名词**\n6. 不要在 JSON 中间截断，如因长度限制无法完成，请确保结构完整\n7. 优先保证 JSON 结构完整性，宁可减少某些字段的内容",
+      "variables": {
+        "total_virals": {
+          "description": "爆款总数",
+          "required": true
+        },
+        "threshold": {
+          "description": "判定阈值",
+          "required": true
+        },
+        "monthly_summary": {
+          "description": "逐月数据摘要",
+          "required": true
+        },
+        "viral_videos_detail": {
+          "description": "全部爆款视频详细数据",
+          "required": true
+        }
+      },
+      "outputFormat": "json"
+    },
+    "topic_outline_generation": {
+      "name": "选题大纲生成",
+      "template": "你是专业的抖音内容策划师。请根据以下账号信息，生成30条爆款选题大纲。\n\n【⚠️ 关键格式要求】\n1. 严格按照 JSON 格式输出，所有字符串值必须用双引号包裹\n2. **字符串内部绝对不要使用双引号(\\"), 使用单引号(')或书名号(《》)替代**\n   - ❌ 错误：\"本质句标题：他说的\\"你好\\"是对的\"\n   - ✅ 正确：\"本质句标题：他说的'你好'是对的\"\n3. 确保所有括号、花括号正确配对\n4. 不要在 JSON 中间截断，确保结构完整\n\n【账号核心主题】\n{{core_topic}}\n\n【账号类型】\n{{account_type}}\n\n【目标受众】\n{{audience}}\n\n【爆款分类】（这是该账号实际表现好的内容分类）\n{{viral_categories}}\n\n【爆款规律】\n{{viral_patterns}}\n\n【任务要求】\n请基于上述【爆款分类】，生成6大类共30条选题大纲，每类5条。\n\n重要：分类必须基于该账号实际表现好的【爆款分类】，不要使用其他不相关的分类！\n\n【输出格式】\n请严格按照以下JSON格式输出：\n{\n  \"topics\": [\n    {\"id\": 1, \"category\": \"分类名称（基于爆款分类）\", \"titles\": [\"本质句标题\", \"反常识标题\", \"清单承诺标题\"]},\n    {\"id\": 2, \"category\": \"分类名称（基于爆款分类）\", \"titles\": [\"本质句标题\", \"反常识标题\", \"清单承诺标题\"]}\n  ]\n}\n\n【关键要点】\n1. 必须生成完整的30条选题大纲\n2. 每条大纲包含：id(1-30)、category、titles(3个)\n3. 分类必须基于账号实际爆款分类，不要凭空想象\n4. 只返回JSON，不要任何解释或说明文字",
+      "variables": {
+        "core_topic": {
+          "description": "核心主题",
+          "required": true
+        },
+        "account_type": {
+          "description": "账号类型",
+          "required": true
+        },
+        "audience": {
+          "description": "目标受众",
+          "required": true
+        },
+        "viral_categories": {
+          "description": "爆款分类结果",
+          "required": true
+        },
+        "viral_patterns": {
+          "description": "爆款规律",
+          "required": true
+        }
+      },
+      "outputFormat": "json"
+    },
+    "topic_detail_generation": {
+      "name": "选题详情生成",
+      "template": "你是专业的抖音内容策划师。请为以下选题大纲生成完整的脚本内容。\n\n【⚠️ 关键格式要求】\n1. 严格按照 JSON 格式输出，所有字符串值必须用双引号包裹\n2. **字符串内部绝对不要使用双引号(\\"), 使用单引号(')或书名号(《》)替代**\n   - ❌ 错误：\"在《场景》遇到【问题】\"\n   - ✅ 正确：\"在场景<XXX>遇到问题<XXX>\"\n3. 确保所有括号、花括号正确配对\n4. 不要在 JSON 中间截断，确保结构完整\n\n【账号核心主题】\n{{core_topic}}\n\n【爆款规律】\n{{viral_patterns}}\n\n【选题大纲列表】\n{{topic_outlines}}\n\n【任务要求】\n为每条选题生成完整的5段式口播稿、案例点位和分镜说明。\n\n【输出格式】\n请严格按照以下JSON格式输出：\n{\n  \"topics\": [\n    {\n      \"id\": 1,\n      \"script\": \"...的本质不是...，而是...。你之所以...，是因为...。真正起作用的是...。记住三点：第一...；第二...；第三...。你把这三点用对，...会完全不一样。建议收藏，...翻出来看。\",\n      \"storyboard\": [\"镜头1特写画面\", \"镜头2中景画面\", \"镜头3动作展示\", \"镜头4结尾画面\"],\n      \"casePoint\": \"案例点位：在场景<XXX>遇到问题<XXX>，最后用这三步解决\"\n    }\n  ]\n}\n\n【关键要点】\n1. 口播稿严格遵循5段式结构：...的本质不是...，而是...。你之所以...，是因为...。真正起作用的是...。记住三点：第一...；第二...；第三...。你把这三点用对，...会完全不一样。建议收藏，...翻出来看。\n2. 口播稿150-200字，简洁有力\n3. 分镜说明清晰具体，4个镜头\n4. 案例点位真实可信\n5. 只返回JSON，不要任何解释或说明文字",
+      "variables": {
+        "core_topic": {
+          "description": "核心主题",
+          "required": true
+        },
+        "viral_patterns": {
+          "description": "爆款规律",
+          "required": true
+        },
+        "topic_outlines": {
+          "description": "选题大纲列表",
+          "required": true
+        }
+      },
+      "outputFormat": "json"
+    },
+    "explosive_periods_detail": {
+      "name": "爆发期视频详情生成",
+      "template": "你是专业的抖音数据分析师。请为以下爆发期生成详细的Top10视频列表。\n\n【爆发期列表】\n{{explosive_periods}}\n\n【全部爆款视频数据】（用于筛选）\n{{all_viral_videos}}\n\n【时间范围映射】\n{{time_range_mapping}}\n\n【任务要求】\n对于每个爆发期，从【全部爆款视频数据】中筛选出该时间段内的Top10视频（按互动总量排序）。\n\n【输出格式】\n请严格按照以下JSON格式输出：\n{\n  \"periodsWithVideos\": [\n    {\n      \"periodName\": \"起号爆发期\",\n      \"period\": \"2021年8月\",\n      \"topVideos\": [\n        {\n          \"publishTime\": \"2021/8/6 16:00\",\n          \"title\": \"视频标题\",\n          \"likes\": 463881,\n          \"comments\": 15345,\n          \"saves\": 60711,\n          \"shares\": 91209,\n          \"totalEngagement\": 631146,\n          \"saveRate\": 9.62\n        }\n      ]\n    }\n  ]\n}\n\n【关键要点】\n1. 根据爆发期的时间段，从全部爆款视频中筛选出该时期的视频\n2. 每个爆发期列出Top10视频（按互动总量降序）\n3. 如果某个时期没有足够视频，列出所有可用的\n4. 重要：totalEngagement 必须是计算后的数值（例如：631146），不要写数学表达式（例如：不要写 463881+15345+60711+91209）\n5. 收藏率计算：收藏率 = 收藏量 / 互动总量 × 100\n6. 只返回JSON，不要任何解释或说明文字\n\n【JSON 格式要求（重要）】\n1. 必须返回完整且格式正确的 JSON\n2. 确保所有括号、花括号都正确配对\n3. 字符串必须用双引号包裹，正确转义特殊字符\n4. **字符串内部的引号必须转义为 \\\"**\n5. **或者避免在字符串值中使用引号包裹专有名词**\n6. 不要在 JSON 中间截断，如因长度限制无法完成，请确保结构完整\n7. 优先保证 JSON 结构完整性，宁可减少某些字段的内容",
+      "variables": {
+        "explosive_periods": {
+          "description": "爆发期列表（不含视频详情）",
+          "required": true
+        },
+        "all_viral_videos": {
+          "description": "全部爆款视频详细数据",
+          "required": true
+        },
+        "time_range_mapping": {
+          "description": "时间范围映射表（帮助匹配视频到时期）",
+          "required": true
+        }
+      },
+      "outputFormat": "json"
+    },
+    "viral_analysis_main": {
+      "name": "爆款视频主分析",
+      "template": "你是专业的抖音内容分析师。请分析以下爆款视频数据，生成完整的分析报告。\n\n【数据概览】\n文件名：{{file_name}}\n总视频数：{{total_videos}}条\n爆款总数：{{total_virals}}条\n判定阈值：{{threshold}}\n\n【逐月数据摘要】\n{{monthly_summary}}\n\n【全部爆款视频详细数据】\n{{viral_videos_detail}}\n\n【分析要求】\n\n请严格按照以下JSON格式输出：\n\n{\n  \"summary\": \"1句话概括：通过阈值法分析逐月逐日爆款视频，抽象出可复刻的套路。\",\n  \"dataScopeNote\": \"【数据分析口径说明】\\n单条视频互动总量 ≥ 当月阈值。\\n当月阈值 = max(当月P90, 当月中位数 + 3×MAD)：\\n- P90：这个月所有视频里，排到前10%的那个水平。假设这个月发了100条视频，把互动量从高到低排队，排到第10名那条的互动量，就是P90。\\n- MAD（中位数绝对偏差）：比平均数更抗离群点（适合爆款这种长尾分布）。\\n举例：这个月7条视频互动量：[10, 12, 13, 14, 15, 18, 100]\\n第一步：中位数=14；第二步：偏离值|x-14|=[4,2,1,0,1,4,86]；第三步：偏离值中位数=2。所以MAD=2。\\n- 为什么不用平均数？因为抖音数据常见情况：绝大多数视频几万互动，偶尔一条爆几百万。用平均数会被爆款拉高，导致判断失真。MAD即使有一条爆到天上，也不会把正常水平抬得离谱。\\n- 中位数+3×MAD ≈ 比正常水平高出一大截的线（14+3×2=20，超过20的就明显冒尖）。\",\n  \"monthlyList\": [\n    {\n      \"month\": \"2021年8月\",\n      \"threshold\": 50000,\n      \"videos\": [\n        {\n          \"publishTime\": \"2021/8/6 16:00\",\n          \"title\": \"视频标题\",\n          \"likes\": 463881,\n          \"comments\": 15345,\n          \"saves\": 60711,\n          \"shares\": 91209,\n          \"totalEngagement\": 631146,\n          \"saveRate\": 9.62\n        }\n      ],\n      \"top10Titles\": [\"标题1\", \"标题2\", ...]\n    }\n  ],\n  \"byCategory\": [\n    {\n      \"category\": \"识人用人/沟通\",\n      \"count\": 24,\n      \"medianEngagement\": 162758,\n      \"medianSaveRate\": 15.32,\n      \"p90SaveRate\": 34.54,\n      \"description\": \"收藏率P90=34.54%（这类里最强的10%内容，收藏占比能到三分之一以上）\"\n    }\n  ],\n  \"commonMechanisms\": {\n    \"hasCategories\": true,\n    \"mechanisms\": null\n  }\n}\n\n【重要提示】\n- totalEngagement 必须是计算后的数值（例如：631146），不要写数学表达式\n\n【输出规则】\n1. summary：1句话概括\n2. dataScopeNote：数据分析口径说明（必须通俗解释P90与MAD，必须含一个MAD计算小例子）\n3. monthlyList：逐月爆款清单，按月份分组，每月包含阈值、完整视频表、Top10标题汇总\n4. byCategory：如果可以分类，给出每类的详细统计（爆款数、互动中位数、收藏率中位数、收藏率P90）\n5. commonMechanisms.hasCategories：是否可以分类（true/false）。如果false，则mechanisms给出共性机制清单并逐条举证\n6. 只返回JSON，不要任何解释或说明文字\n\n【JSON 格式要求（重要）】\n1. 必须返回完整且格式正确的 JSON\n2. 确保所有括号、花括号都正确配对\n3. 字符串必须用双引号包裹，正确转义特殊字符\n4. **字符串内部的引号必须转义为 \\\"**\n5. **或者避免在字符串值中使用引号包裹专有名词**\n6. 不要在 JSON 中间截断，如因长度限制无法完成，请确保结构完整\n7. 优先保证 JSON 结构完整性，宁可减少某些字段的内容",
+      "variables": {
+        "file_name": {
+          "description": "文件名",
+          "required": true
+        },
+        "total_videos": {
+          "description": "总视频数",
+          "required": true
+        },
+        "total_virals": {
+          "description": "爆款总数",
+          "required": true
+        },
+        "threshold": {
+          "description": "判定阈值",
+          "required": true
+        },
+        "monthly_summary": {
+          "description": "逐月数据摘要",
+          "required": true
+        },
+        "viral_videos_detail": {
+          "description": "全部爆款视频详细数据",
+          "required": true
+        }
+      },
+      "outputFormat": "json"
+    },
+    "viral_analysis_methodology": {
+      "name": "爆款方法论抽象",
+      "template": "你是专业的抖音内容策划师。请基于以下爆款视频分析结果，抽象出可复刻的方法论。\n\n【⚠️ 关键格式要求】\n1. 严格按照 JSON 格式输出，所有字符串值必须用双引号包裹\n2. **字符串内部绝对不要使用双引号（\\"），使用单引号（'）或书名号（《》）替代**\n   - ❌ 错误：\"formula\": \"他说\\"你好\\"是对的\"\n   - ✅ 正确：\"formula\": \"他说'你好'是对的\"\n   - ✅ 正确：\"formula\": \"他说《你好》是对的\"\n3. 确保所有括号、花括号正确配对\n4. 不要在 JSON 中间截断，确保结构完整\n\n【爆款分类结果】\n{{category_summary}}\n\n【爆款标题列表】（用于时间分布分析）\n{{viral_titles_with_time}}\n\n【爆款视频内容样本】（用于提炼公式）\n{{viral_samples}}\n\n【任务要求】\n\n请严格按照以下JSON格式输出：\n\n{\n  \"viralTheme\": {\n    \"formula\": \"爆款母题 = 高频场景 + 隐秘规则(你没明说但你隐约知道) + 反常识结论(一针见血讲穿) + 可执行清单(让你立刻能用)\",\n    \"conclusion\": \"该账号最稳的爆法：工具/效率/教程的清单化输出 + 结合时事热点(漏洞/事件)或前沿技术(AI)引发危机感或好奇心\",\n    \"evidence\": [\"AI与前沿技术：5条爆款，收藏率中位数最高达25.54%\", \"工具与效率提升：10条爆款，互动中位数21，收藏率中位数23.91%(高且稳定)\"]\n  },\n  \"timeDistribution\": [\n    {\"timeWindow\": \"19:00-22:00\", \"percentage\": 38.9},\n    {\"timeWindow\": \"11:00-14:00\", \"percentage\": 23.2},\n    {\"timeWindow\": \"15:00-17:00\", \"percentage\": 20.0}\n  ],\n  \"topicFormulas\": [\n    {\n      \"theme\": \"权力结构/管理(最强互动)\",\n      \"scenarios\": \"高频场景：提拔/晋升/领导评价/向上管理/带团队\",\n      \"hiddenRules\": \"隐藏规则：领导真正看的是风险、信任、可控性、替代成本\",\n      \"counterIntuitive\": \"反常识结论：不是你更努力就行，而是你更让他省心/放心/有战果\",\n      \"actions\": [\"汇报方式\", \"站位\", \"资源调动\"],\n      \"templates\": [\n        \"《提拔的本质不是___，而是___》\",\n        \"《领导看重的从来不是___，而是___》\",\n        \"《向上管理只有一个目的：让领导___》\",\n        \"《一把手时间分配决定___：你该把精力放在___》\"\n      ]\n    }\n  ],\n  \"titleFormulas\": [\n    {\"type\": \"反常识对比\", \"template\": \"你以为A，其实B\"},\n    {\"type\": \"本质句\", \"template\": \"X的本质是Y\"},\n    {\"type\": \"场景痛点+解法\", \"template\": \"被___怎么办？给你___招\"},\n    {\"type\": \"清单承诺\", \"template\": \"3句话/4步/5类人(强收藏预期)\"},\n    {\"type\": \"身份代入\", \"template\": \"你是不是也在___？\"},\n    {\"type\": \"价值承诺\", \"template\": \"看完你就知道___(强完播预期)\"}\n  ],\n  \"scriptFormula\": {\n    \"mainFramework\": \"脚本5段式：3秒钩子(结论先行) → 解释隐藏规则 → 给清单(1/2/3) → 金句收尾 + 引导收藏\",\n    \"explanation\": \"这套结构为什么强？因为它同时满足：爽感(讲穿) + 安全感(给动作) + 可传播(清单/金句)。数据支撑：该账号收藏率中位数15.32%，清单类标题占比超60%。\",\n    \"alternativeFramework\": \"备选骨架：痛点场景 → 揭露真相 → 方法步骤 → 行动呼吁\"\n  }\n}\n\n【关键要点】\n1. viralTheme.formula：必须使用标准公式格式\n2. viralTheme.evidence：必须给出数值证据(具体数据)\n3. timeDistribution：统计爆款视频的发布时间，给出3-5个时间窗+占比%\n4. topicFormulas：至少3条主线，每条必须含场景/规则/结论/3动作/≥4模板\n5. titleFormulas：6类结构完整，每类1个可替换模板句\n6. scriptFormula.explanation：必须结合数据特征(如收藏率分布、清单类占比等)解释为什么强\n7. 只返回JSON，不要任何解释或说明文字",
+      "variables": {
+        "category_summary": {
+          "description": "爆款分类结果摘要",
+          "required": true
+        },
+        "viral_titles_with_time": {
+          "description": "爆款标题+发布时间",
+          "required": true
+        },
+        "viral_samples": {
+          "description": "爆款视频内容样本（标题+互动数据）",
+          "required": true
+        }
+      },
+      "outputFormat": "json"
+    },
+    "viral_analysis_data_scope": {
+      "name": "数据分组与口径说明",
+      "template": "你是专业的抖音数据分析师。请生成数据口径说明和月度分组信息。\n\n【数据概览】\n文件名：{{file_name}}\n总视频数：{{total_videos}}条\n爆款总数：{{total_virals}}条\n判定阈值：{{threshold}}\n\n【逐月数据摘要】\n{{monthly_summary}}\n\n【输出要求】\n请严格按照以下JSON格式输出：\n\n{\n  \"summary\": \"1句话概括：通过阈值法分析逐月逐日爆款视频，抽象出可复刻的套路。\",\n  \"dataScopeNote\": \"【数据分析口径说明】\\\\n单条视频互动总量 ≥ 当月阈值。\\\\n当月阈值 = max(当月P90, 当月中位数 + 3×MAD）：\\\\n- P90：这个月所有视频里，排到前10%的那个水平。假设这个月发了100条视频，把互动量从高到低排队，排到第10名那条的互动量，就是P90。\\\\n- MAD（中位数绝对偏差）：比平均数更抗离群点（适合爆款这种长尾分布）。\\\\n举例：这个月7条视频互动量：[10, 12, 13, 14, 15, 18, 100]\\\\n第一步：中位数=14；第二步：偏离值|x-14|=[4,2,1,0,1,4,86]；第三步：偏离值中位数=2。所以MAD=2。\\\\n- 为什么不用平均数？因为抖音数据常见情况：绝大多数视频几万互动，偶尔一条爆几百万。用平均数会被爆款拉高，导致判断失真。MAD即使有一条爆到天上，也不会把正常水平抬得离谱。\\\\n- 中位数+3×MAD ≈ 比正常水平高出一大截的线（14+3×2=20，超过20的就明显冒尖）。\",\n  \"monthlyList\": [\n    {\"month\": \"2021年8月\", \"threshold\": 50000, \"viralCount\": 15},\n    {\"month\": \"2021年9月\", \"threshold\": 65000, \"viralCount\": 23}\n  ]\n}\n\n【输出规则】\n1. summary：1句话概括\n2. dataScopeNote：数据分析口径说明（必须通俗解释P90与MAD，必须含一个MAD计算小例子）\n3. monthlyList：逐月摘要，包含月份、阈值、爆款数量\n4. 只返回JSON，不要任何解释或说明文字\n\n【JSON 格式要求（重要）】\n1. 必须返回完整且格式正确的 JSON\n2. 确保所有括号、花括号都正确配对\n3. 字符串必须用双引号包裹，正确转义特殊字符\n4. **字符串内部的引号必须转义为 \\\"**\n5. **或者避免在字符串值中使用引号包裹专有名词**\n6. 不要在 JSON 中间截断，如因长度限制无法完成，请确保结构完整\n7. 优先保证 JSON 结构完整性，宁可减少某些字段的内容",
+      "variables": {
+        "file_name": {
+          "description": "文件名",
+          "required": true
+        },
+        "total_videos": {
+          "description": "总视频数",
+          "required": true
+        },
+        "total_virals": {
+          "description": "爆款总数",
+          "required": true
+        },
+        "threshold": {
+          "description": "判定阈值",
+          "required": true
+        },
+        "monthly_summary": {
+          "description": "逐月数据摘要",
+          "required": true
+        }
+      },
+      "outputFormat": "json"
+    },
+    "viral_analysis_classification": {
+      "name": "爆款分类分析",
+      "template": "你是专业的抖音内容分析师。请对以下爆款视频进行分类统计。\n\n【全部爆款视频详细数据】\n{{viral_videos_detail}}\n\n【分析要求】\n请严格按照以下JSON格式输出（只返回分类结果，不要返回视频列表）：\n\n{\n  \"byCategory\": [\n    {\n      \"category\": \"分类名称\",\n      \"count\": 爆款数量,\n      \"medianEngagement\": 互动中位数,\n      \"medianSaveRate\": 收藏率中位数,\n      \"p90SaveRate\": 收藏率P90,\n      \"description\": \"特征描述（包含收藏率P90说明）\"\n    }\n  ],\n  \"commonMechanisms\": {\n    \"hasCategories\": true,\n    \"mechanisms\": null,\n    \"reason\": null\n  }\n}\n\n【重要提示】\n- byCategory 必须使用中位数（median），不要使用平均数\n- p90SaveRate 必须计算（该分类中收藏率的前90百分位数）\n- 只返回JSON，不要任何解释或说明文字\n\n【JSON 格式要求（重要）】\n1. 必须返回完整且格式正确的 JSON\n2. 确保所有括号、花括号都正确配对\n3. 字符串必须用双引号包裹，正确转义特殊字符\n4. **字符串内部的引号必须转义为 \\\"**\n5. **或者避免在字符串值中使用引号包裹专有名词**\n6. 不要在 JSON 中间截断，如因长度限制无法完成，请确保结构完整\n7. 优先保证 JSON 结构完整性，宁可减少某些字段的内容",
+      "variables": {
+        "viral_videos_detail": {
+          "description": "全部爆款视频详细数据",
+          "required": true
+        }
+      },
+      "outputFormat": "json"
+    }
+  }
+}
