@@ -674,7 +674,7 @@ function generateViralCategoriesTableExtended(categories: Report['virals']['byCa
     width: { size: 100, type: WidthType.PERCENTAGE },
   });
 
-  const paragraphs: Paragraph[] = [table];
+  const paragraphs: (Paragraph | Table)[] = [table];
 
   // 特征描述
   const hasDescription = categories.some((c: any) => c.description);
