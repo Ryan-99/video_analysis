@@ -174,6 +174,34 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
       name: '修复未转义的引号（增强版 - 多层检测）',
       transform: (s) => {
         console.log('[fixUnescapedQuotes] 开始处理...');
+
+        // === 第一步：预处理 - 将疑似中文书名号模式的直引号对转换为书名号 ===
+        // 模式："中文"英文/数字"中文" -> "中文《英文/数字》中文"
+        // 示例："发布"Java学习路线"、"搭建个人网站"等" -> "发布《Java学习路线》、《搭建个人网站》等"
+        let preprocessed = s;
+        let convertedCount = 0;
+
+        // 使用正则匹配：中文+"+英文/数字内容+"+中文/标点
+        // 这个正则会匹配类似："Java"、"Python"、"123"等模式
+        const titleQuotePattern = /"([^"]{1,30})"/g;
+        preprocessed = preprocessed.replace(titleQuotePattern, (match, content) => {
+          // 检查内容是否主要是英文/数字（判断标准：超过50%是英文数字）
+          const alphaNumCount = (content.match(/[a-zA-Z0-9]/g) || []).length;
+          const totalCount = content.length;
+          const isMainlyAlphaNum = totalCount > 0 && (alphaNumCount / totalCount) > 0.5;
+
+          if (isMainlyAlphaNum) {
+            convertedCount++;
+            return '《' + content + '》';
+          }
+          return match;
+        });
+
+        if (convertedCount > 0) {
+          console.log(`[fixUnescapedQuotes] 预处理：将 ${convertedCount} 个疑似书名号的直引号对转换为书名号`);
+        }
+
+        // === 第二步：原有的引号转义逻辑（在预处理后的字符串上） ===
         const result: string[] = [];
         let inString = false;
         let escapeNext = false;
@@ -205,8 +233,8 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
           return { before, after };
         };
 
-        for (let i = 0; i < s.length; i++) {
-          const c = s[i];
+        for (let i = 0; i < preprocessed.length; i++) {
+          const c = preprocessed[i];
 
           // 处理转义符
           if (escapeNext) {
@@ -231,10 +259,10 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
               // 可能的字符串结束或内部引号
               // 查看接下来的非空白字符
               let nextIdx = i + 1;
-              while (nextIdx < s.length && /\s/.test(s[nextIdx])) {
+              while (nextIdx < preprocessed.length && /\s/.test(preprocessed[nextIdx])) {
                 nextIdx++;
               }
-              const nextChar = nextIdx < s.length ? s[nextIdx] : '';
+              const nextChar = nextIdx < preprocessed.length ? preprocessed[nextIdx] : '';
 
               // 规则1：强结束标记（最高优先级）- 紧跟非空白字符为结束标记
               const isStrongEndMarker =
@@ -249,7 +277,7 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
               }
 
               // 获取上下文进行更详细的判断
-              const context = getContext(s, i);
+              const context = getContext(preprocessed, i);
 
               // 规则2：中文+引号+英文模式检测
               const hasChineseBefore = context.before.split('').some(ch => isChinese(ch));
@@ -265,10 +293,10 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
 
               // 规则3：连续引号检测 - 下一个非空白字符也是引号
               let nextNonSpaceIdx = nextIdx;
-              while (nextNonSpaceIdx < s.length && /\s/.test(s[nextNonSpaceIdx])) {
+              while (nextNonSpaceIdx < preprocessed.length && /\s/.test(preprocessed[nextNonSpaceIdx])) {
                 nextNonSpaceIdx++;
               }
-              const nextNonSpace = nextNonSpaceIdx < s.length ? s[nextNonSpaceIdx] : '';
+              const nextNonSpace = nextNonSpaceIdx < preprocessed.length ? preprocessed[nextNonSpaceIdx] : '';
 
               if (nextNonSpace === '"') {
                 console.log(`[fixUnescapedQuotes] 位置 ${i}: 连续引号模式，添加转义符`);
