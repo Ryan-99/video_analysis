@@ -90,7 +90,6 @@ export function cleanAIResponse(response: string): string {
   cleaned = cleaned.replace(/```/g, '').trim();
 
   // 5. 替换中文标点（在括号匹配之后，只处理提取的 JSON 内容）
-  // 注意：不要替换【】→[]，因为这可能破坏 JSON 字符串值内部的合法内容
   cleaned = cleaned
     // 中文双引号
     .replace(/\u201C/g, '"').replace(/\u201D/g, '"')
@@ -102,8 +101,10 @@ export function cleanAIResponse(response: string): string {
     .replace(/；/g, ';')
     .replace(/？/g, '?')
     .replace(/！/g, '!')
-    .replace(/（/g, '(').replace(/）/g, ')');
-  // 移除【】的替换 - 它们在 JSON 字符串值内部是合法的
+    // 中文括号 - 转换为ASCII括号，便于JSON解析
+    .replace(/（/g, '(').replace(/）/g, ')')
+    // 中文方括号 - 转换为ASCII方括号
+    .replace(/【/g, '[').replace(/】/g, ']');
 
   // 诊断日志：检查清理后的内容
   console.log('[cleanAIResponse] 清理后长度:', cleaned.length);
@@ -171,7 +172,7 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
       },
     },
     {
-      name: '修复未转义的引号（改进版 - 状态机检测）',
+      name: '修复未转义的引号（增强版 - 多层检测）',
       transform: (s) => {
         console.log('[fixUnescapedQuotes] 开始处理...');
 
@@ -189,6 +190,33 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
             idx++;
           }
           return { char: idx < str.length ? str[idx] : '', idx };
+        };
+
+        // 辅助函数：向后查找匹配的开引号，检查是否应该转义当前引号
+        const shouldEscapeQuote = (str: string, pos: number): boolean => {
+          let quoteDepth = 1; // 当前引号
+          for (let i = pos - 1; i >= 0; i--) {
+            const c = str[i];
+            // 跳过转义字符
+            if (c === '\\' && i > 0 && str[i - 1] !== '\\') {
+              i--;
+              continue;
+            }
+            if (c === '"') {
+              quoteDepth--;
+              if (quoteDepth === 0) {
+                // 找到开引号，检查它是否在字符串值位置
+                let prev = i - 1;
+                while (prev >= 0 && /\s/.test(str[prev])) prev--;
+                // 如果开引号前是 : 或 { 或 ,，说明这是字符串值的开始
+                if (prev >= 0 && (str[prev] === ':' || str[prev] === '{' || str[prev] === ',')) {
+                  return false; // 这是字符串值的结束标记，不需要转义
+                }
+                return true; // 内部引号，需要转义
+              }
+            }
+          }
+          return true; // 没找到开引号，需要转义
         };
 
         for (let i = 0; i < s.length; i++) {
@@ -222,19 +250,22 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
             } else {
               // 可能是字符串结束或内部引号
               const next = findNextNonWhitespace(s, i + 1);
+              const nextChar = next.char;
 
-              // 判断是否为字符串结束标记
+              // 使用向后查找检查是否应该转义
+              const isInternalQuote = shouldEscapeQuote(s, i);
+
               // 强结束标记：后面是 } ， ] ， ， 或空
-              const isStrongEndMarker = next.char === '}' || next.char === ']' || next.char === ',' || next.char === '';
+              const isStrongEndMarker = nextChar === '}' || nextChar === ']' || nextChar === ',' || nextChar === '';
 
-              // 弱结束标记：后面是 : （可能在对象值中）
-              const isWeakEndMarker = next.char === ':';
+              // 弱结束标记：后面是 : （可能在对象键中）
+              const isWeakEndMarker = nextChar === ':';
 
-              if (isStrongEndMarker) {
+              if (isStrongEndMarker && !isInternalQuote) {
                 // 确认是字符串结束
                 inString = false;
                 result.push(c);
-              } else if (isWeakEndMarker && braceDepth > 0) {
+              } else if (isWeakEndMarker && braceDepth > 0 && !isInternalQuote) {
                 // 在对象内，后面是 : ，可能是键的结束
                 // 需要进一步判断：检查前一个非空白字符
                 let prevIdx = i - 1;
@@ -250,7 +281,7 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
                   fixCount++;
                 }
               } else {
-                // 不是明显的结束标记，可能是内部引号，需要转义
+                // 不是明显的结束标记，或检测为内部引号，需要转义
                 result.push('\\"');
                 fixCount++;
               }

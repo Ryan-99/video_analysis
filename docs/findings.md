@@ -158,3 +158,84 @@ const pointRadiusArray = sortedEntries.map((_, idx) =>
 ---
 
 *最后更新：2026-01-31*
+
+---
+
+## 新问题：中文符号导致JSON解析失败（2026-02-01）
+
+### 问题详情
+**错误位置：** 2584
+**上下文：** `"具/步骤/方法)"`
+**错误：** `Expected ',' or '}' after property value in JSON`
+
+### 根本原因
+
+当前代码的 `fixUnescapedQuotes` 函数（第174-276行）存在以下问题：
+
+1. **状态机检测不完整**：只检查引号后的下一个字符，无法区分：
+   - 中文字符串值内部的 `()` 如 `"具/步骤/方法)"`
+   - JSON结构符号 `)`
+
+2. **中文符号上下文识别不足**：代码无法区分中文括号 `（）`、`【】` 是字符串值内容还是JSON结构符号
+
+3. **平衡检测缺失**：当引号后出现 `)` 时，没有检查：
+   - 是否在字符串值内部
+   - 是否有对应的开始符号
+   - 整体JSON结构是否平衡
+
+### 修复方案
+
+#### 方案1：增强引号平衡检测（推荐）
+
+添加向后查找逻辑，检查当前引号是否应该转义：
+
+```typescript
+// 辅助函数：检查引号是否应该转义
+const shouldEscapeQuote = (str: string, pos: number): boolean => {
+  // 向前查找匹配的开引号
+  let quoteDepth = 1;
+  for (let i = pos - 1; i >= 0; i--) {
+    const c = str[i];
+    if (c === '\\' && i > 0 && str[i - 1] !== '\\') {
+      i--;
+      continue;
+    }
+    if (c === '"') {
+      quoteDepth--;
+      if (quoteDepth === 0) {
+        // 找到开引号，检查是否在字符串值位置
+        let prev = i - 1;
+        while (prev >= 0 && /\s/.test(str[prev])) prev--;
+        if (prev >= 0 && (str[prev] === ':' || str[prev] === '{' || str[prev] === ',')) {
+          return false; // 这是字符串值的结束标记
+        }
+        return true; // 内部引号，需要转义
+      }
+    }
+  }
+  return true; // 没找到开引号，需要转义
+};
+```
+
+#### 方案2：添加中文符号预转换
+
+在 `cleanAIResponse` 函数中添加中文括号转换：
+
+```typescript
+// 步骤5中添加：
+.replace(/（/g, '(').replace(/）/g, ')')
+.replace(/【/g, '[').replace(/】/g, ']')
+```
+
+这样可以将中文括号统一转换为ASCII括号，避免混淆。
+
+#### 方案3：多层检测规则
+
+结合两种方法：
+1. 先转换中文符号为ASCII符号
+2. 然后使用增强的引号检测逻辑
+
+### 相关文件
+- [src/lib/ai-analysis/service.ts](src/lib/ai-analysis/service.ts) - `fixUnescapedQuotes` 函数
+
+---
