@@ -171,13 +171,39 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
       },
     },
     {
-      name: '修复未转义的引号',
+      name: '修复未转义的引号（增强版 - 多层检测）',
       transform: (s) => {
         console.log('[fixUnescapedQuotes] 开始处理...');
         const result: string[] = [];
         let inString = false;
         let escapeNext = false;
         let fixCount = 0;
+
+        // 辅助函数：检查字符是否为中文
+        const isChinese = (char: string): boolean => {
+          if (!char) return false;
+          const code = char.charCodeAt(0);
+          return (code >= 0x4E00 && code <= 0x9FFF) ||  // 基本汉字
+                 (code >= 0x3400 && code <= 0x4DBF);   // 扩展A
+        };
+
+        // 辅助函数：检查字符是否为英文或数字
+        const isAlphanumeric = (char: string): boolean => {
+          if (!char) return false;
+          const code = char.charCodeAt(0);
+          return (code >= 48 && code <= 57) ||   // 0-9
+                 (code >= 65 && code <= 90) ||   // A-Z
+                 (code >= 97 && code <= 122);    // a-z
+        };
+
+        // 辅助函数：获取字符上下文（前后各2个字符）
+        const getContext = (str: string, pos: number): { before: string, after: string } => {
+          const beforeStart = Math.max(0, pos - 2);
+          const before = str.substring(beforeStart, pos);
+          const afterStart = pos + 1;
+          const after = str.substring(afterStart, Math.min(str.length, pos + 3));
+          return { before, after };
+        };
 
         for (let i = 0; i < s.length; i++) {
           const c = s[i];
@@ -208,26 +234,76 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
               while (nextIdx < s.length && /\s/.test(s[nextIdx])) {
                 nextIdx++;
               }
-
               const nextChar = nextIdx < s.length ? s[nextIdx] : '';
 
-              // 判断规则：如果后面是 ASCII 或中文标点符号，则是字符串结束符
-              // ASCII: , } ] :
-              // 中文标点：，】：
+              // 规则1：强结束标记（最高优先级）- 紧跟非空白字符为结束标记
+              const isStrongEndMarker =
+                nextChar === ',' || nextChar === '}' || nextChar === ']' ||
+                nextChar === '' || nextChar === ':';
+
+              if (isStrongEndMarker) {
+                inString = false;
+                result.push(c);
+                console.log(`[fixUnescapedQuotes] 位置 ${i}: 强结束标记 (后跟: '${nextChar}')`);
+                continue;
+              }
+
+              // 获取上下文进行更详细的判断
+              const context = getContext(s, i);
+
+              // 规则2：中文+引号+英文模式检测
+              const hasChineseBefore = context.before.split('').some(ch => isChinese(ch));
+              const hasAlphaAfter = context.after.split('').some(ch => isAlphanumeric(ch));
+
+              if (hasChineseBefore && hasAlphaAfter) {
+                // 这是中文引号包裹的英文内容，需要转义
+                console.log(`[fixUnescapedQuotes] 位置 ${i}: 中文+引号+英文模式 (前: '${context.before}', 后: '${context.after}')，添加转义符`);
+                result.push('\\"');
+                fixCount++;
+                continue;
+              }
+
+              // 规则3：连续引号检测 - 下一个非空白字符也是引号
+              let nextNonSpaceIdx = nextIdx;
+              while (nextNonSpaceIdx < s.length && /\s/.test(s[nextNonSpaceIdx])) {
+                nextNonSpaceIdx++;
+              }
+              const nextNonSpace = nextNonSpaceIdx < s.length ? s[nextNonSpaceIdx] : '';
+
+              if (nextNonSpace === '"') {
+                console.log(`[fixUnescapedQuotes] 位置 ${i}: 连续引号模式，添加转义符`);
+                result.push('\\"');
+                fixCount++;
+                continue;
+              }
+
+              // 规则4：弱结束标记 - 中文标点
+              const isWeakEndMarker =
+                nextChar === '，' || nextChar === '。' ||
+                nextChar === '】' || nextChar === '：' ||
+                nextChar === '、' || nextChar === '；';
+
+              if (isWeakEndMarker) {
+                inString = false;
+                result.push(c);
+                console.log(`[fixUnescapedQuotes] 位置 ${i}: 弱结束标记 (后跟: '${nextChar}')`);
+                continue;
+              }
+
+              // 规则5：默认策略 - 保留原有逻辑作为兜底
               const isEndMarker =
-                nextChar === ',' || nextChar === '}' || nextChar === ']' || nextChar === '' || nextChar === ':' ||
+                nextChar === ',' || nextChar === '}' || nextChar === ']' ||
+                nextChar === '' || nextChar === ':' ||
                 nextChar === '，' || nextChar === '】' || nextChar === '：';
 
               if (isEndMarker) {
-                // 这是字符串结束符
                 inString = false;
                 result.push(c);
               } else {
                 // 这是字符串内部的引号，需要转义
-                console.log(`[fixUnescapedQuotes] 位置 ${i}: 检测到内部引号 (下一个字符: '${nextChar}' [${nextChar.charCodeAt(0)}])，添加转义符`);
+                console.log(`[fixUnescapedQuotes] 位置 ${i}: 默认策略判定为内部引号 (下一个字符: '${nextChar}' [${nextChar.charCodeAt(0)}])，添加转义符`);
                 result.push('\\"');
                 fixCount++;
-                // 不翻转 inString 状态
               }
             }
             continue;
