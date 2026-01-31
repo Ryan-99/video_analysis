@@ -211,14 +211,20 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
 
               const nextChar = nextIdx < s.length ? s[nextIdx] : '';
 
-              // 判断规则：如果后面是 , } ] : 则是字符串结束符
-              if (nextChar === ',' || nextChar === '}' || nextChar === ']' || nextChar === '' || nextChar === ':') {
+              // 判断规则：如果后面是 ASCII 或中文标点符号，则是字符串结束符
+              // ASCII: , } ] :
+              // 中文标点：，】：
+              const isEndMarker =
+                nextChar === ',' || nextChar === '}' || nextChar === ']' || nextChar === '' || nextChar === ':' ||
+                nextChar === '，' || nextChar === '】' || nextChar === '：';
+
+              if (isEndMarker) {
                 // 这是字符串结束符
                 inString = false;
                 result.push(c);
               } else {
                 // 这是字符串内部的引号，需要转义
-                console.log(`[fixUnescapedQuotes] 位置 ${i}: 检测到内部引号，添加转义符`);
+                console.log(`[fixUnescapedQuotes] 位置 ${i}: 检测到内部引号 (下一个字符: '${nextChar}' [${nextChar.charCodeAt(0)}])，添加转义符`);
                 result.push('\\"');
                 fixCount++;
                 // 不翻转 inString 状态
