@@ -382,18 +382,62 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
       // 第一次失败时，添加详细的诊断信息
       if (i === 0) {
         console.log('[safeParseJSON] === 诊断信息 ===');
-        const inputPreview = jsonString.substring(0, Math.min(500, jsonString.length));
-        console.log('[safeParseJSON] 输入前500字符:', inputPreview);
+        console.log('[safeParseJSON] 输入总长度:', jsonString.length, '字符');
 
-        // 分析错误位置
+        // 策略1: 标准格式 - 提取 position
         const positionMatch = errorMsg.match(/position (\d+)/);
         if (positionMatch) {
           const errorPos = parseInt(positionMatch[1]);
           const contextStart = Math.max(0, errorPos - 30);
           const contextEnd = Math.min(jsonString.length, errorPos + 30);
           const errorContext = jsonString.substring(contextStart, contextEnd);
-          console.log(`[safeParseJSON] 错误位置 ${errorPos} 上下文:`, errorContext);
+          console.log(`[safeParseJSON] ✅ 标准格式 - 错误位置 ${errorPos} 上下文:`, errorContext);
           console.log(`[safeParseJSON] 错误位置的字符:`, jsonString.charAt(errorPos), `(code: ${jsonString.charCodeAt(errorPos)})`);
+        } else {
+          // 策略2: 非标准格式 - 通过 token 搜索定位
+          console.log(`[safeParseJSON] ⚠️ 非标准错误格式，无法直接获取 position`);
+          console.log(`[safeParseJSON] 原始错误信息:`, errorMsg);
+
+          const tokenMatch = errorMsg.match(/Unexpected token '(.+?)'/);
+          if (tokenMatch) {
+            const errorToken = tokenMatch[1];
+            console.log(`[safeParseJSON] 错误字符: '${errorToken}' (Unicode: U+${errorToken.charCodeAt(0).toString(16).toUpperCase()})`);
+
+            // 搜索所有出现位置
+            const positions: number[] = [];
+            let pos = jsonString.indexOf(errorToken);
+            while (pos !== -1) {
+              positions.push(pos);
+              pos = jsonString.indexOf(errorToken, pos + 1);
+            }
+
+            console.log(`[safeParseJSON] 字符 '${errorToken}' 在输入中出现 ${positions.length} 次，位置:`, positions.join(', '));
+
+            // 显示每个位置的上下文（最多前5个）
+            positions.slice(0, 5).forEach((pos, idx) => {
+              const contextStart = Math.max(0, pos - 40);
+              const contextEnd = Math.min(jsonString.length, pos + 40);
+              const context = jsonString.substring(contextStart, contextEnd);
+              console.log(`[safeParseJSON] 位置 ${pos} 的上下文 #${idx + 1}:`, context);
+            });
+
+            if (positions.length > 5) {
+              console.log(`[safeParseJSON] ... 还有 ${positions.length - 5} 个位置未显示`);
+            }
+          }
+
+          // 策略3: 通过内容片段定位
+          const snippetMatch = errorMsg.match(/"(.{15,80})"/);
+          if (snippetMatch) {
+            const snippet = snippetMatch[1];
+            const snippetPos = jsonString.indexOf(snippet);
+            if (snippetPos !== -1) {
+              console.log(`[safeParseJSON] 通过内容片段定位到位置: ${snippetPos}`);
+              const contextStart = Math.max(0, snippetPos - 40);
+              const contextEnd = Math.min(jsonString.length, snippetPos + snippet.length + 40);
+              console.log(`[safeParseJSON] 片段上下文:`, jsonString.substring(contextStart, contextEnd));
+            }
+          }
         }
         console.log('[safeParseJSON] === 诊断结束 ===');
       }
