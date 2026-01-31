@@ -209,7 +209,7 @@ function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buf
     }
   }
 
-  const paragraphs: Paragraph[] = [
+  const paragraphs: (Paragraph | Table)[] = [
     // 总结
     new Paragraph({ children: [new TextRun({ text: '趋势总结', bold: true, size: 28, underline: {} })] }),
     ...generateFormattedParagraphs(trend.summary, { size: 24 }),
@@ -418,7 +418,7 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): (
     }
   }
 
-  const paragraphs: Paragraph[] = [
+  const paragraphs: (Paragraph | Table)[] = [
     // 总结和统计
     new Paragraph({ children: [new TextRun({ text: '爆款总结', bold: true, size: 28, underline: {} })] }),
     ...generateFormattedParagraphs(virals.summary, { size: 24 }),
