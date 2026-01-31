@@ -109,4 +109,52 @@ if (c === '"') {
 
 ---
 
+## Word文档表格缺失和图表标注问题
+
+**创建时间：** 2026-01-31
+
+### 问题1：Word文档表格缺失
+
+**问题描述**：生成的Word文档中所有表格都不显示
+
+**根本原因**：`docx`库的`Table`被错误地包裹在`Paragraph`中
+
+在`docx`库中，`Table`和`Paragraph`是同级的文档元素，`Table`**不能**作为`Paragraph`的子元素（children）。
+
+**错误代码**：
+```typescript
+return [new Paragraph({ children: [table] })]; // ❌
+```
+
+**正确代码**：
+```typescript
+return [table]; // ✅
+```
+
+**修复位置**：
+- `src/lib/report/word.ts` - `generateMonthlyTable()` 第408行
+- `src/lib/report/word.ts` - `generateViralCategoriesTableExtended()` 第677行
+- `src/lib/report/word.ts` - `generateTopicLibraryTable()` 第738行
+
+### 问题2：图表显示错误占位符
+
+**问题描述**：Word文档中每日Top1爆点趋势图表显示错误占位符
+
+**根本原因**：QuickChart API不支持`chartjs-plugin-annotation`插件
+
+原代码使用annotation插件标注每月Top1爆点，但QuickChart服务端无法识别annotation配置。
+
+**修复方案**：使用QuickChart原生支持的点样式数组
+```typescript
+const pointRadiusArray = sortedEntries.map((_, idx) =>
+  monthlyTop1Indices.has(idx) ? 8 : 2
+);
+```
+
+**修复位置**：
+- `src/lib/charts/service.ts` - `generateDailyTop1Config()` 函数
+- `src/lib/charts/service.ts` - `ChartConfig` 接口（移除annotation类型）
+
+---
+
 *最后更新：2026-01-31*

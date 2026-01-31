@@ -11,8 +11,11 @@ export interface ChartConfig {
       borderColor?: string;
       backgroundColor?: string;
       borderWidth?: number;
-      pointRadius?: number;
-      pointHoverRadius?: number;
+      pointRadius?: number | number[];
+      pointHoverRadius?: number | number[];
+      pointBackgroundColor?: string | string[];
+      pointBorderColor?: string | string[];
+      pointBorderWidth?: number;
     }>;
   };
   options?: {
@@ -24,9 +27,6 @@ export interface ChartConfig {
       };
       legend?: {
         display: boolean;
-      };
-      annotation?: {
-        annotations: Record<string, any>;
       };
     };
     scales?: {
@@ -212,6 +212,8 @@ export function generateDailyViralsConfig(viralVideos: Array<{
 /**
  * 生成全周期每日Top1爆点折线图配置（标注版）
  * @param dailyTop1Data 已处理的每日Top1数据数组 {date, engagement, title}
+ *
+ * 注意：使用QuickChart原生支持的标注方式，不依赖annotation插件
  */
 export function generateDailyTop1Config(dailyTop1Data: Array<{
   date: string;
@@ -224,45 +226,32 @@ export function generateDailyTop1Config(dailyTop1Data: Array<{
   const engagements = sortedEntries.map(e => Math.round(e.engagement));
 
   // 找出每个月的Top1爆点（用于标注）
+  const monthlyTop1Indices = new Set<number>();
   const monthlyTop1 = new Map<string, { engagement: number; title: string; date: string; index: number }>();
   for (let i = 0; i < sortedEntries.length; i++) {
     const data = sortedEntries[i];
     const month = data.date.substring(0, 7); // YYYY-MM
     const existing = monthlyTop1.get(month);
     if (!existing || data.engagement > existing.engagement) {
+      // 移除旧的索引
+      if (existing) {
+        monthlyTop1Indices.delete(existing.index);
+      }
       monthlyTop1.set(month, { ...data, index: i });
+      monthlyTop1Indices.add(i);
     }
   }
 
-  // 生成 annotations 配置（用于 QuickChart）
-  const chartAnnotations: Record<string, any> = {};
-  Array.from(monthlyTop1.values()).forEach((item, idx) => {
-    const pointKey = `point${idx}`;
-    const labelKey = `label${idx}`;
-
-    chartAnnotations[pointKey] = {
-      type: 'point',
-      xValue: item.date,
-      yValue: Math.round(item.engagement),
-      backgroundColor: 'rgba(239, 68, 68, 0.8)',
-      borderColor: 'rgba(239, 68, 68, 1)',
-      borderWidth: 2,
-      radius: 6,
-    };
-
-    chartAnnotations[labelKey] = {
-      type: 'label',
-      xValue: item.date,
-      yValue: Math.round(item.engagement),
-      content: [item.title.length > 20 ? item.title.substring(0, 20) + '...' : item.title],
-      font: { size: 11 },
-      color: '#fff',
-      backgroundColor: 'rgba(239, 68, 68, 0.9)',
-      borderRadius: 4,
-      padding: { top: 4, bottom: 4, left: 6, right: 6 },
-      yAdjust: -15,
-    };
-  });
+  // 创建点样式数组：每月Top1使用大点，其他使用小点
+  const pointRadiusArray = sortedEntries.map((_, idx) =>
+    monthlyTop1Indices.has(idx) ? 8 : 2
+  );
+  const pointBackgroundColorArray = sortedEntries.map((_, idx) =>
+    monthlyTop1Indices.has(idx) ? 'rgba(239, 68, 68, 1)' : 'rgba(239, 68, 68, 0.5)'
+  );
+  const pointBorderColorArray = sortedEntries.map((_, idx) =>
+    monthlyTop1Indices.has(idx) ? 'rgb(200, 50, 50)' : 'rgb(239, 68, 68)'
+  );
 
   return {
     type: 'line',
@@ -274,8 +263,11 @@ export function generateDailyTop1Config(dailyTop1Data: Array<{
         borderColor: 'rgb(239, 68, 68)',
         backgroundColor: 'rgba(239, 68, 68, 0.1)',
         borderWidth: 2,
-        pointRadius: 2,
-        pointHoverRadius: 5,
+        pointRadius: pointRadiusArray,
+        pointHoverRadius: pointRadiusArray.map(r => r + 2),
+        pointBackgroundColor: pointBackgroundColorArray,
+        pointBorderColor: pointBorderColorArray,
+        pointBorderWidth: 2,
       }],
     },
     options: {
@@ -283,14 +275,12 @@ export function generateDailyTop1Config(dailyTop1Data: Array<{
       plugins: {
         title: {
           display: true,
-          text: '全周期每日Top1爆点趋势（标注版）',
+          text: '全周期每日Top1爆点趋势（红点标注为月度Top1）',
         },
         legend: {
           display: false,
         },
-        annotation: {
-          annotations: chartAnnotations,
-        },
+        // 移除annotation插件，使用QuickChart原生支持的方式
       },
       scales: {
         x: {
