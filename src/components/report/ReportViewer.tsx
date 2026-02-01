@@ -7,6 +7,7 @@ import { Download } from 'lucide-react';
 import { Report } from '@/types';
 import { InteractiveChart, InteractiveChartRef } from '@/components/charts/InteractiveChart';
 import { formatListText } from '@/lib/report/formatter';
+import { Clock } from 'lucide-react';
 
 /**
  * 渲染格式化文本的组件，自动处理编号列表换行
@@ -29,11 +30,35 @@ function FormattedText({ text, className = '' }: { text: string; className?: str
   );
 }
 
+/**
+ * 格式化耗时显示
+ */
+function formatElapsedTime(startTime: Date | string, endTime: Date | string): string {
+  const start = typeof startTime === 'string' ? new Date(startTime) : startTime;
+  const end = typeof endTime === 'string' ? new Date(endTime) : endTime;
+  const diffMs = end.getTime() - start.getTime();
+
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+
+  if (diffHours > 0) {
+    const remainingMinutes = diffMinutes % 60;
+    return `${diffHours}小时${remainingMinutes > 0 ? remainingMinutes + '分' : ''}`;
+  } else if (diffMinutes > 0) {
+    const remainingSeconds = diffSeconds % 60;
+    return `${diffMinutes}分${remainingSeconds > 0 ? remainingSeconds + '秒' : ''}`;
+  } else {
+    return `${diffSeconds}秒`;
+  }
+}
+
 interface ReportViewerProps { reportId: string; }
 
 export function ReportViewer({ reportId }: ReportViewerProps) {
-  const [report, setReport] = useState<Report | null>(null);
+  const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [elapsedTime, setElapsedTime] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadReport() {
@@ -42,6 +67,12 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
         const result = await response.json();
         if (result.success) {
           setReport(result.data);
+          // 计算耗时
+          const startTime = result.data.createdAt || result.data.completedAt;
+          const endTime = result.data.completedAt || result.data.updatedAt;
+          if (startTime && endTime) {
+            setElapsedTime(formatElapsedTime(startTime, endTime));
+          }
         }
       } catch (error) {
         console.error('Failed to load report:', error);
@@ -162,13 +193,22 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
   return (
     <div className="space-y-6">
       {/* 下载按钮区域 */}
-      <div className="flex gap-3 justify-end flex-wrap">
-        <Button onClick={() => handleDownload('word')} variant="outline" size="sm">
-          <Download className="w-4 h-4 mr-2" />下载Word
-        </Button>
-        <Button onClick={() => handleDownload('excel')} variant="outline" size="sm">
-          <Download className="w-4 h-4 mr-2" />下载Excel
-        </Button>
+      <div className="flex gap-3 justify-between items-center flex-wrap">
+        {/* 总耗时显示 */}
+        {elapsedTime && (
+          <div className="flex items-center gap-2 text-sm text-gray-400">
+            <Clock className="w-4 h-4" />
+            <span>耗时：{elapsedTime}</span>
+          </div>
+        )}
+        <div className="flex gap-3">
+          <Button onClick={() => handleDownload('word')} variant="outline" size="sm">
+            <Download className="w-4 h-4 mr-2" />下载Word
+          </Button>
+          <Button onClick={() => handleDownload('excel')} variant="outline" size="sm">
+            <Download className="w-4 h-4 mr-2" />下载Excel
+          </Button>
+        </div>
       </div>
 
       {/* 一、账号概况 */}

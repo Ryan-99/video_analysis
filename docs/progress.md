@@ -63,7 +63,37 @@
 
 ---
 
-*最后更新：2026-01-31*
+### 2026-02-01 三个前端优化点实施
+
+#### 优化内容
+1. **总耗时显示**
+   - route.ts: 在报告 API 返回数据中添加 `createdAt`、`updatedAt`、`completedAt` 字段
+   - ReportViewer.tsx: 添加耗时计算函数 `formatElapsedTime()`，在下载按钮区域显示耗时
+   - 显示格式：`X小时X分` / `X分X秒` / `X秒`
+
+2. **Word图表宽度匹配**
+   - word.ts: 调整图表宽度从 600px/800px 改为 550px
+   - 月度趋势图：600x300 → 550x275
+   - 每日Top1图：800x400 → 550x275
+   - 确保图片完整显示不被截断
+
+3. **图表PNG下载按钮**
+   - InteractiveChart.tsx: 添加"下载图表"按钮（使用 Download 图标）
+   - 实现 `handleDownloadChart()` 函数，调用 `chartRef.current.toBase64Image()`
+   - 将图表标题移到卡片头部显示，从图表选项中移除标题
+
+#### 修改文件
+- `src/app/api/report/[id]/route.ts` - 添加时间戳字段
+- `src/components/report/ReportViewer.tsx` - 添加耗时显示
+- `src/lib/report/word.ts` - 调整图表宽度
+- `src/components/charts/InteractiveChart.tsx` - 添加下载按钮
+
+#### 验证结果
+- ✅ TypeScript 编译通过（`npx tsc --noEmit`）
+
+---
+
+*最后更新：2026-02-01*
 
 ---
 
@@ -313,5 +343,37 @@ Word 文档包含前端捕获的图表图片 ✅
 #### 下一步
 - 部署到 Vercel 后测试 Word 下载
 - 确认 Word 文档中图表有红点 + 标题标签
+
+---
+
+### 2026-02-01 forwardRef 语法错误修复
+
+#### 问题描述
+- Vercel 部署失败
+- 错误：`InteractiveChart.tsx:76:1 - Expression expected`
+- forwardRef 参数语法不正确
+
+#### 根本原因
+在实施前端图表捕获方案时，forwardRef 的参数结构被错误地写成了：
+
+```typescript
+// ❌ 错误
+export const InteractiveChart = forwardRef<InteractiveChartRef, InteractiveChartProps>(
+  title, data, yLabel = '互动量', ...
+}: InteractiveChartProps) {
+```
+
+#### 修复内容
+修正 forwardRef 参数为解构形式：
+
+```typescript
+// ✅ 正确
+export const InteractiveChart = forwardRef<InteractiveChartRef, InteractiveChartProps>(
+  ({ title, data, yLabel = '互动量', xLabel = '日期', annotations = [], pointTitles = [], height = 400 }, ref) => {
+```
+
+#### 验证结果
+- ✅ TypeScript 编译通过
+- ✅ 代码已提交（commit: a4488e7）
 
 ---

@@ -226,7 +226,7 @@ function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buf
         children: [
           new ImageRun({
             data: chartBuffer,
-            transformation: { width: 600, height: 300 },
+            transformation: { width: 550, height: 275 },
             type: 'png',
           }),
         ],
@@ -428,7 +428,7 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): (
         children: [
           new ImageRun({
             data: chartBuffer,
-            transformation: { width: 800, height: 400 },
+            transformation: { width: 550, height: 275 },
             type: 'png',
           }),
         ],

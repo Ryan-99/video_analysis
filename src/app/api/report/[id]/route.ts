@@ -31,6 +31,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         reportId: task.id,
         taskId: task.id,
         realAccountName: task.accountName || null,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+        completedAt: task.completedAt,
         ...resultData
       }
     });

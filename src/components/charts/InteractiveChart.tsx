@@ -15,6 +15,8 @@ import {
 import { Line } from 'react-chartjs-2';
 import annotationPlugin from 'chartjs-plugin-annotation';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
 
 // 注册 Chart.js 组件和标注插件
 ChartJS.register(
@@ -88,6 +90,22 @@ export const InteractiveChart = forwardRef<InteractiveChartRef, InteractiveChart
     },
   }));
 
+  // 处理图表下载为 PNG
+  const handleDownloadChart = () => {
+    if (chartRef.current) {
+      const base64Image = chartRef.current.toBase64Image('image/png', 1.0);
+      if (base64Image) {
+        // 创建下载链接
+        const link = document.createElement('a');
+        link.href = base64Image;
+        link.download = `${title.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')}_图表.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    }
+  };
+
   // 处理数据点点击事件
   const handleClick = (event: any, elements: any[]) => {
     if (elements && elements.length > 0) {
@@ -158,13 +176,7 @@ export const InteractiveChart = forwardRef<InteractiveChartRef, InteractiveChart
         display: false,
       },
       title: {
-        display: true,
-        text: title,
-        color: '#e5e7eb',
-        font: {
-          size: 16,
-          weight: 'bold' as const,
-        },
+        display: false, // 标题在卡片头部显示
       },
       tooltip: {
         mode: 'index' as const,
@@ -239,6 +251,20 @@ export const InteractiveChart = forwardRef<InteractiveChartRef, InteractiveChart
 
   return (
     <Card className="p-4 bg-white/5 border border-white/10">
+      {/* 标题和下载按钮 */}
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-semibold text-white">{title}</h3>
+        <Button
+          onClick={handleDownloadChart}
+          variant="outline"
+          size="sm"
+          className="bg-white/5 border-white/10 text-white hover:bg-white/10"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          下载图表
+        </Button>
+      </div>
+
       <div style={{ height: `${height}px` }}>
         <Line ref={chartRef} data={chartData} options={options} />
       </div>
