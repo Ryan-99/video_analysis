@@ -273,7 +273,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
             </p>
             {report.account.publishFrequency.hasGap && report.account.publishFrequency.gapPeriodsList && (
               <div className="mt-1">
-                {report.account.publishFrequency.gapPeriodsList.slice(0, 3).map((gap, idx) => (
+                {report.account.publishFrequency.gapPeriodsList.slice(0, 3).map((gap: any, idx: number) => (
                   <p key={idx} className="text-xs text-orange-400">
                     {gap.start} 至 {gap.end}（{gap.days}天）
                   </p>
