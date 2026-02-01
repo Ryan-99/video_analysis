@@ -28,6 +28,9 @@ export interface ChartConfig {
       legend?: {
         display: boolean;
       };
+      annotation?: {
+        annotations?: Record<string, any>;
+      };
     };
     scales?: {
       x?: {
