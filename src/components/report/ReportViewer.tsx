@@ -169,10 +169,10 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
     });
 
     return {
-      labels: sortedData.map(d => d.date),
+      labels: sortedData.map((d: any) => d.date),
       datasets: [{
         label: '每日Top1互动量',
-        data: sortedData.map(d => Math.round(d.engagement)),
+        data: sortedData.map((d: any) => Math.round(d.engagement)),
         borderColor: 'rgb(239, 68, 68)',
         backgroundColor: 'rgba(239, 68, 68, 0.1)',
         borderWidth: 2,
@@ -180,7 +180,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
         pointHoverRadius: 6,
       }],
       annotations: Array.from(monthlyTop1.values()),
-      pointTitles: sortedData.map(d => d.title), // 传递每个点的完整标题
+      pointTitles: sortedData.map((d: any) => d.title), // 传递每个点的完整标题
     };
   }, [report]);
 
@@ -301,7 +301,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
           <div>
             <span className="text-sm text-gray-400">最佳发布时间</span>
             <div className="mt-1">
-              {report.account.bestPublishTime.windows.map((window, idx) => (
+              {report.account.bestPublishTime.windows.map((window: any, idx: number) => (
                 <p key={idx} className="text-sm text-gray-200">
                   {window.timeRange}（{window.percentage.toFixed(1)}%）
                 </p>
@@ -334,7 +334,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
           <div className="col-span-2">
             <span className="text-sm text-gray-400">变现方式</span>
             <div className="mt-1 space-y-1">
-              {report.account.monetization.methods.map((method, idx) => (
+              {report.account.monetization.methods.map((method: any, idx: number) => (
                 <p key={idx} className="text-sm text-gray-200">• {method}</p>
               ))}
               <div className="mt-2 pt-2 border-t border-gray-700">
@@ -383,7 +383,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                 </tr>
               </thead>
               <tbody>
-                {report.monthlyTrend.data.map((item, index) => (
+                {report.monthlyTrend.data.map((item: any, index: number) => (
                   <tr key={index} className="border-b border-white/5">
                     <td className="py-2 px-3 text-gray-200">{item.month}</td>
                     <td className="text-right py-2 px-3 text-gray-200">{item.videoCount}</td>
@@ -410,11 +410,11 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
         {report.monthlyTrend.peakMonths && report.monthlyTrend.peakMonths.length > 0 && (
           <div className="mt-6">
             <h4 className="text-sm font-medium mb-3 text-gray-200">关键波峰月份</h4>
-            {report.monthlyTrend.peakMonths.map((peak, idx) => (
+            {report.monthlyTrend.peakMonths.map((peak: any, idx: number) => (
               <div key={idx} className="mb-4 p-4 bg-gray-800/30 rounded-lg">
                 <p className="text-sm font-medium text-white mb-2">{peak.month}: {peak.description}</p>
                 <div className="space-y-2">
-                  {peak.topVideos.map((video, vIdx) => (
+                  {peak.topVideos.map((video: any, vIdx: number) => (
                     <div key={vIdx} className="text-xs p-2 bg-gray-900/50 rounded">
                       <p className="text-gray-300">{video.title}</p>
                       <div className="flex gap-3 mt-1 text-gray-400">
@@ -438,7 +438,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
             <h4 className="text-sm font-medium mb-3 text-gray-200">长期爆款母体</h4>
             {report.monthlyTrend.viralThemes.hasThemes ? (
               <div className="space-y-2">
-                {report.monthlyTrend.viralThemes.themes?.map((theme, idx) => (
+                {report.monthlyTrend.viralThemes.themes?.map((theme: any, idx: number) => (
                   <div key={idx} className="p-3 bg-gray-800/30 rounded">
                     <p className="text-sm font-medium text-white">{theme.themeType}</p>
                     <p className="text-xs text-gray-400 mt-1">{theme.representativeTitle}</p>
@@ -456,7 +456,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
         {report.monthlyTrend.explosivePeriods && report.monthlyTrend.explosivePeriods.length > 0 && (
           <div className="mt-6">
             <h4 className="text-sm font-medium mb-3 text-gray-200">爆发期细化</h4>
-            {report.monthlyTrend.explosivePeriods.map((period, idx) => (
+            {report.monthlyTrend.explosivePeriods.map((period: any, idx: number) => (
               <div key={idx} className="mb-4">
                 <div className="flex gap-4 text-sm mb-2 text-gray-300">
                   <span className="font-medium text-white">{period.periodName}</span>
@@ -474,7 +474,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                       </tr>
                     </thead>
                     <tbody>
-                      {period.topVideos.map((video, vIdx) => (
+                      {period.topVideos.map((video: any, vIdx: number) => (
                         <tr key={vIdx} className="border-b border-white/5">
                           <td className="py-1 px-2 text-gray-300">{video.publishTime}</td>
                           <td className="py-1 px-2 text-gray-300 max-w-md truncate">{video.title}</td>
@@ -539,7 +539,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
           <div className="mb-6">
             <h4 className="text-sm font-medium mb-3 text-gray-200">逐月爆款清单</h4>
             <div className="space-y-4">
-              {report.virals.monthlyList.map((monthData, idx) => (
+              {report.virals.monthlyList.map((monthData: any, idx: number) => (
                 <details key={idx} className="group">
                   <summary className="cursor-pointer text-sm text-white font-medium p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors">
                     {monthData.month} - {monthData.videos.length}条爆款（阈值={Math.round(monthData.threshold).toLocaleString()}）
@@ -557,7 +557,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                           </tr>
                         </thead>
                         <tbody>
-                          {monthData.videos.map((video, vIdx) => (
+                          {monthData.videos.map((video: any, vIdx: number) => (
                             <tr key={vIdx} className="border-b border-white/5">
                               <td className="py-1 px-2 text-gray-300">{video.publishTime}</td>
                               <td className="py-1 px-2 text-gray-300 max-w-md truncate">{video.title}</td>
@@ -573,7 +573,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                       <div className="p-2 bg-gray-800/30 rounded">
                         <p className="text-xs text-gray-400 mb-1">当月Top10标题汇总：</p>
                         <ol className="text-xs text-gray-300 space-y-0.5">
-                          {monthData.top10Titles.map((title, tIdx) => (
+                          {monthData.top10Titles.map((title: any, tIdx: number) => (
                             <li key={tIdx}>{tIdx + 1}. {title}</li>
                           ))}
                         </ol>
@@ -602,7 +602,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {report.virals.byCategory.map((item, index) => (
+                  {report.virals.byCategory.map((item: any, index: number) => (
                     <tr key={index} className="border-b border-white/5">
                       <td className="py-2 px-3 text-gray-200">{item.category}</td>
                       <td className="text-right py-2 px-3 text-gray-200">{item.count}</td>
@@ -641,14 +641,14 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
               <p className="text-xs text-gray-500 mb-2">{report.virals.commonMechanisms.reason}</p>
             )}
             <div className="space-y-3">
-              {report.virals.commonMechanisms.mechanisms.map((mechanism, idx) => (
+              {report.virals.commonMechanisms.mechanisms.map((mechanism: any, idx: number) => (
                 <div key={idx} className="p-3 bg-gray-800/30 rounded-lg">
                   <p className="text-sm font-medium text-white mb-2">{mechanism.pattern}</p>
                   {mechanism.evidence && mechanism.evidence.length > 0 && (
                     <div className="text-xs text-gray-400">
                       <p className="mb-1">举证：</p>
                       <ul className="list-disc list-inside space-y-0.5">
-                        {mechanism.evidence.map((ev, eIdx) => (
+                        {mechanism.evidence.map((ev: any, eIdx: number) => (
                           <li key={eIdx}>{ev}</li>
                         ))}
                       </ul>
@@ -675,7 +675,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                   <div className="text-xs text-gray-400">
                     <p className="mb-1">数值证据：</p>
                     <ul className="list-disc list-inside space-y-0.5">
-                      {report.virals.methodology.viralTheme.evidence.map((ev, idx) => (
+                      {report.virals.methodology.viralTheme.evidence.map((ev: any, idx: number) => (
                         <li key={idx}>{ev}</li>
                       ))}
                     </ul>
@@ -689,7 +689,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
               <div className="mb-4 p-3 bg-gray-800/30 rounded-lg">
                 <h5 className="text-xs font-medium text-gray-300 mb-2">爆款发布时间分布</h5>
                 <div className="flex flex-wrap gap-2">
-                  {report.virals.methodology.timeDistribution.map((dist, idx) => (
+                  {report.virals.methodology.timeDistribution.map((dist: any, idx: number) => (
                     <span key={idx} className="text-xs px-2 py-1 bg-blue-900/30 text-blue-300 rounded">
                       {dist.timeWindow}（{dist.percentage}%）
                     </span>
@@ -703,7 +703,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
               <div className="mb-4 p-3 bg-gray-800/30 rounded-lg">
                 <h5 className="text-xs font-medium text-gray-300 mb-2">选题公式</h5>
                 <div className="space-y-3">
-                  {report.virals.methodology.topicFormulas.map((formula, idx) => (
+                  {report.virals.methodology.topicFormulas.map((formula: any, idx: number) => (
                     <details key={idx} className="group">
                       <summary className="cursor-pointer text-xs text-white font-medium hover:text-gray-300">
                         {formula.theme}
@@ -715,7 +715,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                         <p><strong className="text-gray-300">动作：</strong>{formula.actions?.join('、')}</p>
                         <p className="mt-2"><strong className="text-gray-300">模板：</strong></p>
                         <ul className="list-disc list-inside pl-2">
-                          {formula.templates?.map((tpl, tIdx) => (
+                          {formula.templates?.map((tpl: any, tIdx: number) => (
                             <li key={tIdx} className="text-gray-300">{tpl}</li>
                           ))}
                         </ul>
@@ -731,7 +731,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
               <div className="mb-4 p-3 bg-gray-800/30 rounded-lg">
                 <h5 className="text-xs font-medium text-gray-300 mb-2">标题公式</h5>
                 <div className="grid grid-cols-2 gap-2">
-                  {report.virals.methodology.titleFormulas.map((formula, idx) => (
+                  {report.virals.methodology.titleFormulas.map((formula: any, idx: number) => (
                     <div key={idx} className="p-2 bg-gray-900/50 rounded">
                       <p className="text-xs font-medium text-white mb-1">{formula.type}</p>
                       <p className="text-xs text-gray-400">{formula.template}</p>
@@ -776,7 +776,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {report.virals.topicLibrary.map((item) => (
+                  {report.virals.topicLibrary.map((item: any) => (
                     <tr key={item.id} className="border-b border-white/5">
                       <td className="py-2 px-3 text-gray-400">{item.id}</td>
                       <td className="py-2 px-3 text-gray-300">{item.publishTime}</td>
@@ -833,7 +833,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4 text-white">四、爆款选题库</h3>
           <div className="space-y-4">
-            {report.topics.map((topic) => (
+            {report.topics.map((topic: any) => (
               <div key={topic.id} className="border-b border-white/10 pb-4">
                 <h4 className="font-medium mb-2 text-white">
                   {topic.id}. {topic.category}
@@ -841,7 +841,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                 <div className="text-sm text-gray-300 space-y-1">
                   <p className="text-gray-400">标题备选：</p>
                   <ul className="list-disc list-inside pl-2 text-gray-200">
-                    {topic.titles.map((title, i) => (
+                    {topic.titles.map((title: any, i: number) => (
                       <li key={i}>{title}</li>
                     ))}
                   </ul>
