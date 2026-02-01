@@ -284,7 +284,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                       还有 {report.account.publishFrequency.gapPeriodsList.length - 3} 条断更期...
                     </p>
                     <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded p-2 shadow-lg z-10 w-64">
-                      {report.account.publishFrequency.gapPeriodsList.slice(3).map((gap, idx) => (
+                      {report.account.publishFrequency.gapPeriodsList.slice(3).map((gap: any, idx: number) => (
                         <p key={idx} className="text-orange-400">
                           {gap.start} 至 {gap.end}（{gap.days}天）
                         </p>
