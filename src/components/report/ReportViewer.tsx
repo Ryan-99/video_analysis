@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { Report } from '@/types';
-import { InteractiveChart } from '@/components/charts/InteractiveChart';
+import { InteractiveChart, InteractiveChartRef } from '@/components/charts/InteractiveChart';
 import { formatListText } from '@/lib/report/formatter';
 
 /**
@@ -52,13 +52,51 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
     loadReport();
   }, [reportId]);
 
+  // 每日Top1图表的 ref（用于捕获图片）
+  const dailyTop1ChartRef = useRef<InteractiveChartRef>(null);
+
   const handleDownload = async (format: 'word' | 'excel') => {
+    // 如果是 Word 下载，先从前端捕获图表图片
+    if (format === 'word' && dailyTop1ChartRef.current) {
+      const chartImage = dailyTop1ChartRef.current.exportImage();
+
+      if (chartImage) {
+        console.log('[ReportViewer] 使用前端捕获的图表图片');
+        // 使用 POST 方式下载，携带图表数据
+        const response = await fetch(`/api/report/${reportId}/download`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            format: 'word',
+            chartImage: chartImage, // base64 图片数据
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error?.message || '下载失败');
+        }
+
+        const blob = await response.blob();
+        triggerDownload(blob, `分析报告-${reportId}.docx`);
+        return;
+      } else {
+        console.warn('[ReportViewer] 无法捕获图表图片，使用默认方式下载');
+      }
+    }
+
+    // Excel 下载或 Word 下载但无法捕获图片时，使用原有 GET 方式
     const response = await fetch(`/api/report/${reportId}/download?format=${format}`);
     const blob = await response.blob();
+    triggerDownload(blob, `分析报告-${reportId}.${format === 'word' ? 'docx' : 'xlsx'}`);
+  };
+
+  // 触发浏览器下载的辅助函数
+  const triggerDownload = (blob: Blob, filename: string) => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `分析报告-${reportId}.${format === 'word' ? 'docx' : 'xlsx'}`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -421,6 +459,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
         {dailyTop1ChartData && (
           <div className="mb-6">
             <InteractiveChart
+              ref={dailyTop1ChartRef}
               title="全周期每日Top1爆点趋势（标注版）"
               data={{
                 labels: dailyTop1ChartData.labels,

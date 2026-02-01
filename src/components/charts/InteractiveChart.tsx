@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -54,12 +54,18 @@ interface InteractiveChartProps {
   height?: number;
 }
 
+// 导出图表的 ref 接口
+export interface InteractiveChartRef {
+  exportImage: () => string | null;
+}
+
 /**
  * 可交互折线图组件
  * 支持点击数据点查看详细信息（包括标题）
  * 支持在图表上显示标注
+ * 支持导出图表为 base64 图片
  */
-export function InteractiveChart({
+export const InteractiveChart = forwardRef<InteractiveChartRef, InteractiveChartProps>(
   title,
   data,
   yLabel = '互动量',
@@ -74,6 +80,20 @@ export function InteractiveChart({
     value: number;
     title?: string;
   } | null>(null);
+
+  // Chart.js 实例的 ref（用于导出图片）
+  const chartRef = useRef<ChartJS<'line'>>(null);
+
+  // 暴露导出方法给父组件
+  useImperativeHandle(ref, () => ({
+    exportImage: () => {
+      if (chartRef.current) {
+        // 导出为 base64 PNG 图片（质量 1.0 = 最高质量）
+        return chartRef.current.toBase64Image('image/png', 1.0);
+      }
+      return null;
+    },
+  }));
 
   // 处理数据点点击事件
   const handleClick = (event: any, elements: any[]) => {
@@ -227,7 +247,7 @@ export function InteractiveChart({
   return (
     <Card className="p-4 bg-white/5 border border-white/10">
       <div style={{ height: `${height}px` }}>
-        <Line data={chartData} options={options} />
+        <Line ref={chartRef} data={chartData} options={options} />
       </div>
 
       {/* 选中数据点的详情 */}
@@ -269,4 +289,6 @@ export function InteractiveChart({
       )}
     </Card>
   );
-}
+});
+
+InteractiveChart.displayName = 'InteractiveChart';
