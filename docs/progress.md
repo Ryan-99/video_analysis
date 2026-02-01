@@ -133,3 +133,37 @@
 - ✅ 代码已提交（commit: 2eaa49d）
 
 ---
+
+### 2026-02-01 Word导出表格和图表显示问题修复
+
+#### 问题描述
+1. **表格缺失**：生成的Word文档中所有表格都不显示
+2. **第二章图片不显示**：每日Top1趋势图显示"（图表暂无）"
+
+#### 根本原因
+1. **表格缺失**：3处代码错误地将`Table`包裹在`Paragraph`中
+   - word.ts:326 - 爆发期汇总表
+   - word.ts:360 - 逐段Top10视频表
+   - word.ts:480 - 月度爆款视频表
+
+2. **图片不显示**：
+   - 旧报告可能缺少`dailyTop1`字段
+   - QuickChart API失败时被静默处理，无法诊断
+
+#### 修复内容
+1. **修复表格显示**：
+   - 移除3处`new Paragraph({ children: [table] })`包裹
+   - 直接push table对象：`paragraphs.push(table)`
+
+2. **增强错误处理**：
+   - route.ts: 添加数据为空时的警告日志
+   - 图表生成失败时抛出错误而非静默失败
+
+3. **提高图表清晰度**：
+   - service.ts: 添加`devicePixelRatio: 2`提高DPI
+
+#### 验证结果
+- ✅ TypeScript 编译通过（`npx tsc --noEmit`）
+- ✅ 代码已提交（commit: 26d2260）
+
+---

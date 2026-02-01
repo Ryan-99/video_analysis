@@ -418,17 +418,36 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): (
     }
   }
 
-  const paragraphs: (Paragraph | Table)[] = [
-    // 总结和统计
-    new Paragraph({ children: [new TextRun({ text: '爆款总结', bold: true, size: 28, underline: {} })] }),
-    ...generateFormattedParagraphs(virals.summary, { size: 24 }),
-    new Paragraph({ text: '' }),
+  const paragraphs: (Paragraph | Table)[] = [];
 
-    new Paragraph({ children: [new TextRun({ text: '爆款统计', bold: true, size: 28, underline: {} })] }),
-    new Paragraph({ children: [new TextRun({ text: '爆款总数：', bold: true }), new TextRun({ text: virals.total.toString(), bold: true })] }),
-    new Paragraph({ children: [new TextRun({ text: '判定阈值：', bold: true }), new TextRun({ text: Math.round(virals.threshold).toLocaleString(), bold: true })] }),
-    new Paragraph({ text: '' }),
-  ];
+  // ===== 每日Top1爆点图表（移到章节开头）=====
+  if (chartBuffer && chartBuffer.length > 0) {
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '全周期每日Top1爆点趋势', bold: true, size: 28, underline: {} })] }));
+    paragraphs.push(
+      new Paragraph({
+        children: [
+          new ImageRun({
+            data: chartBuffer,
+            transformation: { width: 800, height: 400 },
+            type: 'png',
+          }),
+        ],
+        alignment: AlignmentType.CENTER,
+      })
+    );
+    paragraphs.push(new Paragraph({ text: '' }));
+  }
+  // ===== 图表结束 =====
+
+  // 总结和统计
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '爆款总结', bold: true, size: 28, underline: {} })] }));
+  paragraphs.push(...generateFormattedParagraphs(virals.summary, { size: 24 }));
+  paragraphs.push(new Paragraph({ text: '' }));
+
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '爆款统计', bold: true, size: 28, underline: {} })] }));
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '爆款总数：', bold: true }), new TextRun({ text: virals.total.toString(), bold: true })] }));
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '判定阈值：', bold: true }), new TextRun({ text: Math.round(virals.threshold).toLocaleString(), bold: true })] }));
+  paragraphs.push(new Paragraph({ text: '' }));
 
   // 数据分析口径说明
   if (virals.dataScopeNote) {
@@ -491,28 +510,6 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): (
     }
     paragraphs.push(new Paragraph({ text: '' }));
   }
-
-  // 每日Top1爆点图表（标注已直接渲染在图表上）
-  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '全周期每日Top1爆点趋势（标注版）', bold: true, size: 28, underline: {} })] }));
-
-  // 添加图表图片（如果有）
-  if (chartBuffer && chartBuffer.length > 0) {
-    paragraphs.push(
-      new Paragraph({
-        children: [
-          new ImageRun({
-            data: chartBuffer,
-            transformation: { width: 600, height: 300 },
-            type: 'png',
-          }),
-        ],
-        alignment: AlignmentType.CENTER,
-      })
-    );
-  } else {
-    paragraphs.push(new Paragraph({ children: [new TextRun({ text: '（图表暂无）', italics: true })] }));
-  }
-  paragraphs.push(new Paragraph({ text: '' }));
 
   // 爆款分析总览（扩展版）
   if (virals.byCategory && virals.byCategory.length > 0) {

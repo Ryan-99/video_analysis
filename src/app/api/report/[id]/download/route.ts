@@ -86,6 +86,42 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         console.warn('[Download API] 月度图表生成失败:', error);
       }
 
+      // ===== 兼容处理：为旧报告补充 dailyTop1 数据 =====
+      if (!report.dailyTop1 || report.dailyTop1.length === 0) {
+        console.log('[Download API] ⚠️ 检测到旧报告缺少 dailyTop1 数据，尝试从 monthlyList 重新生成');
+
+        if (report.virals?.monthlyList && report.virals.monthlyList.length > 0) {
+          // 从 monthlyList 生成 dailyTop1 数据
+          const dailyTop1Map = new Map<string, { engagement: number; title: string; date: string }>();
+
+          for (const monthData of report.virals.monthlyList) {
+            for (const video of monthData.videos) {
+              const date = video.publishTime?.split('T')?.[0] || video.date || '';
+              if (!date) continue;
+
+              const engagement = video.totalEngagement || (video.likes || 0) + (video.comments || 0) + (video.saves || 0) + (video.shares || 0);
+              const existing = dailyTop1Map.get(date);
+
+              if (!existing || engagement > existing.engagement) {
+                dailyTop1Map.set(date, {
+                  engagement,
+                  title: video.title,
+                  date,
+                });
+              }
+            }
+          }
+
+          const dailyTop1Data = Array.from(dailyTop1Map.values()).sort((a, b) => a.date.localeCompare(b.date));
+          (report as any).dailyTop1 = dailyTop1Data;
+
+          console.log('[Download API] ✅ 从 monthlyList 重新生成 dailyTop1 数据，数量:', dailyTop1Data.length);
+        } else {
+          console.warn('[Download API] ⚠️ 无法从 monthlyList 重新生成，数据也不存在');
+        }
+      }
+      // ===== 兼容处理结束 =====
+
       try {
         // 每日Top1爆点图表（使用 POST 方法，因为包含 annotations 配置可能导致 URL 过长）
         if (report.dailyTop1 && report.dailyTop1.length > 0) {
