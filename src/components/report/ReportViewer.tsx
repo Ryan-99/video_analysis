@@ -138,10 +138,10 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
   const monthlyChartData = useMemo(() => {
     if (!report?.monthlyTrend?.data) return null;
     return {
-      labels: report.monthlyTrend.data.map(m => m.month),
+      labels: report.monthlyTrend.data.map((m: any) => m.month),
       datasets: [{
         label: '平均互动量',
-        data: report.monthlyTrend.data.map(m => Math.round(m.avgEngagement)),
+        data: report.monthlyTrend.data.map((m: any) => Math.round(m.avgEngagement)),
         borderColor: 'rgb(59, 130, 246)',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         borderWidth: 2,
