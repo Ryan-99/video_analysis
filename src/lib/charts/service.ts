@@ -360,6 +360,7 @@ export async function downloadChartImagePost(config: ChartConfig, width = 800, h
       height,
       format: 'png',
       backgroundColor: 'transparent',
+      devicePixelRatio: 2,  // 提高DPI以获得更清晰的图片
     }),
   });
 

@@ -89,18 +89,22 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       try {
         // 每日Top1爆点图表（使用 POST 方法，因为包含 annotations 配置可能导致 URL 过长）
         if (report.dailyTop1 && report.dailyTop1.length > 0) {
-          console.log('[Download API] 生成每日Top1爆点图表（带标注）...');
+          console.log('[Download API] 生成每日Top1爆点图表，数据量:', report.dailyTop1.length);
           const dailyTop1Config = generateDailyTop1Config(report.dailyTop1);
-          console.log('[Download API] 每日Top1配置预览:', JSON.stringify(dailyTop1Config).substring(0, 300));
+          console.log('[Download API] 配置预览:', JSON.stringify(dailyTop1Config).substring(0, 300));
 
           // 使用 POST 方法避免 URL 长度限制
           chartBuffers.dailyVirals = await downloadChartImagePost(dailyTop1Config, 1000, 400);
           console.log('[Download API] 每日Top1图表下载成功，大小:', chartBuffers.dailyVirals.length);
+        } else {
+          console.warn('[Download API] ⚠️ dailyTop1 数据为空或不存在，跳过图表生成');
+          console.log('[Download API] report.dailyTop1:', report.dailyTop1);
         }
       } catch (error) {
-        console.error('[Download API] 每日Top1图表生成失败:', error);
+        console.error('[Download API] ❌ 每日Top1图表生成失败:', error);
         console.error('[Download API] 错误详情:', error instanceof Error ? error.stack : String(error));
-        // 即使失败也不影响其他部分，继续生成报告
+        // 不静默失败，让用户知道有问题
+        throw new Error(`每日Top1图表生成失败: ${error instanceof Error ? error.message : String(error)}`);
       }
 
       console.log('[Download API] 图表生成完成，开始生成 Word 文档...');

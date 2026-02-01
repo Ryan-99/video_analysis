@@ -323,7 +323,7 @@ function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buf
         ),
       ],
     });
-    paragraphs.push(new Paragraph({ children: [explosiveTable] }));
+    paragraphs.push(explosiveTable);
     paragraphs.push(new Paragraph({ text: '' }));
 
     // 逐段Top10视频表
@@ -357,7 +357,7 @@ function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buf
           }),
         ],
       });
-      paragraphs.push(new Paragraph({ children: [videoTable] }));
+      paragraphs.push(videoTable);
       paragraphs.push(new Paragraph({ text: '' }));
     }
   }
@@ -477,7 +477,7 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): (
           ),
         ],
       });
-      paragraphs.push(new Paragraph({ children: [videoTable] }));
+      paragraphs.push(videoTable);
 
       // Top10标题汇总
       if (monthData.top10Titles && monthData.top10Titles.length > 0) {
