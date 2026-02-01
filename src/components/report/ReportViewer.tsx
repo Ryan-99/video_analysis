@@ -416,6 +416,25 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
       {/* 三、爆款视频分析 */}
       <Card className="p-6">
         <h3 className="text-lg font-semibold mb-4 text-white">三、爆款视频分析</h3>
+
+        {/* 每日Top1爆点图表（可交互）- 移到章节开头 */}
+        {dailyTop1ChartData && (
+          <div className="mb-6">
+            <InteractiveChart
+              title="全周期每日Top1爆点趋势（标注版）"
+              data={{
+                labels: dailyTop1ChartData.labels,
+                datasets: dailyTop1ChartData.datasets,
+              }}
+              yLabel="互动量"
+              xLabel="日期"
+              annotations={dailyTop1ChartData.annotations}
+              pointTitles={dailyTop1ChartData.pointTitles}
+              height={400}
+            />
+          </div>
+        )}
+
         <FormattedText text={report.virals.summary} className="text-sm text-gray-300 mb-4" />
         <div className="flex gap-6 text-sm mb-6">
           <div>
@@ -485,24 +504,6 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                 </details>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* 每日Top1爆点图表（可交互） */}
-        {dailyTop1ChartData && (
-          <div className="mb-6">
-            <InteractiveChart
-              title="全周期每日Top1爆点趋势（标注版）"
-              data={{
-                labels: dailyTop1ChartData.labels,
-                datasets: dailyTop1ChartData.datasets,
-              }}
-              yLabel="互动量"
-              xLabel="日期"
-              annotations={dailyTop1ChartData.annotations}
-              pointTitles={dailyTop1ChartData.pointTitles}
-              height={400}
-            />
           </div>
         )}
 

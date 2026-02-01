@@ -242,16 +242,41 @@ export function generateDailyTop1Config(dailyTop1Data: Array<{
     }
   }
 
-  // 创建点样式数组：每月Top1使用大点，其他使用小点
-  const pointRadiusArray = sortedEntries.map((_, idx) =>
-    monthlyTop1Indices.has(idx) ? 8 : 2
-  );
-  const pointBackgroundColorArray = sortedEntries.map((_, idx) =>
-    monthlyTop1Indices.has(idx) ? 'rgba(239, 68, 68, 1)' : 'rgba(239, 68, 68, 0.5)'
-  );
-  const pointBorderColorArray = sortedEntries.map((_, idx) =>
-    monthlyTop1Indices.has(idx) ? 'rgb(200, 50, 50)' : 'rgb(239, 68, 68)'
-  );
+  // ===== 创建 annotation 配置（标注每月Top1爆点）=====
+  const annotations: Record<string, any> = {};
+  monthlyTop1.forEach((top1, month) => {
+    const idx = top1.index;
+    // 标题过长时截断
+    const shortTitle = top1.title.length > 15
+      ? top1.title.substring(0, 15) + '...'
+      : top1.title;
+
+    // 红点标注
+    annotations[`point_${month}`] = {
+      type: 'point',
+      xValue: dates[idx],
+      yValue: engagements[idx],
+      backgroundColor: 'rgba(239, 68, 68, 0.8)',
+      borderColor: 'rgba(239, 68, 68, 1)',
+      borderWidth: 2,
+      radius: 6,
+    };
+
+    // 标题标签
+    annotations[`label_${month}`] = {
+      type: 'label',
+      xValue: dates[idx],
+      yValue: engagements[idx],
+      content: [shortTitle],
+      font: { size: 11 },
+      color: '#fff',
+      backgroundColor: 'rgba(239, 68, 68, 0.9)',
+      borderRadius: 4,
+      padding: { top: 4, bottom: 4, left: 6, right: 6 },
+      yAdjust: -15,
+    };
+  });
+  // ===== annotation 配置结束 =====
 
   return {
     type: 'line',
@@ -263,10 +288,10 @@ export function generateDailyTop1Config(dailyTop1Data: Array<{
         borderColor: 'rgb(239, 68, 68)',
         backgroundColor: 'rgba(239, 68, 68, 0.1)',
         borderWidth: 2,
-        pointRadius: pointRadiusArray,
-        pointHoverRadius: pointRadiusArray.map(r => r + 2),
-        pointBackgroundColor: pointBackgroundColorArray,
-        pointBorderColor: pointBorderColorArray,
+        pointRadius: 2,
+        pointHoverRadius: 4,
+        pointBackgroundColor: 'rgba(239, 68, 68, 0.5)',
+        pointBorderColor: 'rgb(239, 68, 68)',
         pointBorderWidth: 2,
       }],
     },
@@ -275,12 +300,16 @@ export function generateDailyTop1Config(dailyTop1Data: Array<{
       plugins: {
         title: {
           display: true,
-          text: '全周期每日Top1爆点趋势（红点标注为月度Top1）',
+          text: '全周期每日Top1爆点趋势（标注版）',
         },
         legend: {
           display: false,
         },
-        // 移除annotation插件，使用QuickChart原生支持的方式
+        // ===== 恢复 annotation 插件配置 =====
+        annotation: {
+          annotations: annotations,
+        },
+        // ===== annotation 配置结束 =====
       },
       scales: {
         x: {
