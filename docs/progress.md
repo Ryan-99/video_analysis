@@ -240,3 +240,78 @@
 - ✅ 代码已提交（commit: d110913）
 
 ---
+
+### 2026-02-01 QuickChart annotation 诊断和前端图表捕获方案
+
+#### 问题概述
+- Word 文档图表缺少标题标签（label annotation）
+- 前端图表显示正常的红点 + 标签
+- 诊断发现 QuickChart 不支持 `label` 类型的 annotation
+
+#### 诊断过程
+1. **创建测试脚本**：test-quickchart-annotation.js 和 test-annotation-steps.js
+2. **分步测试结果**：
+   - ✅ test-1-basic.png: 基础图表正常
+   - ✅ test-2-point.png: 有红点标注
+   - ❌ test-3-label.png: 没有白色标题标签
+   - ❌ test-4-combined.png: 有红点，但没有白色标题标签
+   - ✅ test-5-box.png: box annotation 正常
+
+3. **结论**：QuickChart 对 chartjs-plugin-annotation 支持有限
+   - ✅ 支持 `point` 类型（红点标注）
+   - ✅ 支持 `box` 类型（框标注）
+   - ❌ **不支持** `label` 类型（文字标签）
+
+#### 解决方案：前端图表捕获
+
+**核心思路**：前端 Chart.js 完全支持 annotation，直接从前端捕获图片传递给后端
+
+**实施内容**：
+1. **InteractiveChart.tsx**：
+   - 添加 `forwardRef` 支持外部 ref 访问
+   - 创建 `InteractiveChartRef` 接口（包含 `exportImage()` 方法）
+   - 使用 `chartRef` 获取 Chart.js 实例
+   - 实现 `exportImage()` 方法：`chartRef.current.toBase64Image('image/png', 1.0)`
+
+2. **ReportViewer.tsx**：
+   - 添加 `dailyTop1ChartRef` 引用图表组件
+   - 修改 `handleDownload` 函数：
+     - Word 下载时调用 `dailyTop1ChartRef.current.exportImage()` 获取 base64 图片
+     - 使用 POST 方式传递图片数据到后端
+     - Excel 下载继续使用 GET 方式
+   - 添加 `triggerDownload` 辅助函数
+
+3. **route.ts**：
+   - 添加 `POST` 处理函数接收前端图片
+   - 解析 base64 图片：`chartImage.replace(/^data:image\/png;base64,/, '')`
+   - 转换为 Buffer：`Buffer.from(base64Data, 'base64')`
+   - 使用前端传递的图片生成 Word 文档
+
+#### 数据流
+```
+用户点击下载 Word 按钮
+    ↓
+ReportViewer.handleDownload('word')
+    ↓
+dailyTop1ChartRef.current.exportImage()
+    ↓
+前端 Chart.js 导出 base64 图片
+    ↓
+POST /api/report/[id]/download
+    ↓
+后端接收 base64，转换为 Buffer
+    ↓
+generateWordReport(report, chartBuffers)
+    ↓
+Word 文档包含前端捕获的图表图片 ✅
+```
+
+#### 验证结果
+- ✅ TypeScript 编译通过
+- ✅ 代码已提交（commit: 84ce4df）
+
+#### 下一步
+- 部署到 Vercel 后测试 Word 下载
+- 确认 Word 文档中图表有红点 + 标题标签
+
+---

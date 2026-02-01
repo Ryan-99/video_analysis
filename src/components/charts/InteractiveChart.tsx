@@ -66,14 +66,7 @@ export interface InteractiveChartRef {
  * 支持导出图表为 base64 图片
  */
 export const InteractiveChart = forwardRef<InteractiveChartRef, InteractiveChartProps>(
-  title,
-  data,
-  yLabel = '互动量',
-  xLabel = '日期',
-  annotations = [],
-  pointTitles = [],
-  height = 400,
-}: InteractiveChartProps) {
+  ({ title, data, yLabel = '互动量', xLabel = '日期', annotations = [], pointTitles = [], height = 400 }, ref) => {
   const [selectedPoint, setSelectedPoint] = useState<{
     index: number;
     label: string;
