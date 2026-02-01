@@ -381,6 +381,24 @@ export async function downloadChartImagePost(config: ChartConfig, width = 800, h
   console.log('[Chart Service] 使用 POST 方法下载图表');
   console.log('[Chart Service] 配置大小:', JSON.stringify(config).length, '字符');
 
+  // ===== 诊断日志：打印 annotation 配置 =====
+  if (config.options?.plugins?.annotation) {
+    console.log('[Chart Service] ✅ 有 annotation 配置');
+    const annotations = config.options.plugins.annotation.annotations;
+    const annotationKeys = annotations ? Object.keys(annotations) : [];
+    console.log('[Chart Service] annotation 数量:', annotationKeys.length);
+    console.log('[Chart Service] annotation keys:', annotationKeys);
+    // 打印第一个 annotation 的详细信息
+    if (annotationKeys.length > 0 && annotations) {
+      const firstKey = annotationKeys[0];
+      console.log('[Chart Service] 第一个 annotation (' + firstKey + '):', JSON.stringify(annotations[firstKey]));
+    }
+  } else {
+    console.warn('[Chart Service] ⚠️ 没有 annotation 配置！');
+    console.log('[Chart Service] plugins 内容:', JSON.stringify(config.options?.plugins));
+  }
+  // ===== 诊断日志结束 =====
+
   const response = await fetch('https://quickchart.io/chart', {
     method: 'POST',
     headers: {

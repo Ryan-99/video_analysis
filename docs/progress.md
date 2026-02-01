@@ -220,3 +220,23 @@
 - ✅ 代码已提交（commit: b86c125）
 
 ---
+
+### 2026-02-01 类型定义修复
+
+#### 问题描述
+- Vercel 部署失败：`annotation` 属性不存在于 `ChartConfig` 类型中
+- 错误：`Object literal may only specify known properties, and 'annotation' does not exist in type`
+
+#### 根本原因
+- ChartConfig 接口的 `options.plugins` 类型定义不完整
+- 缺少 `annotation` 属性类型定义
+
+#### 修复内容
+- service.ts: 在 `ChartConfig.options.plugins` 中添加 `annotation` 类型定义
+- 支持 chartjs-plugin-annotation 插件配置
+
+#### 验证结果
+- ✅ TypeScript 编译通过
+- ✅ 代码已提交（commit: d110913）
+
+---
