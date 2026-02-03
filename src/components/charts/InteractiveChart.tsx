@@ -193,7 +193,7 @@ export const InteractiveChart = forwardRef<InteractiveChartRef, InteractiveChart
           label: function(context: any) {
             const value = context.parsed.y;
             const title = pointTitles?.[context.dataIndex];
-            const lines = [`${value.toLocaleString()} 互动量`];
+            const lines = [`${value != null ? value.toLocaleString() : '0'} 互动量`];
             if (title) {
               lines.push(`标题: ${title}`);
             }
@@ -233,7 +233,7 @@ export const InteractiveChart = forwardRef<InteractiveChartRef, InteractiveChart
         ticks: {
           color: '#9ca3af',
           callback: function(value: any) {
-            return value.toLocaleString();
+            return value != null ? value.toLocaleString() : '';
           },
         },
         grid: {
