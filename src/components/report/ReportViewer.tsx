@@ -418,10 +418,10 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                     <div key={vIdx} className="text-xs p-2 bg-gray-900/50 rounded">
                       <p className="text-gray-300">{video.title}</p>
                       <div className="flex gap-3 mt-1 text-gray-400">
-                        <span>👍 {video.likes.toLocaleString()}</span>
-                        <span>💬 {video.comments.toLocaleString()}</span>
-                        <span>⭐ {video.saves.toLocaleString()}</span>
-                        <span>🔁 {video.shares.toLocaleString()}</span>
+                        <span>👍 {(video.likes ?? 0).toLocaleString()}</span>
+                        <span>💬 {(video.comments ?? 0).toLocaleString()}</span>
+                        <span>⭐ {(video.saves ?? 0).toLocaleString()}</span>
+                        <span>🔁 {(video.shares ?? 0).toLocaleString()}</span>
                         <span>收藏率 {video.saveRate.toFixed(2)}%</span>
                       </div>
                     </div>
@@ -478,7 +478,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                         <tr key={vIdx} className="border-b border-white/5">
                           <td className="py-1 px-2 text-gray-300">{video.publishTime}</td>
                           <td className="py-1 px-2 text-gray-300 max-w-md truncate">{video.title}</td>
-                          <td className="text-right py-1 px-2 text-gray-300">{video.totalEngagement.toLocaleString()}</td>
+                          <td className="text-right py-1 px-2 text-gray-300">{(video.totalEngagement ?? 0).toLocaleString()}</td>
                           <td className="text-right py-1 px-2 text-green-400">{video.saveRate.toFixed(2)}%</td>
                         </tr>
                       ))}
@@ -561,7 +561,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                             <tr key={vIdx} className="border-b border-white/5">
                               <td className="py-1 px-2 text-gray-300">{video.publishTime}</td>
                               <td className="py-1 px-2 text-gray-300 max-w-md truncate">{video.title}</td>
-                              <td className="text-right py-1 px-2 text-gray-300">{video.totalEngagement.toLocaleString()}</td>
+                              <td className="text-right py-1 px-2 text-gray-300">{(video.totalEngagement ?? 0).toLocaleString()}</td>
                               <td className="text-right py-1 px-2 text-green-400">{video.saveRate.toFixed(2)}%</td>
                             </tr>
                           ))}
@@ -782,7 +782,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                       <td className="py-2 px-3 text-gray-300">{item.publishTime}</td>
                       <td className="py-2 px-3 text-gray-300 max-w-md truncate">{item.title}</td>
                       <td className="py-2 px-3 text-gray-300">{item.category || '-'}</td>
-                      <td className="text-right py-2 px-3 text-gray-300">{item.totalEngagement.toLocaleString()}</td>
+                      <td className="text-right py-2 px-3 text-gray-300">{(item.totalEngagement ?? 0).toLocaleString()}</td>
                       <td className="text-right py-2 px-3 text-green-400">{item.saveRate.toFixed(2)}%</td>
                       <td className="py-2 px-3 text-gray-400 text-xs">{item.keyTakeaway || '-'}</td>
                     </tr>
