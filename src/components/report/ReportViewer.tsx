@@ -303,7 +303,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
             <div className="mt-1">
               {report.account.bestPublishTime.windows.map((window: any, idx: number) => (
                 <p key={idx} className="text-sm text-gray-200">
-                  {window.timeRange}（{window.percentage.toFixed(1)}%）
+                  {window.timeRange}（{(window.percentage ?? 0).toFixed(1)}%）
                 </p>
               ))}
             </div>
@@ -422,7 +422,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                         <span>💬 {(video.comments ?? 0).toLocaleString()}</span>
                         <span>⭐ {(video.saves ?? 0).toLocaleString()}</span>
                         <span>🔁 {(video.shares ?? 0).toLocaleString()}</span>
-                        <span>收藏率 {video.saveRate.toFixed(2)}%</span>
+                        <span>收藏率 {(video.saveRate ?? 0).toFixed(2)}%</span>
                       </div>
                     </div>
                   ))}
@@ -479,7 +479,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                           <td className="py-1 px-2 text-gray-300">{video.publishTime}</td>
                           <td className="py-1 px-2 text-gray-300 max-w-md truncate">{video.title}</td>
                           <td className="text-right py-1 px-2 text-gray-300">{(video.totalEngagement ?? 0).toLocaleString()}</td>
-                          <td className="text-right py-1 px-2 text-green-400">{video.saveRate.toFixed(2)}%</td>
+                          <td className="text-right py-1 px-2 text-green-400">{(video.saveRate ?? 0).toFixed(2)}%</td>
                         </tr>
                       ))}
                     </tbody>
@@ -562,7 +562,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                               <td className="py-1 px-2 text-gray-300">{video.publishTime}</td>
                               <td className="py-1 px-2 text-gray-300 max-w-md truncate">{video.title}</td>
                               <td className="text-right py-1 px-2 text-gray-300">{(video.totalEngagement ?? 0).toLocaleString()}</td>
-                              <td className="text-right py-1 px-2 text-green-400">{video.saveRate.toFixed(2)}%</td>
+                              <td className="text-right py-1 px-2 text-green-400">{(video.saveRate ?? 0).toFixed(2)}%</td>
                             </tr>
                           ))}
                         </tbody>
@@ -610,10 +610,10 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                         {'medianEngagement' in item ? Math.round((item as any).medianEngagement).toLocaleString() : Math.round((item as any).avgEngagement).toLocaleString()}
                       </td>
                       <td className="text-right py-2 px-3 text-gray-200">
-                        {'medianSaveRate' in item ? (item as any).medianSaveRate.toFixed(2) + '%' : '-'}
+                        {'medianSaveRate' in item ? ((item as any).medianSaveRate ?? 0).toFixed(2) + '%' : '-'}
                       </td>
                       <td className="text-right py-2 px-3 text-green-400">
-                        {'p90SaveRate' in item ? (item as any).p90SaveRate.toFixed(2) + '%' : '-'}
+                        {'p90SaveRate' in item ? ((item as any).p90SaveRate ?? 0).toFixed(2) + '%' : '-'}
                       </td>
                     </tr>
                   ))}
@@ -783,7 +783,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
                       <td className="py-2 px-3 text-gray-300 max-w-md truncate">{item.title}</td>
                       <td className="py-2 px-3 text-gray-300">{item.category || '-'}</td>
                       <td className="text-right py-2 px-3 text-gray-300">{(item.totalEngagement ?? 0).toLocaleString()}</td>
-                      <td className="text-right py-2 px-3 text-green-400">{item.saveRate.toFixed(2)}%</td>
+                      <td className="text-right py-2 px-3 text-green-400">{(item.saveRate ?? 0).toFixed(2)}%</td>
                       <td className="py-2 px-3 text-gray-400 text-xs">{item.keyTakeaway || '-'}</td>
                     </tr>
                   ))}
