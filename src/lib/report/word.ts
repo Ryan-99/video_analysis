@@ -161,7 +161,7 @@ function generateAccountSection(account: Report['account']): Paragraph[] {
 
   // 最佳发布时间
   const bestTimeText = account.bestPublishTime.windows
-    .map(w => `${w.timeRange}（${w.percentage.toFixed(1)}%）`)
+    .map(w => `${w.timeRange}（${(w.percentage ?? 0).toFixed(1)}%）`)
     .join('；');
   paragraphs.push(new Paragraph({ children: [new TextRun({ text: '最佳发布时间：', bold: true }), new TextRun(bestTimeText)] }));
   if (account.bestPublishTime.analysis) {
@@ -274,7 +274,7 @@ function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buf
         paragraphs.push(new Paragraph({ children: [new TextRun({ text: `标题：${video.title}`, size: 22 })] }));
         paragraphs.push(new Paragraph({ children: [
           new TextRun({ text: '数据：', size: 22, bold: true }),
-          new TextRun({ text: `👍${video.likes.toLocaleString()} | 💬${video.comments.toLocaleString()} | ⭐${video.saves.toLocaleString()} | 🔁${video.shares.toLocaleString()} | 👉${video.totalEngagement.toLocaleString()} | 收藏率${video.saveRate.toFixed(2)}%`, size: 22 }),
+          new TextRun({ text: `👍${(video.likes ?? 0).toLocaleString()} | 💬${(video.comments ?? 0).toLocaleString()} | ⭐${(video.saves ?? 0).toLocaleString()} | 🔁${(video.shares ?? 0).toLocaleString()} | 👉${(video.totalEngagement ?? 0).toLocaleString()} | 收藏率${(video.saveRate ?? 0).toFixed(2)}%`, size: 22 }),
         ] }));
         paragraphs.push(new Paragraph({ text: '' }));
       }
@@ -344,13 +344,13 @@ function generateMonthlySection(trend: Report['monthlyTrend'], chartBuffer?: Buf
             ],
           }),
           ...period.topVideos.map(video => {
-            const saveToLikeRatio = video.likes > 0 ? (video.saves / video.likes * 100).toFixed(2) + '%' : 'N/A';
+            const saveToLikeRatio = (video.likes ?? 0) > 0 ? ((video.saves ?? 0) / (video.likes ?? 0) * 100).toFixed(2) + '%' : 'N/A';
             return new TableRow({
               children: [
                 new TableCell({ children: [new Paragraph({ text: video.publishTime })] }),
                 new TableCell({ children: [new Paragraph({ text: video.title })] }),
-                new TableCell({ children: [new Paragraph({ text: video.totalEngagement.toLocaleString() })] }),
-                new TableCell({ children: [new Paragraph({ text: `${video.saveRate.toFixed(2)}%` })] }),
+                new TableCell({ children: [new Paragraph({ text: (video.totalEngagement ?? 0).toLocaleString() })] }),
+                new TableCell({ children: [new Paragraph({ text: `${(video.saveRate ?? 0).toFixed(2)}%` })] }),
                 new TableCell({ children: [new Paragraph({ text: saveToLikeRatio })] }),
               ],
             });
@@ -392,10 +392,10 @@ function generateMonthlyTable(data: Report['monthlyTrend']['data']): (Paragraph 
       children: [
         new TableCell({ children: [new Paragraph({ text: item.month })] }),
         new TableCell({ children: [new Paragraph({ text: item.videoCount.toString() })] }),
-        new TableCell({ children: [new Paragraph({ text: Math.round(item.avgEngagement).toLocaleString() })] }),
-        new TableCell({ children: [new Paragraph({ text: Math.round(item.p90).toLocaleString() })] }),
-        new TableCell({ children: [new Paragraph({ text: Math.round(item.median).toLocaleString() })] }),
-        new TableCell({ children: [new Paragraph({ text: Math.round(item.threshold).toLocaleString() })] }),
+        new TableCell({ children: [new Paragraph({ text: Math.round(item.avgEngagement ?? 0).toLocaleString() })] }),
+        new TableCell({ children: [new Paragraph({ text: Math.round(item.p90 ?? 0).toLocaleString() })] }),
+        new TableCell({ children: [new Paragraph({ text: Math.round(item.median ?? 0).toLocaleString() })] }),
+        new TableCell({ children: [new Paragraph({ text: Math.round(item.threshold ?? 0).toLocaleString() })] }),
       ],
     })
   );
@@ -446,7 +446,7 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): (
 
   paragraphs.push(new Paragraph({ children: [new TextRun({ text: '爆款统计', bold: true, size: 28, underline: {} })] }));
   paragraphs.push(new Paragraph({ children: [new TextRun({ text: '爆款总数：', bold: true }), new TextRun({ text: virals.total.toString(), bold: true })] }));
-  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '判定阈值：', bold: true }), new TextRun({ text: Math.round(virals.threshold).toLocaleString(), bold: true })] }));
+  paragraphs.push(new Paragraph({ children: [new TextRun({ text: '判定阈值：', bold: true }), new TextRun({ text: Math.round(virals.threshold ?? 0).toLocaleString(), bold: true })] }));
   paragraphs.push(new Paragraph({ text: '' }));
 
   // 数据分析口径说明
@@ -463,7 +463,7 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): (
   if (virals.monthlyList && virals.monthlyList.length > 0) {
     paragraphs.push(new Paragraph({ children: [new TextRun({ text: '逐月爆款清单', bold: true, size: 28, underline: {} })] }));
     for (const monthData of virals.monthlyList) {
-      paragraphs.push(new Paragraph({ children: [new TextRun({ text: `${monthData.month} - ${monthData.videos.length}条爆款（阈值=${Math.round(monthData.threshold).toLocaleString()}）`, bold: true, size: 24 })] }));
+      paragraphs.push(new Paragraph({ children: [new TextRun({ text: `${monthData.month} - ${monthData.videos.length}条爆款（阈值=${Math.round(monthData.threshold ?? 0).toLocaleString()}）`, bold: true, size: 24 })] }));
       paragraphs.push(new Paragraph({ text: '' }));
 
       // 爆款表格
@@ -486,11 +486,11 @@ function generateViralSection(virals: Report['virals'], chartBuffer?: Buffer): (
               children: [
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: video.publishTime, size: 18 })] })] }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: video.title, size: 18 })] })] }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: video.likes.toLocaleString(), size: 18 })] })] }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: video.comments.toLocaleString(), size: 18 })] })] }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: video.saves.toLocaleString(), size: 18 })] })] }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: video.shares.toLocaleString(), size: 18 })] })] }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: video.totalEngagement.toLocaleString(), size: 18 })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (video.likes ?? 0).toLocaleString(), size: 18 })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (video.comments ?? 0).toLocaleString(), size: 18 })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (video.saves ?? 0).toLocaleString(), size: 18 })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (video.shares ?? 0).toLocaleString(), size: 18 })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (video.totalEngagement ?? 0).toLocaleString(), size: 18 })] })] }),
               ],
             })
           ),
@@ -659,9 +659,9 @@ function generateViralCategoriesTableExtended(categories: Report['virals']['byCa
       children: [
         new TableCell({ children: [new Paragraph({ text: cat.category })] }),
         new TableCell({ children: [new Paragraph({ text: cat.count.toString() })] }),
-        new TableCell({ children: [new Paragraph({ text: 'medianEngagement' in cat ? Math.round(cat.medianEngagement).toLocaleString() : Math.round(cat.avgEngagement).toLocaleString() })] }),
-        new TableCell({ children: [new Paragraph({ text: 'medianSaveRate' in cat ? `${cat.medianSaveRate.toFixed(2)}%` : '-' })] }),
-        new TableCell({ children: [new Paragraph({ text: 'p90SaveRate' in cat ? `${cat.p90SaveRate.toFixed(2)}%` : '-' })] }),
+        new TableCell({ children: [new Paragraph({ text: 'medianEngagement' in cat ? Math.round(cat.medianEngagement ?? 0).toLocaleString() : Math.round(cat.avgEngagement ?? 0).toLocaleString() })] }),
+        new TableCell({ children: [new Paragraph({ text: 'medianSaveRate' in cat ? `${(cat.medianSaveRate ?? 0).toFixed(2)}%` : '-' })] }),
+        new TableCell({ children: [new Paragraph({ text: 'p90SaveRate' in cat ? `${(cat.p90SaveRate ?? 0).toFixed(2)}%` : '-' })] }),
       ],
     })
   );
@@ -720,8 +720,8 @@ function generateTopicLibraryTable(topicLibrary: Report['virals']['topicLibrary'
         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.publishTime, size: 18 })] })] }),
         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.title, size: 18 })] })] }),
         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.category || '-', size: 18 })] })] }),
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.totalEngagement.toLocaleString(), size: 18 })] })] }),
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${item.saveRate.toFixed(2)}%`, size: 18 })] })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (item.totalEngagement ?? 0).toLocaleString(), size: 18 })] })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${(item.saveRate ?? 0).toFixed(2)}%`, size: 18 })] })] }),
         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.keyTakeaway || '-', size: 18 })] })] }),
       ],
     })
