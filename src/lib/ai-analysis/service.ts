@@ -38,6 +38,11 @@ export function cleanAIResponse(response: string): string {
     cleaned = cleaned.substring(startIndex);
   }
 
+  // 2.5. 将中文双引号替换为转义的 ASCII 引号
+  // AI 返回的 JSON 中，中文双引号（""）仅出现在文本内容中（如"穷忙"），
+  // 不是 JSON 结构性引号。直接替换为 \" 使 JSON 解析器能正确处理
+  cleaned = cleaned.replace(/[\u201C\u201D]/g, '\\"');
+
   // 3. 查找匹配的结束括号并截取（考虑字符串内部和转义字符）
   const firstChar = cleaned.charAt(0);
   if (firstChar === '{') {
@@ -55,7 +60,7 @@ export function cleanAIResponse(response: string): string {
         continue;
       }
       // 处理各种引号：ASCII " 和中文 """""
-      const isQuote = c === '"' || c === '\u201C' || c === '\u201D';
+      const isQuote = c === '"';
       if (isQuote) {
         inString = !inString;
         continue;
@@ -90,7 +95,7 @@ export function cleanAIResponse(response: string): string {
   cleaned = cleaned.replace(/```/g, '').trim();
 
   // 5. 替换中文标点（在括号匹配之后，只处理提取的 JSON 内容）
-  // 注意：不转换中文引号，避免将内容中的合法引号误判为需要转义的字符
+  // 注意：中文双引号已在步骤 2.5 中处理（转为转义引号 \"）
   cleaned = cleaned
     // 其他中文标点
     .replace(/，/g, ',')
@@ -156,7 +161,7 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
       transform: (s) => {
         let result = s;
         // 使用正则全局替换所有中文标点
-        result = result.replace(/[\u201C\u201D\uFF02\u201E\u201F\u2033\u2036]/g, '"'); // 各种中文引号
+        result = result.replace(/[\u201C\u201D\uFF02\u201E\u201F\u2033\u2036]/g, '\\"'); // 各种中文引号
         result = result.replace(/[\u2018\u2019\uFF07]/g, "'"); // 各种中文单引号
         result = result.replace(/，/g, ',');
         result = result.replace(/：/g, ':');
@@ -309,7 +314,7 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
         // 移除可能存在的零宽字符、BOM等
         let result = s.replace(/[\u200B-\u200D\uFEFF\u200E\u200F]/g, '');
         // 再替换中文标点
-        result = result.replace(/[\u201C\u201D\uFF02\u201E\u201F\u2033\u2036]/g, '"');
+        result = result.replace(/[\u201C\u201D\uFF02\u201E\u201F\u2033\u2036]/g, '\\"');
         result = result.replace(/[\u2018\u2019\uFF07]/g, "'");
         result = result.replace(/，/g, ',');
         result = result.replace(/：/g, ':');
@@ -338,7 +343,7 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
             continue;
           }
           // 处理各种引号
-          const isQuote = c === '"' || c === '\u201C' || c === '\u201D';
+          const isQuote = c === '"';
           if (isQuote) {
             inString = !inString;
             continue;
@@ -365,7 +370,7 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
         // 修复未引用的键（{ a: 1 } -> { "a": 1 }）
         result = result.replace(/([{]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/g, '$1"$2"$3');
         // 替换中文标点
-        result = result.replace(/[\u201C\u201D\uFF02]/g, '"');
+        result = result.replace(/[\u201C\u201D\uFF02]/g, '\\"');
         result = result.replace(/，/g, ',');
         return result;
       },
@@ -393,7 +398,7 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
             escapeNext = true;
             continue;
           }
-          const isQuote = c === '"' || c === '\u201C' || c === '\u201D';
+          const isQuote = c === '"';
           if (isQuote) {
             inString = !inString;
             continue;
@@ -448,7 +453,7 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
             escapeNext = true;
             continue;
           }
-          const isQuote = c === '"' || c === '\u201C' || c === '\u201D';
+          const isQuote = c === '"';
           if (isQuote) {
             inString = !inString;
             continue;
@@ -482,7 +487,7 @@ export function safeParseJSON(jsonString: string, maxAttempts = 7): any {
           for (let i = 0; i < partial.length; i++) {
             const c = partial[i];
             if (c === '\\') { i++; continue; }
-            const isQuote = c === '"' || c === '\u201C' || c === '\u201D';
+            const isQuote = c === '"';
             if (isQuote) { inStr = !inStr; continue; }
             if (!inStr && c === '{') openBraces++;
           }
